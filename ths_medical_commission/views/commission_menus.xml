@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem
+            id="menu_ths_medical_commission_lines"
+            name="Commission Lines"
+            parent="ths_medical_base.menu_ths_medical_billing"
+            action="action_ths_medical_commission_line"
+            sequence="20"
+            groups="account.group_account_invoice"/>
+</odoo>

@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_ths_medical_commission_line_tree" model="ir.ui.view">
+        <field name="name">ths.medical.commission.line.tree</field>
+        <field name="model">ths.medical.commission.line</field>
+        <field name="arch" type="xml">
+            <tree string="Commission Lines" decoration-muted="state=='cancelled'" decoration-success="state=='paid'">
+                <field name="date" widget="datetime" optional="show"/>
+                <field name="pos_order_id" optional="show"/>
+                <field name="provider_id"/>
+                <field name="patient_id" optional="show"/>
+                <field name="product_id" optional="show"/>
+                <field name="base_amount" sum="Total Base"/>
+                <field name="commission_rate" optional="show" avg="Avg Rate"/>
+                <field name="commission_amount" sum="Total Commission"/>
+                <field name="currency_id" column_invisible="True"/>
+                <field name="state" widget="badge" decoration-success="state == 'paid'"
+                       decoration-info="state in ('draft', 'confirmed')" decoration-warning="state == 'cancelled'"/>
+                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
+                <field name="pos_session_id" optional="hide"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_ths_medical_commission_line_form" model="ir.ui.view">
+        <field name="name">ths.medical.commission.line.form</field>
+        <field name="model">ths.medical.commission.line</field>
+        <field name="arch" type="xml">
+            <form string="Commission Line">
+                <header>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,confirmed,paid"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" readonly="1"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="provider_id" options="{'no_open': True}"/>
+                            <field name="date" readonly="1"/>
+                            <field name="pos_order_id" options="{'no_open': True}"/>
+                            <field name="pos_order_line_id" options="{'no_open': True}"/>
+                        </group>
+                        <group>
+                            <field name="product_id" options="{'no_open': True}"/>
+                            <field name="patient_id" options="{'no_open': True}"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                    </group>
+                    <group string="Commission Calculation">
+                        <field name="base_amount" readonly="1"/>
+                        <field name="commission_rate" readonly="1"/>
+                        <field name="commission_amount" readonly="1"/>
+                    </group>
+                    <notebook>
+                        <page string="Notes" name="notes">
+                            <field name="notes"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_ths_medical_commission_line_search" model="ir.ui.view">
+        <field name="name">ths.medical.commission.line.search</field>
+        <field name="model">ths.medical.commission.line</field>
+        <field name="arch" type="xml">
+            <search string="Search Commission Lines">
+                <field name="name" string="Commission Line"/>
+                <field name="provider_id"/>
+                <field name="pos_order_id"/>
+                <field name="product_id"/>
+                <field name="patient_id"/>
+                <field name="date"/>
+                <filter string="Draft" name="filter_draft" domain="[('state', '=', 'draft')]"/>
+                <filter string="Confirmed" name="filter_confirmed" domain="[('state', '=', 'confirmed')]"/>
+                <filter string="Paid" name="filter_paid" domain="[('state', '=', 'paid')]"/>
+                <filter string="Cancelled" name="filter_cancelled" domain="[('state', '=', 'cancelled')]"/>
+                <separator/>
+                <filter string="Date" name="filter_date" date="date"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+                <group expand="0" string="Group By">
+                    <filter string="Provider" name="groupby_provider" context="{'group_by': 'provider_id'}"/>
+                    <filter string="Status" name="groupby_state" context="{'group_by': 'state'}"/>
+                    <filter string="POS Order" name="groupby_pos_order" context="{'group_by': 'pos_order_id'}"/>
+                    <filter string="Date" name="groupby_date" context="{'group_by': 'date:day'}"/>
+                    <filter string="Company" name="groupby_company" context="{'group_by': 'company_id'}"
+                            groups="base.group_multi_company"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_ths_medical_commission_line" model="ir.actions.act_window">
+        <field name="name">Commission Lines</field>
+        <field name="res_model">ths.medical.commission.line</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="view_ths_medical_commission_line_search"/>
+        <field name="context">{'search_default_groupby_provider': 1, 'search_default_filter_draft': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No commission lines found.
+            </p>
+            <p>
+                Commission lines are generated automatically when Point of Sale orders containing provider and
+                commission information are paid or invoiced.
+            </p>
+        </field>
+    </record>
+
+</odoo>

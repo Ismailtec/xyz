@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <record id="product_sub_type_none" model="ths.product.sub.type">
+        <field name="name">None Medical</field>
+        <field name="code">NMD</field>
+        <field name="product_group">none</field>
+        <field name="is_for_service" eval="False"/>
+        <field name="sequence_id" ref="seq_product_sub_type_nmd"/>
+    </record>
+    <record id="product_sub_type_fb" model="ths.product.sub.type">
+        <field name="name">Cafeteria</field>
+        <field name="code">CAFE</field>
+        <field name="product_group">cafe</field>
+        <field name="is_for_service" eval="False"/>
+        <field name="sequence_id" ref="seq_product_sub_type_cafe"/>
+    </record>
+    <record id="product_sub_type_other" model="ths.product.sub.type">
+        <field name="name">Retail Products</field>
+        <field name="code">RETP</field>
+        <field name="product_group">products</field>
+        <field name="is_for_service" eval="False"/>
+        <field name="sequence_id" ref="seq_product_sub_type_retp"/>
+    </record>
+    <record id="product_sub_type_appointment" model="ths.product.sub.type">
+        <field name="name">Consultation</field>
+        <field name="code">CONS</field>
+        <field name="product_group">consultation</field>
+        <field name="is_for_service" eval="True"/>
+        <field name="sequence_id" ref="seq_product_sub_type_cons"/>
+    </record>
+    <record id="product_sub_type_medicine" model="ths.product.sub.type">
+        <field name="name">Medicine</field>
+        <field name="code">MED</field>
+        <field name="product_group">drugs</field>
+        <field name="is_for_service" eval="False"/>
+        <field name="sequence_id" ref="seq_product_sub_type_med"/>
+    </record>
+    <record id="product_sub_type_procedure" model="ths.product.sub.type">
+        <field name="name">Services</field>
+        <field name="code">SERV</field>
+        <field name="product_group">services</field>
+        <field name="is_for_service" eval="True"/>
+        <field name="sequence_id" ref="seq_product_sub_type_serv"/>
+    </record>
+    <record id="product_sub_type_inpatient" model="ths.product.sub.type">
+        <field name="name">Hospitalization</field>
+        <field name="code">IPD</field>
+        <field name="product_group">hospitalization</field>
+        <field name="is_for_service" eval="True"/>
+        <field name="sequence_id" ref="seq_product_sub_type_ipd"/>
+    </record>
+    <record id="product_sub_type_radiology" model="ths.product.sub.type">
+        <field name="name">Radiology</field>
+        <field name="code">RAD</field>
+        <field name="product_group">rad</field>
+        <field name="is_for_service" eval="True"/>
+        <field name="sequence_id" ref="seq_product_sub_type_rad"/>
+    </record>
+    <record id="product_sub_type_pathology" model="ths.product.sub.type">
+        <field name="name">Laboratory</field>
+        <field name="code">LAB</field>
+        <field name="product_group">lab</field>
+        <field name="is_for_service" eval="True"/>
+        <field name="sequence_id" ref="seq_product_sub_type_lab"/>
+    </record>
+    <record id="product_sub_type_vaccination" model="ths.product.sub.type">
+        <field name="name">Vaccination</field>
+        <field name="code">VCN</field>
+        <field name="product_group">vaccine</field>
+        <field name="is_for_service" eval="True"/>
+        <field name="sequence_id" ref="seq_product_sub_type_vcn"/>
+    </record>
+    <record id="product_sub_type_surgery" model="ths.product.sub.type">
+        <field name="name">Operation</field>
+        <field name="code">OPR</field>
+        <field name="product_group">operations</field>
+        <field name="is_for_service" eval="True"/>
+        <field name="sequence_id" ref="seq_product_sub_type_opr"/>
+    </record>
+    <record id="product_sub_type_dental" model="ths.product.sub.type">
+        <field name="name">Dental</field>
+        <field name="code">DEN</field>
+        <field name="product_group">dental</field>
+        <field name="is_for_service" eval="True"/>
+        <field name="sequence_id" ref="seq_product_sub_type_den"/>
+    </record>
+    <record id="product_sub_type_clinicitems" model="ths.product.sub.type">
+        <field name="name">Clinic Items</field>
+        <field name="code">CIT</field>
+        <field name="product_group">consumables</field>
+        <field name="is_for_service" eval="False"/>
+        <field name="sequence_id" ref="seq_product_sub_type_cit"/>
+    </record>
+
+</odoo>

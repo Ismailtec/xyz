@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_ths_medical_encounter_list" model="ir.ui.view">
+        <field name="name">ths.medical.base.encounter.list</field>
+        <field name="model">ths.medical.base.encounter</field>
+        <field name="arch" type="xml">
+            <list string="Medical Encounters" decoration-info="state=='draft'" decoration-muted="state=='cancelled'"
+                  decoration-success="state=='billed'">
+                <field name="name"/>
+                <field name="appointment_id" optional="show"/>
+                <field name="patient_id"/>
+                <field name="practitioner_id" optional="show"/>
+                <field name="date_start" widget="datetime" optional="show"/>
+                <field name="date_end" widget="datetime" optional="hide"/>
+                <field name="state" widget="badge" decoration-success="state == 'billed'"
+                       decoration-info="state in ('draft', 'in_progress', 'ready_for_billing')"
+                       decoration-warning="state == 'cancelled'"/>
+                <field name="daily_id" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_ths_medical_encounter_form" model="ir.ui.view">
+        <field name="name">ths.medical.base.encounter.form</field>
+        <field name="model">ths.medical.base.encounter</field>
+        <field name="arch" type="xml">
+            <form string="Medical Encounter">
+                <header>
+                    <button name="action_ready_for_billing" string="Ready for Billing" type="object"
+                            class="oe_highlight" invisible="state != 'in_progress'"/>
+                    <button name="action_reset_to_draft" string="Reset to Draft" type="object"
+                            invisible="state not in ('cancelled', 'ready_for_billing')"/>
+                    <button name="action_cancel" string="Cancel Encounter" type="object"
+                            invisible="state not in ('draft', 'in_progress', 'ready_for_billing')"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,in_progress,ready_for_billing,billed"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="%(calendar.action_calendar_event)d" type="action" icon="fa-calendar"
+                                invisible="not appointment_id">
+                            <span>Appointment</span>
+                        </button>
+                    </div>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" readonly="1"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="appointment_id" readonly="1" options="{'no_open': True}"/>
+                            <field name="partner_id" string="Customer/Owner" readonly="1" options="{'no_open': True}"/>
+                            <field name="patient_id" string="Patient" readonly="1" options="{'no_open': True}"/>
+                        </group>
+                        <group>
+                            <field name="practitioner_id" readonly="1" options="{'no_open': True}"
+                                   string="Default Practitioner"/>
+                            <field name="date_start" readonly="1"/>
+                            <field name="date_end" readonly="1"/>
+                            <field name="daily_id" readonly="1" options="{'no_open': True}"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Services &amp; Products Used" name="service_lines">
+                            <field name="service_line_ids" nolabel="1"
+                                   context="{'default_encounter_id': id, 'default_practitioner_id': practitioner_id}">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="product_id" required="1"/>
+                                    <field name="description" optional="show"/>
+                                    <field name="quantity"/>
+                                    <field name="price_unit" widget="monetary"
+                                           options="{'currency_field': 'currency_id'}"/>
+                                    <field name="discount" widget="percentage" optional="show"/>
+                                    <field name="practitioner_id" options="{'no_open': True}" required="1"/>
+                                    <field name="commission_pct" optional="show"/>
+                                    <field name="notes" optional="hide"/>
+                                    <field name="encounter_id" column_invisible="True"/>
+                                    <field name="appointment_id" column_invisible="True"/>
+                                    <field name="partner_id" column_invisible="True"/>
+                                    <field name="patient_id" column_invisible="True"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Clinical Documentation" name="clinical_documentation">
+                            <group string="Visit Details">
+                                <field name="chief_complaint" placeholder="Reason for visit..."/>
+                                <field name="history_illness" placeholder="History of present illness..."/>
+                                <field name="vitals" placeholder="Temperature, Heart Rate, Respiratory Rate, BP..."/>
+                            </group>
+                            <separator string="SOAP Notes"/>
+                            <group>
+                                <field name="ths_subjective" placeholder="Subjective findings..."/>
+                                <field name="ths_objective" placeholder="Objective findings..."/>
+                                <field name="ths_assessment" placeholder="Assessment/Diagnosis..."/>
+                                <field name="ths_plan" placeholder="Treatment plan, orders, follow-up..."/>
+                            </group>
+                            <separator string="Summaries"/>
+                            <group>
+                                <field name="ths_diagnosis_text" placeholder="Summary of diagnoses..."/>
+                                <field name="ths_procedures_text" placeholder="Summary of procedures performed..."/>
+                                <field name="ths_prescriptions_text" placeholder="Summary of prescriptions issued..."/>
+                                <field name="ths_lab_orders_text" placeholder="Summary of lab tests ordered..."/>
+                                <field name="ths_radiology_orders_text"
+                                       placeholder="Summary of radiology exams ordered..."/>
+                            </group>
+                        </page>
+                        <page string="Internal Notes" name="internal_notes">
+                            <field name="notes" placeholder="Add internal administrative notes here..."/>
+                        </page>
+                        <!--                        <page string="Pending POS Items" name="pending_pos_items" groups="base.group_no_one">-->
+                        <!--                            <field name="encounter_line_ids" nolabel="1" readonly="1">-->
+                        <!--                                <list>-->
+                        <!--                                    <field name="product_id"/>-->
+                        <!--                                    <field name="quantity"/>-->
+                        <!--                                    <field name="price_unit"/>-->
+                        <!--                                    <field name="practitioner_id"/>-->
+                        <!--                                    <field name="state"/>-->
+                        <!--                                    <field name="pos_order_line_id"/>-->
+                        <!--                                </list>-->
+                        <!--                            </field>-->
+                        <!--                        </page>-->
+                    </notebook>
+                </sheet>
+                <!-- Attachment preview -->
+                <div class="o_attachment_preview"/>
+                <!-- Chatter -->
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_ths_medical_encounter_search" model="ir.ui.view">
+        <field name="name">ths.medical.base.encounter.search</field>
+        <field name="model">ths.medical.base.encounter</field>
+        <field name="arch" type="xml">
+            <search string="Search Medical Encounters">
+                <field name="name" string="Encounter ID"/>
+                <field name="appointment_id"/>
+                <field name="partner_id"
+                       filter_domain="['|', ('partner_id', 'ilike', self), ('patient_id', 'ilike', self)]"
+                       string="Customer/Patient"/>
+                <field name="patient_id" string="Patient"/>
+                <field name="practitioner_id"/>
+                <field name="date_start"/>
+                <field name="daily_id"/>
+                <filter string="Draft" name="filter_draft" domain="[('state', '=', 'draft')]"/>
+                <filter string="In Progress" name="filter_in_progress" domain="[('state', '=', 'in_progress')]"/>
+                <filter string="Ready for Billing" name="filter_ready_billing"
+                        domain="[('state', '=', 'ready_for_billing')]"/>
+                <filter string="Billed" name="filter_billed" domain="[('state', '=', 'billed')]"/>
+                <filter string="Cancelled" name="filter_cancelled" domain="[('state', '=', 'cancelled')]"/>
+                <separator/>
+                <filter string="Today" name="filter_today"
+                        domain="[('date_start', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('date_start', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
+                <filter string="My Encounters" name="filter_my_encounters"
+                        domain="[('practitioner_id.user_id', '=', uid)]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Practitioner" name="groupby_practitioner"
+                            context="{'group_by': 'practitioner_id'}"/>
+                    <filter string="Patient" name="groupby_patient" context="{'group_by': 'patient_id'}"/>
+                    <filter string="Status" name="groupby_state" context="{'group_by': 'state'}"/>
+                    <filter string="Daily Record" name="groupby_daily" context="{'group_by': 'daily_id'}"/>
+                    <filter string="Appointment Date" name="groupby_date" context="{'group_by': 'date_start:day'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_ths_medical_encounter" model="ir.actions.act_window">
+        <field name="name">Medical Encounters</field>
+        <field name="res_model">ths.medical.base.encounter</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_ths_medical_encounter_search"/>
+        <field name="context">{}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create a new Medical Encounter
+            </p>
+            <p>
+                Encounters track clinical visits, usually created automatically from appointments. Add services/products
+                used during the visit.
+            </p>
+        </field>
+    </record>
+
+</odoo>

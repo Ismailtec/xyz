@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_calendar_event_form_inherit_ths_medical" model="ir.ui.view">
+        <field name="name">calendar.event.form.inherit.ths.medical</field>
+        <field name="model">calendar.event</field>
+        <field name="inherit_id" ref="calendar.view_calendar_event_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet" position="before">
+                <header>
+                    <field name="ths_status" widget="statusbar" options="{'clickable': '1'}"
+                           statusbar_visible="scheduled,confirmed,checked_in,in_progress,completed,billed"/>
+                    <button name="action_check_in" string="Check In" type="object"
+                            class="oe_highlight" invisible="ths_status not in ('scheduled', 'confirmed')"/>
+                    <button name="action_start_consultation" string="Start Consultation" type="object"
+                            class="oe_highlight" invisible="ths_status != 'checked_in'"/>
+                    <button name="action_complete_and_bill" string="Complete &amp; Ready for Billing" type="object"
+                            class="oe_highlight" invisible="ths_status not in ('checked_in', 'in_progress')"/>
+                    <button name="action_mark_no_show" string="Mark No Show" type="object"
+                            invisible="ths_status not in ('scheduled', 'confirmed')"/>
+                    <button name="action_cancel_appointment" string="Cancel Appointment" type="object"
+                            invisible="ths_status in ('completed', 'billed', 'cancelled_by_patient', 'cancelled_by_clinic', 'no_show')"/>
+                </header>
+            </xpath>
+
+            <xpath expr="//field[@name='state']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+            <!--            <xpath expr="//field[@name='state']" position="after">-->
+            <!--                <field name="ths_status" widget="statusbar" options="{'clickable': '1'}"-->
+            <!--                       statusbar_visible="scheduled,confirmed,checked_in,in_progress,completed,billed"/>-->
+            <!--            </xpath>-->
+
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_encounter" type="object" icon="fa-stethoscope"
+                        class="oe_stat_button" invisible="ths_encounter_count == 0">
+                    <field name="ths_encounter_count" widget="statinfo" string="Encounter"/>
+                </button>
+            </xpath>
+
+            <xpath expr="//notebook" position="inside">
+                <page string="Medical Details" name="medical_details">
+                    <group name="medical_top">
+                        <group name="medical_col_1">
+                            <field name="ths_is_walk_in" widget="boolean_toggle"/>
+                            <field name="ths_patient_id" string="Patient"
+                                   options="{'no_create': True, 'no_quick_create': True}"
+                                   context="{'default_is_patient': True, 'default_ths_partner_type_code': 'PAT'}"
+                                   groups="base.group_user"/>
+                            <field name="appointment_type_id"
+                                   options="{'no_create': True, 'no_quick_create': True}"
+                                   context="{'default_schedule_based_on': 'resources'}"/>
+                        </group>
+                        <group name="medical_col_2">
+                            <field name="ths_practitioner_ar_id"
+                                   string="Service Provider"
+                                   invisible="not is_resource_based_type"
+                                   required="is_resource_based_type"
+                                   options="{'no_create': True, 'no_quick_create': True}"/>
+                            <field name="ths_location_ar_id"
+                                   string="Room"
+                                   invisible="not is_resource_based_type"
+                                   options="{'no_create': True, 'no_create_edit': True}"/>
+                            <field name="is_resource_based_type" readonly="1"/>
+                        </group>
+                    </group>
+                    <group string="Visit Information" name="medical_visit_info">
+                        <group>
+                            <field name="ths_reason_for_visit"
+                                   placeholder="e.g., Annual Checkup, Consultation for fever..."/>
+                            <field name="ths_practitioner_id" readonly="1" string="Practitioner (Ref)"/>
+                            <field name="ths_room_id" readonly="1" string="Room (Ref)"/>
+                        </group>
+                        <group>
+                            <field name="ths_check_in_time" readonly="1"/>
+                            <field name="ths_check_out_time" readonly="1"/>
+                            <field name="ths_cancellation_reason_id"
+                                   invisible="[('ths_status', 'not in', ['cancelled_by_patient', 'cancelled_by_clinic'])]"
+                                   options="{'no_create': True, 'no_quick_create': True}"/>
+                        </group>
+                    </group>
+                    <field name="ths_encounter_id" readonly="1" invisible="1"/>
+                </page>
+            </xpath>
+
+            <!--            <xpath expr="//field[@name='partner_ids']" position="attributes">-->
+            <!--                <attribute name="invisible">1</attribute>-->
+            <!--            </xpath>-->
+            <!--            <xpath expr="//label[@for='partner_ids']" position="attributes">-->
+            <!--                <attribute name="invisible">1</attribute>-->
+            <!--            </xpath>-->
+
+        </field>
+    </record>
+
+    <record id="view_calendar_event_list_inherit_ths_medical" model="ir.ui.view">
+        <field name="name">calendar.event.list.inherit.ths.medical</field>
+        <field name="model">calendar.event</field>
+        <field name="inherit_id" ref="calendar.view_calendar_event_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='partner_ids']" position="after">
+                <field name="ths_patient_id" optional="show"/>
+                <field name="ths_practitioner_id" optional="show"/>
+                <field name="ths_room_id" optional="show"/>
+                <field name="appointment_type_id" optional="hide"/>
+                <field name="ths_status" optional="show" widget="badge"/>
+                <field name="ths_is_walk_in" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_calendar_event_calendar_inherit_ths_medical" model="ir.ui.view">
+        <field name="name">calendar.event.calendar.inherit.ths.medical</field>
+        <field name="model">calendar.event</field>
+        <field name="inherit_id" ref="calendar.view_calendar_event_calendar"/>
+        <field name="arch" type="xml">
+            <xpath expr="//calendar" position="attributes">
+                <attribute name="color">ths_status</attribute>
+                <!--                <attribute name="mapping">{'room': 'ths_room_id', 'status': 'ths_status'}</attribute>-->
+                <!--                <attribute name="quick_add_fields">name,ths_practitioner_id,ths_room_id</attribute>-->
+                <!--                <attribute name="decoration-muted">ths_status in ('cancelled_by_patient', 'cancelled_by_clinic',-->
+                <!--                                                                  'no_show')</attribute>-->
+                <!--                <attribute name="decoration-success">ths_status == 'billed'</attribute>-->
+                <!--                <attribute name="decoration-warning">ths_status == 'completed'</attribute>-->
+                <!--                <attribute name="decoration-info">ths_status == 'checked_in'</attribute>-->
+            </xpath>
+            <xpath expr="//field[@name='partner_id']" position="after">
+                <field name="ths_patient_id"/>
+                <field name="ths_practitioner_id"/>
+                <field name="ths_room_id"/>
+                <field name="ths_status"/>
+                <field name="ths_is_walk_in"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_calendar_event_search_inherit_ths_medical" model="ir.ui.view">
+        <field name="name">calendar.event.search.inherit.ths.medical</field>
+        <field name="model">calendar.event</field>
+        <field name="inherit_id" ref="calendar.view_calendar_event_search"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='partner_ids']" position="after">
+                <field name="ths_patient_id"/>
+                <field name="ths_practitioner_id"/>
+                <field name="ths_room_id"/>
+                <field name="appointment_type_id"/>
+                <field name="ths_is_walk_in"/>
+            </xpath>
+            <xpath expr="//filter[@name='mymeetings']" position="after">
+                <filter string="Walk-ins" name="filter_walkin" domain="[('ths_is_walk_in', '=', True)]"/>
+                <separator/>
+                <filter string="Medical Status" name="groupby_ths_status" context="{'group_by': 'ths_status'}"/>
+                <filter string="Practitioner" name="groupby_practitioner"
+                        context="{'group_by': 'ths_practitioner_id'}"/>
+                <filter string="Room" name="groupby_room" context="{'group_by': 'ths_room_id'}"/>
+                <filter string="Appointment Type" name="groupby_app_type"
+                        context="{'group_by': 'appointment_type_id'}"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="ths_medical_resource_booking_gantt" model="ir.ui.view">
+        <field name="name">calendar.event.medical.resource.gantt</field>
+        <field name="model">calendar.event</field>
+        <field name="inherit_id" ref="appointment.calendar_event_view_gantt_booking_resource"/>
+        <field name="arch" type="xml">
+            <xpath expr="//gantt" position="inside">
+                <field name="ths_practitioner_id"/>
+                <field name="ths_room_id"/>
+            </xpath>
+            <!--            <gantt class="o_appointment_resource_booking_gantt"-->
+            <!--                   date_start="start"-->
+            <!--                   date_stop="stop"-->
+            <!--                   default_group_by="ths_practitioner_id"-->
+            <!--                   default_scale="day"-->
+            <!--                   display_unavailability="1"-->
+            <!--                   precision="{'day': 'hour:quarter', 'week': 'day:half', 'month': 'day:half', 'year': 'day:full'}"-->
+            <!--                   string="Medical Resources">-->
+
+            <!--                &lt;!&ndash; Required fields &ndash;&gt;-->
+            <!--                <field name="name"/>-->
+            <!--                <field name="start"/>-->
+            <!--                <field name="stop"/>-->
+            <!--                <field name="ths_practitioner_id"/>-->
+            <!--                <field name="ths_room_id"/>-->
+            <!--                <field name="ths_patient_id"/>-->
+            <!--                <field name="ths_status"/>-->
+            <!--                <field name="duration" invisible="1"/>-->
+            <!--                <field name="resource_ids" widget="many2many_tags"/>-->
+            <!--                <field name="appointment_type_id"/>-->
+
+            <!--                &lt;!&ndash; Template for popover &ndash;&gt;-->
+            <!--&lt;!&ndash;                <templates>&ndash;&gt;-->
+            <!--&lt;!&ndash;                    <div t-name="gantt-block">&ndash;&gt;-->
+            <!--&lt;!&ndash;                        <div class="o_gantt_title"><t t-esc="record.name"/></div>&ndash;&gt;-->
+            <!--&lt;!&ndash;                    </div>&ndash;&gt;-->
+            <!--&lt;!&ndash;                    <div t-name="gantt-popover">&ndash;&gt;-->
+            <!--&lt;!&ndash;                        <ul class="ps-1 mb-0 list-unstyled">&ndash;&gt;-->
+            <!--&lt;!&ndash;                            <li><strong>Doctor: </strong><t t-out="ths_practitioner_id[1]"/></li>&ndash;&gt;-->
+            <!--&lt;!&ndash;                            <li><strong>Room: </strong><t t-out="ths_room_id[1]"/></li>&ndash;&gt;-->
+            <!--&lt;!&ndash;                            <li><strong>Patient: </strong><t t-out="ths_patient_id[1]"/></li>&ndash;&gt;-->
+            <!--&lt;!&ndash;                            <li><strong>Start: </strong><t t-out="start.toFormat('f')"/></li>&ndash;&gt;-->
+            <!--&lt;!&ndash;                            <li><strong>End: </strong><t t-out="stop.toFormat('f')"/></li>&ndash;&gt;-->
+            <!--&lt;!&ndash;                            <li class="mt-2">&ndash;&gt;-->
+            <!--&lt;!&ndash;                                <strong>Status: </strong>&ndash;&gt;-->
+            <!--&lt;!&ndash;                                <span t-attf-class="badge badge-#{ths_status}">&ndash;&gt;-->
+            <!--&lt;!&ndash;                                    <t t-out="ths_status"/>&ndash;&gt;-->
+            <!--&lt;!&ndash;                                </span>&ndash;&gt;-->
+            <!--&lt;!&ndash;                            </li>&ndash;&gt;-->
+            <!--&lt;!&ndash;                        </ul>&ndash;&gt;-->
+            <!--&lt;!&ndash;                    </div>&ndash;&gt;-->
+            <!--&lt;!&ndash;                </templates>&ndash;&gt;-->
+            <!--            </gantt>-->
+        </field>
+    </record>
+
+    <record id="action_calendar_event_medical_gantt" model="ir.actions.act_window">
+        <field name="name">Medical Schedule</field>
+        <field name="res_model">calendar.event</field>
+        <field name="view_mode">gantt,calendar,tree,form</field>
+        <field name="view_id" ref="ths_medical_resource_booking_gantt"/>
+        <field name="domain">[('ths_practitioner_id', '!=', False)]</field>
+        <field name="context">{
+            'default_schedule_based_on': 'resources',
+            'default_ths_status': 'scheduled'
+        }</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No medical appointments found
+            </p>
+            <p>
+                Schedule your first medical appointment
+            </p>
+        </field>
+    </record>
+
+</odoo>
