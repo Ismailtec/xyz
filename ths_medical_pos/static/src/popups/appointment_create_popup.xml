@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="template" xml:space="preserve">
+
+    <t t-name="ths_medical_pos.AppointmentCreatePopup" owl="1">
+        <div role="dialog" class="modal-dialog">
+            <div class="popup">
+                <header class="title">
+                    <t t-esc="props.title || 'New Appointment'"/>
+                </header>
+                <main class="body">
+                     <t t-if="state.isLoading">
+                        <div class="loading-indicator text-center p-3">
+                            <i class="fa fa-spinner fa-spin fa-lg text-muted"/>
+                            Loading...
+                         </div>
+                    </t>
+                    <t t-else="">
+                        <div class="appointment-edit-form">
+                             <div class="form-group mb-3">
+                                 <label class="form-label fw-bold" for="app-name">Subject</label>
+                                 <input type="text" id="app-name" class="form-control"
+                                        placeholder="e.g., Fido Checkup, Vet Consultation..." t-model="state.name"/>
+                             </div>
+
+                            <div class="row">
+                                 <div class="col form-group mb-3">
+                                     <label class="form-label" for="app-start">Start Time</label>
+                                     <input type="text" id="app-start" class="form-control" disabled="disabled"
+                                            t-att-value="formatDateForDisplay(state.startDate)"/>
+                                 </div>
+                                <div class="col form-group mb-3">
+                                     <label class="form-label" for="app-end">End Time</label>
+                                    <input type="text" id="app-end" class="form-control" disabled="disabled"
+                                           t-att-value="formatDateForDisplay(state.endDate)"/>
+                                 </div>
+                            </div>
+
+                            <div class="form-group mb-3">
+                                 <label class="form-label fw-bold" for="app-patient">Patient (Pet)</label>
+                                <select id="app-patient" class="form-select" t-model="state.patientId"
+                                        t-on-change="onPatientChange">
+                                     <option value="">Select Pet...</option>
+                                    <t t-if="state.availablePatients.length > 0">
+                                         <t t-foreach="state.availablePatients" t-as="patient" t-key="patient.id">
+                                             <option t-att-value="patient.id"><t t-esc="patient.name"/></option>
+                                         </t>
+                                     </t>
+                                    <t t-else="">
+                                         <option value="" disabled="disabled">No Pets found</option>
+                                     </t>
+                                 </select>
+                                <div t-if="state.ownerId" class="small text-muted mt-1">
+                                     Owner: <t t-esc="pos.db.get_partner_by_id(state.ownerId)?.name"/>
+                                 </div>
+                             </div>
+
+                            <div class="form-group mb-3">
+                                 <label class="form-label" for="app-provider">Provider (Optional)</label>
+                                <select id="app-provider" class="form-select" t-model="state.practitionerId">
+                                     <option value="">Select Provider...</option>
+                                    <t t-if="state.availablePractitioners.length > 0">
+                                          <t t-foreach="state.availablePractitioners" t-as="prac" t-key="prac.id">
+                                             <option t-att-value="prac.id"><t t-esc="prac.name"/></option>
+                                         </t>
+                                     </t>
+                                    <t t-else="">
+                                         <option value="" disabled="disabled">No Providers found</option>
+                                     </t>
+                                 </select>
+                             </div>
+
+                            <div class="form-group mb-3">
+                                 <label class="form-label" for="app-room">Room (Optional)</label>
+                                <select id="app-room" class="form-select" t-model="state.roomId">
+                                     <option value="">Select Room...</option>
+                                    <t t-if="state.availableRooms.length > 0">
+                                          <t t-foreach="state.availableRooms" t-as="room" t-key="room.id">
+                                             <option t-att-value="room.id"><t t-esc="room.name"/></option>
+                                         </t>
+                                     </t>
+                                    <t t-else="">
+                                         <option value="" disabled="disabled">No Rooms found</option>
+                                     </t>
+                                 </select>
+                             </div>
+
+                            <div class="form-group mb-3">
+                                 <label class="form-label" for="app-reason">Reason for Visit (Optional)</label>
+                                <textarea id="app-reason" class="form-control" rows="2" placeholder="..."
+                                          t-model="state.reason"/>
+                             </div>
+                        </div>
+                    </t>
+                </main>
+                <footer class="footer">
+                    <div class="button confirm btn btn-lg btn-primary" t-on-click="confirm"
+                         t-att-disabled="state.isLoading">
+                        <t t-esc="props.confirmText"/>
+                    </div>
+                    <div class="button cancel btn btn-lg btn-secondary" t-on-click="cancel">
+                        <t t-esc="props.cancelText"/>
+                    </div>
+                </footer>
+            </div>
+        </div>
+    </t>
+
+</templates>

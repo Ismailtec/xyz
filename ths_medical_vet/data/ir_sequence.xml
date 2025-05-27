@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+
+    <record id="seq_partner_ref_pet_owner" model="ir.sequence">
+        <field name="name">Pet Owner</field>
+        <field name="code">res.partner.ref.pet.owner</field>
+        <field name="prefix">OWN-</field>
+        <field name="padding">6</field>
+        <field name="company_id" eval="False"/>
+    </record>
+
+    <record id="seq_partner_ref_pet" model="ir.sequence">
+        <field name="name">Pet File</field>
+        <field name="code">res.partner.ref.pet</field>
+        <field name="prefix">PET-</field>
+        <field name="padding">6</field>
+        <field name="company_id" eval="False"/>
+    </record>
+
+    <record id="seq_vet_boarding_stay" model="ir.sequence">
+        <field name="name">Boarding Stay</field>
+        <field name="code">vet.boarding.stay</field>
+        <field name="prefix">BRD-</field>
+        <field name="padding">7</field>
+        <field name="company_id" eval="False"/>
+    </record>
+
+</odoo>

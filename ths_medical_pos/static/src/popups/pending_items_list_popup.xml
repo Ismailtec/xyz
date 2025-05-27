@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="template" xml:space="preserve">
+
+    <t t-name="ths_medical_pos.PendingItemsListPopup" owl="1">
+        <div role="dialog" class="modal-dialog">
+            <div class="popup popup-lg">
+                <header class="title">
+                    <t t-esc="props.title || 'Pending Medical Items'"/>
+                </header>
+                <main class="body scrollable-y">
+                    <table class="table table-striped table-sm pending-items-table">
+                        <thead>
+                            <tr>
+                                <th>Patient</th>
+                                <th>Product/Service</th>
+                                <th>Qty</th>
+                                <th>Unit Price</th>
+                                <th>Provider</th>
+                                <th>Encounter</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <t t-if="itemsToShow.length === 0">
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted">No pending items found.</td>
+                                </tr>
+                            </t>
+                            <t t-foreach="itemsToShow" t-as="item" t-key="item.id">
+                                <tr class="pending-item-row" t-on-click="() => this.selectItem(item)">
+                                     <td><t t-esc="item.patient_id ? item.patient_id[1] : 'N/A'"/></td>
+                                    <td><t t-esc="item.product_id ? item.product_id[1] : 'N/A'"/></td>
+                                    <td class="text-end"><t t-esc="item.qty"/></td>
+                                    <td class="text-end"><t t-esc="formatCurrency(item.price_unit)"/></td>
+                                    <td><t t-esc="item.practitioner_id ? item.practitioner_id[1] : 'N/A'"/></td>
+                                    <td><t t-esc="item.encounter_id ? item.encounter_id[1] : 'N/A'"/></td>
+                                    <td>
+                                         <button class="btn btn-sm btn-primary">
+                                            <i class="fa fa-plus me-1"/>
+                                             Add
+                                         </button>
+                                    </td>
+                                </tr>
+                            </t>
+                        </tbody>
+                    </table>
+                </main>
+                <footer class="footer">
+                    <div class="button cancel btn btn-lg btn-secondary" t-on-click="cancel">
+                        Close
+                    </div>
+                    </footer>
+            </div>
+        </div>
+    </t>
+
+</templates>

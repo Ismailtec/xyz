@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="action_vet_pet_owners" model="ir.actions.act_window">
+            <field name="name">Pet Owners</field>
+            <field name="res_model">res.partner</field>
+            <field name="view_mode">list,form,kanban</field>
+            <field name="domain" eval="[('ths_partner_type_id', '=', ref('ths_medical_vet.partner_type_pet_owner'))]"/>
+            <field name="context"
+                   eval="{'default_ths_partner_type_id': ref('ths_medical_vet.partner_type_pet_owner'),'default_is_company': False,'default_is_individual': True}"/>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Create a new Pet Owner.
+                </p>
+                <p>
+                    Manage contacts who are owners of pets.
+                </p>
+            </field>
+        </record>
+
+        <record id="action_vet_pets" model="ir.actions.act_window">
+            <field name="name">Pets</field>
+            <field name="res_model">res.partner</field>
+            <field name="view_mode">list,form,kanban</field>
+            <field name="domain" eval="[('ths_partner_type_id', '=', ref('ths_medical_vet.partner_type_pet'))]"/>
+            <field name="context"
+                   eval="{'default_ths_partner_type_id': ref('ths_medical_vet.partner_type_pet'),'default_is_company': False,'default_is_individual': True}"/>
+            <field name="help" type="html">
+                <div class="o_view_nocontent">
+                    <div class="o_nocontent_help">
+                        <p class="o_view_nocontent_smiling_face">
+                            Create a new Pet record.
+                        </p>
+                        <p>
+                            Manage animal patient records. Remember to link them to their Pet Owner.
+                        </p>
+                    </div>
+                </div>
+            </field>
+        </record>
+        <menuitem
+                id="menu_ths_medical_vet_root"
+                name="Veterinary"
+                parent="ths_medical_base.menu_ths_medical_root"
+                sequence="5"
+                groups="ths_hr.group_ths_hr_user"/>
+        <menuitem
+                id="menu_ths_medical_vet_boarding"
+                name="Boarding"
+                parent="menu_ths_medical_vet_root"
+                sequence="30"/>
+
+        <menuitem
+                id="menu_ths_medical_vet_boarding_stays"
+                name="Boarding Stays"
+                parent="menu_ths_medical_vet_boarding"
+                action="action_vet_boarding_stay"
+                sequence="10"/>
+
+        <menuitem
+                id="menu_ths_medical_vet_boarding_cages"
+                name="Boarding Cages"
+                parent="menu_ths_medical_vet_boarding"
+                action="action_vet_boarding_cage"
+                sequence="20"/>
+
+        <menuitem
+                id="menu_vet_pet_owners"
+                name="Pet Owners"
+                parent="menu_ths_medical_vet_root"
+                action="action_vet_pet_owners"
+                sequence="10"/>
+
+        <menuitem
+                id="menu_vet_pets"
+                name="Pets"
+                parent="menu_ths_medical_vet_root"
+                action="action_vet_pets"
+                sequence="20"/>
+    </data>
+</odoo>

@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_partner_form_inherit_ths_vet" model="ir.ui.view">
+        <field name="name">res.partner.form.inherit.ths.vet</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="ths_base.view_partner_form_inherit_ths_base"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[hasclass('d-inline-block')]" position="after">
+                <field name="ths_pet_owner_id"
+                       invisible="not is_pet"
+                       required="is_pet"
+                       domain="[('ths_partner_type_id', '=', %(ths_medical_vet.partner_type_pet_owner)d)]"
+                       options="{'no_open': True, 'no_create': True, 'no_quick_create': True}"/>
+            </xpath>
+            <xpath expr="//sheet//group//group[2]" position="replace">
+                <group string="Pet Information" name="pet_info" invisible="not is_pet">
+                    <field name="ths_species_id"/>
+                    <field name="ths_breed_id"/>
+                    <field name="ths_dob"/>
+                    <field name="ths_age"/>
+                    <field name="gender"/>
+                    <field name="is_neutered_spayed" widget="boolean_toggle" invisible="not is_pet"/>
+                    <field name="ths_microchip"/>
+                    <field name="ths_deceased"/>
+                    <field name="ths_deceased_date" invisible="not ths_deceased"/>
+                </group>
+            </xpath>
+            <xpath expr="//sheet//group//group//span" position="attributes">
+                <attribute name="invisible">is_pet</attribute>
+            </xpath>
+            <xpath expr="//field[@name='vat']" position="attributes">
+                <attribute name="invisible">is_pet</attribute>
+            </xpath>
+            <xpath expr="//notebook" position="attributes">
+                <attribute name="disable_autofocus">True</attribute>
+            </xpath>
+            <xpath expr="//notebook//page[@name='contact_addresses']" position="before">
+                <page string="Pets" name="owner_pets" invisible="not is_pet_owner">
+                    <field name="ths_pet_ids" nolabel="1" readonly="1">
+                        <list>
+                            <field name="name"/>
+                            <field name="ref" string="Pet Ref"/>
+                            <field name="ths_species_id"/>
+                            <field name="ths_breed_id"/>
+                            <field name="gender"/>
+                            <field name="is_neutered_spayed" widget="boolean_toggle"/>
+                            <field name="ths_dob"/>
+                            <field name="ths_age"/>
+                            <field name="ths_microchip"/>
+                            <field name="ths_deceased"/>
+                        </list>
+                    </field>
+                </page>
+            </xpath>
+
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button class="oe_stat_button" type="object" name="action_view_partner_pets"
+                        icon="fa-paw"
+                        invisible="not is_pet_owner or ths_pet_count == 0">
+                    <field name="ths_pet_count" widget="statinfo" string="Pets"/>
+                </button>
+            </xpath>
+
+        </field>
+    </record>
+
+    <record id="view_partner_list_inherit_ths_vet" model="ir.ui.view">
+        <field name="name">res.partner.list.inherit.ths.vet</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.view_partner_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//list" position="inside">
+                <field name="is_pet"/>
+                <field name="is_pet_owner"/>
+            </xpath>
+            <xpath expr="//field[@name='ths_partner_type_id']" position="after">
+                <field name="ths_pet_owner_id" optional="hide" column_invisible="0"/>
+                <field name="ths_species_id" optional="hide" column_invisible="0"/>
+                <field name="ths_breed_id" optional="hide" column_invisible="0"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_res_partner_filter_inherit_ths_vet" model="ir.ui.view">
+        <field name="name">res.partner.select.inherit.ths.vet</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="ths_base.view_res_partner_filter_inherit_ths_base"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='ths_partner_type_id']" position="after">
+                <field name="ths_pet_owner_id"/>
+                <field name="ths_species_id"/>
+                <field name="ths_breed_id"/>
+                <field name="ths_microchip"/>
+            </xpath>
+            <xpath expr="//filter[@name='filter_partner_type']" position="before">
+                <filter string="Pets" name="filter_is_pet"
+                        domain="[('ths_partner_type_id', '=', %(ths_medical_vet.partner_type_pet)d)]"/>
+                <filter string="Pet Owners" name="filter_is_pet_owner"
+                        domain="[('ths_partner_type_id', '=', %(ths_medical_vet.partner_type_pet_owner)d)]"/>
+                <filter string="Deceased Pets" name="filter_deceased_pets"
+                        domain="[('ths_partner_type_id', '=', %(ths_medical_vet.partner_type_pet)d), ('ths_deceased', '=', True)]"/>
+                <separator/>
+            </xpath>
+            <xpath expr="//filter[@name='filter_partner_type']" position="after">
+                <filter string="Pet Owner" name="groupby_pet_owner" context="{'group_by': 'ths_pet_owner_id'}"/>
+                <filter string="Species" name="groupby_species" context="{'group_by': 'ths_species_id'}"/>
+                <filter string="Breed" name="groupby_breed" context="{'group_by': 'ths_breed_id'}"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_partner_kanban_inherit_ths_vet" model="ir.ui.view">
+        <field name="name">res.partner.kanban.inherit.ths.vet</field>
+        <field name="model">res.partner</field>
+        <field name="inherit_id" ref="base.res_partner_kanban_view"/>
+        <field name="arch" type="xml">
+            <!-- Add the is_pet field so we can use it -->
+            <xpath expr="//field[@name='active']" position="after">
+                <field name="is_pet"/>
+            </xpath>
+
+            <!-- Replace the div that contains the avatar for individual contacts -->
+            <xpath expr='//t[@t-if="!record.is_company.raw_value"]/div[hasclass("o_kanban_image_fill")]'
+                   position="replace">
+                <t t-if="record.is_pet.raw_value">
+                    <!-- Pet icon using FontAwesome with proper accessibility -->
+                    <div class="o_kanban_image_fill position-relative w-100 d-flex align-items-center justify-content-center"
+                         style="background: #f8f9fa;">
+                        <i class="fa fa-paw" title="Pet Avatar" style="font-size: 48px; color: #875A7B;"/>
+                    </div>
+                </t>
+                <t t-else="">
+                    <!-- Standard avatar div for non-pets -->
+                    <div class="o_kanban_image_fill position-relative w-100">
+                        <field name="avatar_128" alt="Contact image" class="h-100" widget="image"
+                               options="{'img_class': 'object-fit-cover'}"/>
+                        <field t-if="record.parent_id.raw_value" name="parent_id"
+                               class="position-absolute bottom-0 end-0 w-25 bg-light" widget="image"
+                               options="{'preview_image': 'image_128', 'img_class': 'object-fit-contain'}"/>
+                    </div>
+                </t>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="action_view_partner_pets" model="ir.actions.act_window">
+        <field name="name">Pets</field>
+        <field name="res_model">res.partner</field>
+        <field name="view_mode">kanban,list,form</field>
+        <field name="view_id" ref="ths_medical_vet.view_partner_list_inherit_ths_vet"/>
+        <field name="domain">[('ths_pet_owner_id', '=', id)]</field>
+        <field name="context">{'create': False}</field>
+    </record>
+
+</odoo>

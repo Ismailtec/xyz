@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="template" xml:space="preserve">
+
+    <t t-patch="point_of_sale.ProductScreen" t-name="ths_medical_pos_vet.ProductScreenVet">
+        </t>
+
+
+    <t t-patch="point_of_sale.OrderWidget" t-name="ths_medical_pos_vet.OrderWidgetVet">
+        <xpath expr="//div[hasclass('partner')]//span[hasclass('name')]" position="after">
+            <t t-if="partner and partner.membership_state">
+                <span class="partner-membership-status ms-2 small">
+                    <i class="fa fa-star me-1 text-muted" role="img" aria-label="Membership" title="Membership"/>
+                    <t t-if="partner.membership_state == 'paid' or partner.membership_state == 'free'">
+                         <span class="text-success">Active Member</span>
+                        <t t-if="partner.membership_stop"> (until <t
+                                t-esc="formatMembershipDate(partner.membership_stop)"/>)</t>
+                    </t>
+                    <t t-elif="partner.membership_state == 'invoiced'">
+                         <span class="text-warning">Member (Pending Payment)</span>
+                    </t>
+                    <t t-elif="partner.membership_state == 'canceled'">
+                         <span class="text-danger">Membership Cancelled</span>
+                    </t>
+                    <t t-elif="partner.membership_state == 'old'">
+                         <span class="text-muted">Membership Expired</span>
+                        <t t-if="partner.membership_stop">(<t t-esc="formatMembershipDate(partner.membership_stop)"/>)</t>
+                    </t>
+                    <t t-else="">
+                         <span class="text-muted">Membership: <t t-esc="partner.membership_state"/></span>
+                    </t>
+                </span>
+            </t>
+        </xpath>
+    </t>
+
+</templates>

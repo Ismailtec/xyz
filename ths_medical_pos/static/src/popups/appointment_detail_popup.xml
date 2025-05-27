@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="template" xml:space="preserve">
+
+    <t t-name="ths_medical_pos.AppointmentDetailPopup" owl="1">
+        <div role="dialog" class="modal-dialog">
+            <div class="popup popup-lg">
+                <header class="title">
+                    <t t-esc="props.title || 'Appointment Details'"/>
+                </header>
+                <main class="body">
+                    <t t-if="state.isLoading">
+                        <div class="loading-indicator text-center p-3">
+                            <i class="fa fa-spinner fa-spin fa-2x text-muted"/>
+                            Loading details...
+                         </div>
+                    </t>
+                    <t t-if="!state.isLoading and !state.eventData">
+                         <div class="loading-indicator text-center p-3 text-danger">
+                            Could not load appointment details.
+                         </div>
+                    </t>
+                    <t t-if="!state.isLoading and state.eventData">
+                        <div class="appointment-details container-fluid">
+                            <div class="row mb-2">
+                                <strong class="col-4">Subject:</strong>
+                                <span class="col-8"><t t-esc="state.eventData.display_name"/></span>
+                            </div>
+                            <div class="row mb-2">
+                                <strong class="col-4">Status:</strong>
+                                <span class="col-8"><span t-attf-class="badge rounded-pill {{ getStatusClass(state.eventData.ths_status) }}"><t t-esc="state.eventData.ths_status"/></span></span>
+                            </div>
+                            <div class="row mb-2">
+                                <strong class="col-4">Start:</strong>
+                                <span class="col-8"><t t-esc="formatDisplayDateTime(state.eventData.start)"/></span>
+                            </div>
+                            <div class="row mb-2">
+                                <strong class="col-4">End:</strong>
+                                <span class="col-8"><t t-esc="formatDisplayDateTime(state.eventData.stop)"/></span>
+                            </div>
+                            <div class="row mb-2">
+                                <strong class="col-4">Duration:</strong>
+                                <span class="col-8"><t t-esc="state.eventData.duration ? state.eventData.duration.toFixed(2) + ' hours' : 'N/A'"/></span>
+                            </div>
+                            <hr/>
+                            <div class="row mb-2">
+                                <strong class="col-4">Patient:</strong>
+                                <span class="col-8"><t t-esc="state.eventData.ths_patient_id ? state.eventData.ths_patient_id[1] : 'N/A'"/></span>
+                            </div>
+                            <div class="row mb-2">
+                                <strong class="col-4">Owner:</strong>
+                                <span class="col-8"><t t-esc="state.eventData.partner_id ? state.eventData.partner_id[1] : 'N/A'"/></span>
+                            </div>
+                            <hr/>
+                            <div class="row mb-2">
+                                <strong class="col-4">Provider:</strong>
+                                <span class="col-8"><t t-esc="state.eventData.ths_practitioner_id ? state.eventData.ths_practitioner_id[1] : 'N/A'"/></span>
+                            </div>
+                            <div class="row mb-2">
+                                <strong class="col-4">Room:</strong>
+                                <span class="col-8"><t t-esc="state.eventData.ths_room_id ? state.eventData.ths_room_id[1] : 'N/A'"/></span>
+                            </div>
+                            <hr/>
+                            <div class="row mb-2">
+                                <strong class="col-4">Reason:</strong>
+                                <span class="col-8"><t t-esc="state.eventData.ths_reason_for_visit || '-'"/></span>
+                            </div>
+                            <div class="row mb-2">
+                                <strong class="col-4">Type:</strong>
+                                <span class="col-8"><t t-esc="state.eventData.appointment_type_id ? state.eventData.appointment_type_id[1] : 'N/A'"/></span>
+                            </div>
+                            <div class="row mb-2">
+                                <strong class="col-4">Walk-in:</strong>
+                                <span class="col-8"><input type="checkbox" t-att-checked="state.eventData.ths_is_walk_in" disabled="disabled"/></span>
+                            </div>
+                        </div>
+                    </t>
+                </main>
+                <footer class="footer">
+                    <div class="button edit btn btn-lg btn-secondary" t-on-click="onEditClick">
+                        <i class="fa fa-pencil me-1"/>
+                        Edit
+                    </div>
+                    <div class="button pay btn btn-lg btn-primary" t-on-click="onPayClick"
+                         t-att-disabled="state.isPaying">
+                        <i class="fa fa-money me-1"/>
+                        Pay / Add Billable Items
+                    </div>
+                    <div class="button cancel btn btn-lg btn-secondary" t-on-click="cancel">
+                        Close
+                    </div>
+                </footer>
+            </div>
+        </div>
+    </t>
+
+</templates>

@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="view_ths_medical_encounter_form_inherit_ths_vet" model="ir.ui.view">
+        <field name="name">ths.medical.base.encounter.form.inherit.ths.vet</field>
+        <field name="model">ths.medical.base.encounter</field>
+        <field name="inherit_id" ref="ths_medical_base.view_ths_medical_encounter_form"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//field[@name='patient_id']" position="attributes">
+                <attribute name="string">Pet</attribute>
+            </xpath>
+            <xpath expr="//field[@name='partner_id']" position="attributes">
+                <attribute name="string">Pet Owner</attribute>
+            </xpath>
+
+            <xpath expr="//field[@name='patient_id']" position="after">
+                <field name="ths_species" readonly="1"/>
+                <field name="ths_breed" readonly="1"/>
+                <field name="ths_pet_age" readonly="1"/>
+                <field name="ths_pet_gender" readonly="1"/>
+            </xpath>
+
+        </field>
+    </record>
+
+    <record id="view_ths_medical_encounter_list_inherit_ths_vet" model="ir.ui.view">
+        <field name="name">ths.medical.base.encounter.list.inherit.ths.vet</field>
+        <field name="model">ths.medical.base.encounter</field>
+        <field name="inherit_id" ref="ths_medical_base.view_ths_medical_encounter_list"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='patient_id']" position="attributes">
+                <attribute name="string">Pet</attribute>
+            </xpath>
+            <xpath expr="//field[@name='patient_id']" position="after">
+                <field name="partner_id" string="Owner" optional="show"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_ths_medical_encounter_search_inherit_ths_vet" model="ir.ui.view">
+        <field name="name">ths.medical.base.encounter.search.inherit.ths.vet</field>
+        <field name="model">ths.medical.base.encounter</field>
+        <field name="inherit_id" ref="ths_medical_base.view_ths_medical_encounter_search"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='partner_id']" position="attributes">
+                <attribute name="string">Owner/Pet</attribute>
+                <attribute name="filter_domain">['|', '|', ('partner_id', 'ilike', self), ('patient_id', 'ilike', self),
+                                                 ('patient_id.ref', 'ilike', self)]</attribute>
+            </xpath>
+            <xpath expr="//field[@name='patient_id']" position="attributes">
+                <attribute name="string">Pet</attribute>
+            </xpath>
+            <xpath expr="//field[@name='patient_id']" position="after">
+                <field name="partner_id" string="Owner"/>
+            </xpath>
+            <xpath expr="//filter[@name='groupby_patient']" position="attributes">
+                <attribute name="string">Pet</attribute>
+            </xpath>
+            <xpath expr="//filter[@name='groupby_patient']" position="before">
+                <filter string="Owner" name="groupby_owner" context="{'group_by': 'partner_id'}"/>
+            </xpath>
+
+        </field>
+    </record>
+
+</odoo>
