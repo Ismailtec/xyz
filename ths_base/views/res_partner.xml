@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<odoo>
+    <data>
+        <record id="view_partner_form_inherit_ths_base" model="ir.ui.view">
+            <field name="name">res.partner.form.inherit.ths.base</field>
+            <field name="model">res.partner</field>
+            <field name="inherit_id" ref="base.view_partner_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='company_type']" position="replace">
+                </xpath>
+                <xpath expr="//field[@name='parent_id']" position="before">
+                    <label for="parent_id" string="Parent Company" class="o_form_label"
+                           invisible="is_company == False"/>
+                </xpath>
+                <xpath expr="//field[@name='parent_id']" position="attributes">
+                    <attribute name="context">{'default_is_company': True,
+                                               'default_ths_partner_type_id': ths_partner_type_id}</attribute>
+                    <attribute name="invisible">is_company == False</attribute>
+                </xpath>
+                <xpath expr="//h1" position="after">
+                    <br/>
+                    <label for="name_ar"></label>
+                    <field name="name_ar" placeholder="Name in Arabic" class="oe_inline"/>
+                </xpath>
+                <xpath expr="//span[@name='address_name']" position="before">
+                    <field name="ref"
+                           readonly="1"
+                           force_save="1"/>
+                </xpath>
+                <xpath expr="//page[@name='sales_purchases']//field[@name='ref']" position="replace"></xpath>
+                <xpath expr="//field[@name='ref']" position="before">
+                    <label for="ths_partner_type_id" class="o_form_label fw-bold"/>
+                    <div class="bg-secondary rounded p-1 d-inline-block mb-0 fw-bolder fs-4">
+                        <field name="ths_partner_type_id"
+                               required="1"
+                               options="{'no_create': True, 'no_quick_create': True, 'no_open': True}"/>
+                    </div>
+                </xpath>
+                <!-- add partner_type on child_ids form -->
+                <xpath expr="//field[@name='child_ids']/form//field[@name='name']" position="after">
+                    <field name="ths_partner_type_id" required="1"/>
+                </xpath>
+            </field>
+        </record>
+
+        <record id="view_partner_kanban_inherit_ths_base" model="ir.ui.view">
+            <field name="name">res.partner.kanban.inherit.ths.base</field>
+            <field name="model">res.partner</field>
+            <field name="inherit_id" ref="base.res_partner_kanban_view"/>
+            <field name="arch" type="xml">
+                <xpath expr="//templates//t[@t-name='card']//field[@name='display_name']" position="attributes">
+                    <attribute name="class">mb-0 fw-bolder fs-5</attribute>
+                </xpath>
+                <xpath expr="//field[@name='display_name']" position="after">
+                    <div t-if="record.ths_partner_type_id.raw_value">
+                        <field name="ths_partner_type_id"/>
+                    </div>
+                </xpath>
+            </field>
+        </record>
+
+        <record id="view_partner_list_inherit_ths_base" model="ir.ui.view">
+            <field name="name">res.partner.list.inherit.ths.base</field>
+            <field name="model">res.partner</field>
+            <field name="inherit_id" ref="base.view_partner_tree"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='complete_name']" position="after">
+                    <field name="ths_partner_type_id" optional="show"/>
+                </xpath>
+                <field name="user_id" position="attributes">
+                    <attribute name="optional">Hide</attribute>
+                </field>
+            </field>
+        </record>
+
+        <record id="account.res_partner_action_supplier" model="ir.actions.act_window">
+            <field name="context" eval="{
+                'search_default_supplier': 1,
+                'default_is_company': True,
+                'default_supplier_rank': 1,
+                'default_ths_partner_type_id': ref('ths_base.partner_type_vendor')
+                }"/>
+            <!-- <field name="domain" eval="[('supplier_rank','>',0)]"/>-->
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Create a new vendor in your address book
+                </p>
+                <p>
+                    Odoo helps you easily track all activities related to a vendor.
+                </p>
+            </field>
+        </record>
+
+        <!-- Temp from partner_type-->
+        <!-- <record id="view_partner_form_inherit_ths_base" model="ir.ui.view">-->
+        <!-- <field name="name">res.partner.form.inherit.ths.base</field>-->
+        <!-- <field name="model">res.partner</field>-->
+        <!-- <field name="inherit_id" ref="base.view_partner_form"/>-->
+        <!-- <field name="arch" type="xml">-->
+        <!-- <xpath expr="//field[@name='company_type']" position="before">-->
+        <!-- <field name="ths_partner_type_id" required="1" options="{'no_create': True, 'no_quick_create': True}"/>-->
+        <!-- </xpath>-->
+        <!-- </field>-->
+        <!-- </record>-->
+
+        <!-- <record id="view_partner_list_inherit_ths_base" model="ir.ui.view">-->
+        <!-- <field name="name">res.partner.list.inherit.ths.base</field>-->
+        <!-- <field name="model">res.partner</field>-->
+        <!-- <field name="inherit_id" ref="base.view_partner_tree"/>-->
+        <!-- <field name="arch" type="xml">-->
+        <!-- <xpath expr="//field[@name='email']" position="after">-->
+        <!-- <field name="ths_partner_type_id" optional="show"/>-->
+        <!-- </xpath>-->
+        <!-- </field>-->
+        <!-- </record>-->
+
+        <!-- <record id="view_partner_kanban_inherit_ths_base" model="ir.ui.view">-->
+        <!-- <field name="name">res.partner.kanban.inherit.ths.base</field>-->
+        <!-- <field name="model">res.partner</field>-->
+        <!-- <field name="inherit_id" ref="base.res_partner_kanban_view"/>-->
+        <!-- <field name="arch" type="xml">-->
+        <!-- <xpath expr="//field[@name='display_name']" position="after">-->
+        <!-- <div>-->
+        <!-- <field name="ths_partner_type_id"/>-->
+        <!-- </div>-->
+        <!-- </xpath>-->
+        <!-- </field>-->
+        <!-- </record>-->
+        <record id="view_res_partner_filter_inherit_ths_base" model="ir.ui.view">
+            <field name="name">res.partner.select.inherit.ths.base</field>
+            <field name="model">res.partner</field>
+            <field name="inherit_id" ref="base.view_res_partner_filter"/>
+            <field name="arch" type="xml">
+                <xpath expr="//filter[@name='inactive']" position="after">
+                    <separator/>
+                    <filter string="Partner Type" name="filter_partner_type" domain="[]"
+                            context="{'group_by': 'ths_partner_type_id'}"/>
+                </xpath>
+                <xpath expr="//field[@name='user_id']" position="after">
+                    <field name="ths_partner_type_id"/>
+                </xpath>
+            </field>
+        </record>
+        <!-- <menuitem id="menu_partner_vendor_form_ths" name="Vendors THS" parent="account.menu_finance_payables"-->
+
+        <!-- action="action_partner_vendor_form_ths" sequence="2"/>-->
+    </data>
+</odoo>
