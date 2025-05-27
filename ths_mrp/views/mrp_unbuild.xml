@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+        <record id="mrp_unbuild_form_view_inherit_ths_mrp" model="ir.ui.view">
+            <field name="name">mrp.mrp_unbuild.form.inherit.ths.mrp</field>
+            <field name="model">mrp.unbuild</field>
+            <field name="inherit_id" ref="mrp.mrp_unbuild_form_view"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='mo_id']" position="after">
+                    <field name="ths_effective_date" readonly="state in ('done', 'cancel')"/>
+                </xpath>
+            </field>
+        </record>
+    </data>
+</odoo>

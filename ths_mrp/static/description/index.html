@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Techouse MRP Customizations</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
+    <style>
+        /* Techouse Theme Colors */
+        :root {
+            --techouse-primary: #FF8E46;
+            --techouse-secondary: #FFDCC6;
+            --techouse-text: #212529;
+            --techouse-link: #c64d00;
+            --techouse-bg: #FFFBF6;
+            --techouse-dark-section-bg: #F8F9FA; /* Using neutral light grey */
+            --techouse-border: #E9ECEF; /* Using neutral border */
+        }
+
+        /* Basic styles */
+        body {
+            font-family: 'Roboto', sans-serif; /* Consider adding a font link if needed */
+            line-height: 1.6;
+            color: var(--techouse-text);
+            background-color: var(--techouse-bg); /* Set main background */
+        }
+        .oe_container { padding-right: 15px; padding-left: 15px; margin-right: auto; margin-left: auto; box-sizing: border-box; width: 100%; max-width: 1140px; }
+        .oe_row { display: flex; flex-wrap: wrap; margin-right: -15px; margin-left: -15px; box-sizing: border-box; }
+        .oe_spaced { padding-top: 32px; padding-bottom: 32px; }
+        .oe_slogan { text-align: center; margin-bottom: 10px; font-size: 24px; color: var(--techouse-text); font-weight: 300; }
+        h2.oe_slogan { font-size: 36px; margin-bottom: 20px; font-weight: 500; color: var(--techouse-primary); } /* Use primary for main slogan */
+        h3.oe_slogan { font-size: 28px; margin-bottom: 25px; font-weight: 400; color: var(--techouse-text); }
+        .oe_span12, .oe_span6 { position: relative; min-height: 1px; padding-right: 15px; padding-left: 15px; box-sizing: border-box; }
+        .oe_span12 { width: 100%; }
+        .oe_span6 { width: 50%; float: left; }
+        .text-center { text-align: center; }
+        .text-justify { text-align: justify; }
+        .text-primary { color: var(--techouse-primary) !important; } /* Use primary color */
+        .oe_mt16 { margin-top: 16px !important; }
+        .oe_mt32 { margin-top: 32px !important; }
+        .mb32 { margin-bottom: 32px !important; }
+        .list-unstyled { padding-left: 0; list-style: none; }
+        .list-unstyled li { margin-bottom: 8px; display: flex; align-items: flex-start; }
+        .list-unstyled li .fa { margin-right: 10px; margin-top: 4px; color: var(--techouse-primary); } /* Use primary for icons */
+        hr { margin-top: 25px; margin-bottom: 25px; border: 0; border-top: 1px solid var(--techouse-border); }
+        .oe_row::after { content: ""; display: table; clear: both; }
+        .oe_dark { background-color: var(--techouse-dark-section-bg); border-top: 1px solid var(--techouse-border); border-bottom: 1px solid var(--techouse-border); }
+        .fa { margin-right: 8px; }
+        a { color: var(--techouse-link); text-decoration: none; }
+        a:hover { color: darken(var(--techouse-link), 10%); text-decoration: underline; } /* Basic darken effect */
+        h4 { font-size: 18px; margin-top: 20px; margin-bottom: 10px; display: flex; align-items: center; color: var(--techouse-text); }
+        h4 .fa { font-size: 20px; margin-right: 10px; color: var(--techouse-primary); } /* Use primary for heading icons */
+        .alert { padding: 15px; margin-top: 20px; border: 1px solid transparent; border-radius: 4px; }
+        .alert-warning { background-color: var(--techouse-secondary); border-color: darken(var(--techouse-secondary), 10%); color: var(--techouse-text); } /* Use secondary color for warning */
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .oe_span6 { width: 100%; float: none; margin-bottom: 20px; }
+            h2.oe_slogan { font-size: 30px; }
+            h3.oe_slogan { font-size: 24px; }
+        }
+    </style>
+</head>
+<body>
+<section class="oe_container">
+    <div class="oe_row oe_spaced">
+        <div class="oe_span12 text-center">
+            <h2 class="oe_slogan">Techouse MRP</h2>
+            <h3 class="oe_slogan">Effective Date Control for Manufacturing</h3>
+            <p class="oe_mt32 text-justify">
+                This module extends the **Techouse Base** module by integrating the "Effective Date" functionality into
+                Odoo's Manufacturing and Unbuild processes. Ensure accurate stock and accounting entries based on
+                planned manufacturing dates, allowing for proper backdating when needed.
+            </p>
+            <div class="alert alert-warning">
+                <strong>Requires the <a href="[LINK_TO_THS_BASE_IF_APPLICABLE]" target="_blank">Techouse Base</a> module
+                    to be installed first.</strong>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="oe_container oe_dark">
+    <div class="oe_row oe_spaced">
+        <h3 class="oe_slogan" style="color: var(--techouse-text);">Key Features</h3>
+        <div class="oe_span12 mt32 mb32">
+            <h4><i class="fa fa-calendar-check-o"></i> Effective Date Integration</h4>
+            <ul class="list-unstyled">
+                <li><i class="fa fa-check text-primary"></i> Adds "Effective Date" to Manufacturing Orders (MOs),
+                    derived from the Planned Date.
+                </li>
+                <li><i class="fa fa-check text-primary"></i> Adds "Effective Date" to Unbuild Orders, derived from the
+                    linked MO (if available).
+                </li>
+                <li><i class="fa fa-check text-primary"></i> Ensures component consumption, finished good production,
+                    and unbuild stock moves use the Effective Date.
+                </li>
+                <li><i class="fa fa-check text-primary"></i> Guarantees related Journal Entries reflect the correct
+                    Effective Date.
+                </li>
+            </ul>
+            <hr/>
+            <h4><i class="fa fa-book"></i> Improved Traceability</h4>
+            <ul class="list-unstyled">
+                <li><i class="fa fa-check text-primary"></i> Adds references to the source MO or Unbuild Order in the
+                    reference field of related Journal Entries.
+                </li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<section class="oe_container">
+    <div class="oe_row oe_spaced">
+        <h3 class="oe_slogan" style="color: var(--techouse-text);">Usage</h3>
+        <div class="oe_span12">
+            <p class="oe_mt16">
+                <i class="fa fa-industry" style="color: var(--techouse-primary);"></i> The "Effective Date" on
+                Manufacturing Orders is automatically set from the "Planned Date". When the MO is marked as done, all
+                related stock moves and accounting entries will use this date.
+            </p>
+            <p class="oe_mt16">
+                <i class="fa fa-recycle" style="color: var(--techouse-primary);"></i> The "Effective Date" on Unbuild
+                Orders is automatically set from the linked MO's date. If needed (e.g., no MO linked), you can manually
+                set the "Effective Date" before clicking "Unbuild" to control the date of the resulting stock moves.
+            </p>
+        </div>
+    </div>
+</section>
+
+<section class="oe_container oe_dark">
+    <div class="oe_row oe_spaced">
+        <div class="oe_span12 text-center">
+            <h3 class="oe_slogan">Developed by Techouse Solutions</h3>
+            <p>
+                <a href="https://www.techouse.ae" target="_blank">www.techouse.ae</a> | <a
+                    href="mailto:info@techouse.ae">info@techouse.ae</a>
+            </p>
+        </div>
+    </div>
+</section>
+</body>
+</html>
