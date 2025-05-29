@@ -13,6 +13,7 @@ class VetBoardingStay(models.Model):
     _description = 'Veterinary Boarding Stay'
     _inherit = ['mail.thread', 'mail.activity.mixin']
     _order = 'check_in_datetime desc, name'
+    _rec_name = 'name'
 
     name = fields.Char(
         string='Boarding Reference',
@@ -27,17 +28,16 @@ class VetBoardingStay(models.Model):
         string='Pet',
         required=True,
         index=True,
-        domain="[('ths_partner_type_id', '=', 'ths_medical_vet.partner_type_pet')]",
+        domain="[('ths_partner_type_id.name', '=', 'Pet')]",
         tracking=True,
     )
     owner_id = fields.Many2one(
         'res.partner',
         string='Pet Owner',
-        # related='pet_id.ths_pet_owner_id', # Make it editable in case owner brings pet owned by someone else?
-        compute='_compute_owner_id',  # Compute based on pet
+        compute='_compute_owner_id',
         store=True,
-        readonly=False,  # Allow override? Or make strictly related? Let's compute but allow override.
-        domain="[('ths_partner_type_id', '=', 'ths_medical_vet.partner_type_pet_owner')]",
+        readonly=False,  # Allow manual override if needed
+        domain="[('ths_partner_type_id.name', '=', 'Pet Owner')]",
         tracking=True,
     )
     cage_id = fields.Many2one(
@@ -45,7 +45,7 @@ class VetBoardingStay(models.Model):
         string='Assigned Cage',
         required=True,
         index=True,
-        domain="[('state', '=', 'available')]",  # Only show available cages initially
+        domain="[('state', '=', 'available')]",
         tracking=True,
     )
     check_in_datetime = fields.Datetime(
@@ -60,7 +60,7 @@ class VetBoardingStay(models.Model):
     )
     actual_check_out_datetime = fields.Datetime(
         string='Actual Check-out',
-        readonly=True,  # Set when checked out
+        readonly=True,
         copy=False,
         tracking=True,
     )
@@ -68,34 +68,54 @@ class VetBoardingStay(models.Model):
         string="Duration (Days)",
         compute='_compute_duration_days',
         store=True,
-        help="Calculated duration in days based on check-in and expected check-out.",
+        help="Calculated duration in days based on check-in and check-out.",
     )
     state = fields.Selection([
         ('draft', 'Draft'),
-        ('scheduled', 'Scheduled'),  # Booked in advance
+        ('scheduled', 'Scheduled'),
         ('checked_in', 'Checked In'),
-        ('checked_out', 'Checked Out'),  # Stay complete, pending payment/finalization
-        ('invoiced', 'Invoiced/Paid'),  # Optional final state
+        ('checked_out', 'Checked Out'),
+        ('invoiced', 'Invoiced/Paid'),
         ('cancelled', 'Cancelled')
     ], string='Status', default='draft', index=True, required=True, tracking=True, copy=False)
 
-    # == Boarding Information ==
+    # Boarding Information
     vaccination_proof_received = fields.Boolean(string='Vaccination Proof Received?', tracking=True)
-    medical_conditions = fields.Text(string='Medical Conditions / Allergies',
-                                     help="Note any pre-existing conditions or allergies.")
-    routines_preferences_quirks = fields.Text(string='Routines & Preferences',
-                                              help="Describe feeding schedule, exercise routine, known anxieties, likes/dislikes.")
+    medical_conditions = fields.Text(string='Medical Conditions / Allergies')
+    routines_preferences_quirks = fields.Text(string='Routines & Preferences')
 
     owner_brought_food = fields.Boolean(string='Own Food Provided?', default=False)
-    food_instructions = fields.Text(string='Feeding Instructions',
-                                    help="Details on type, amount, frequency if own food provided.")
+    food_instructions = fields.Text(string='Feeding Instructions')
 
     owner_brought_medication = fields.Boolean(string='Own Medication Provided?', default=False)
-    medication_instructions = fields.Text(string='Medication Instructions',
-                                          help="Details on medication, dosage, timing, administration.")
+    medication_instructions = fields.Text(string='Medication Instructions')
 
     consent_form_signed = fields.Boolean(string='Consent Form Signed?', default=False, tracking=True)
-    # consent_form_attachment_id = fields.Many2one('ir.attachment', string='Consent Form Scan') # Optional
+
+    # Billing
+    boarding_product_id = fields.Many2one(
+        'product.product',
+        string='Boarding Product',
+        domain="[('ths_product_sub_type_id.code', '=', 'SERV')]",
+        help="Product used for billing this boarding stay"
+    )
+    daily_rate = fields.Float(
+        string='Daily Rate',
+        compute='_compute_daily_rate',
+        store=True,
+        readonly=False
+    )
+    total_amount = fields.Float(
+        string='Total Amount',
+        compute='_compute_total_amount',
+        store=True
+    )
+    pending_pos_item_ids = fields.One2many(
+        'ths.pending.pos.item',
+        'boarding_stay_id',
+        string='Pending POS Items',
+        readonly=True
+    )
 
     notes = fields.Text(string='Internal Boarding Notes')
     company_id = fields.Many2one('res.company', string='Company', default=lambda self: self.env.company)
@@ -126,6 +146,19 @@ class VetBoardingStay(models.Model):
             else:
                 stay.duration_days = 0
 
+    @api.depends('boarding_product_id', 'boarding_product_id.list_price')
+    def _compute_daily_rate(self):
+        """Compute daily rate from product or manual entry"""
+        for stay in self:
+            if stay.boarding_product_id and not stay.daily_rate:
+                stay.daily_rate = stay.boarding_product_id.list_price
+
+    @api.depends('daily_rate', 'duration_days')
+    def _compute_total_amount(self):
+        """Calculate total boarding cost"""
+        for stay in self:
+            stay.total_amount = stay.daily_rate * stay.duration_days
+
     @api.constrains('check_in_datetime', 'expected_check_out_datetime')
     def _check_dates(self):
         for stay in self:
@@ -136,115 +169,136 @@ class VetBoardingStay(models.Model):
                     stay.actual_check_out_datetime < stay.check_in_datetime:
                 raise ValidationError(_("Actual Check-out date cannot be before Check-in date."))
 
-    @api.constrains('cage_id', 'state')
-    def _check_cage_availability(self):
-        """ Prevent assigning checked-in stays to occupied/maintenance cages """
-        for stay in self:
-            if stay.state == 'checked_in' and stay.cage_id and stay.cage_id.state != 'occupied':
-                # This constraint is tricky because the cage state depends on the stay state.
-                # Handled better via state change methods below.
-                pass  # See check_in action
+    @api.constrains('cage_id', 'state', 'check_in_datetime', 'expected_check_out_datetime')
+    def _check_cage_availability_overlap(self):
+        """Ensure no overlapping stays in the same cage"""
+        for stay in self.filtered(lambda s: s.state in ('scheduled', 'checked_in')):
+            if not stay.cage_id:
+                continue
 
-    # --- Overrides ---
+            # Check for overlapping stays
+            domain = [
+                ('cage_id', '=', stay.cage_id.id),
+                ('state', 'in', ['scheduled', 'checked_in']),
+                ('id', '!=', stay.id),
+            ]
+
+            # Add date overlap conditions
+            if stay.check_in_datetime and stay.expected_check_out_datetime:
+                domain.extend([
+                    '|',
+                    '&', ('check_in_datetime', '<=', stay.check_in_datetime),
+                    ('expected_check_out_datetime', '>', stay.check_in_datetime),
+                    '&', ('check_in_datetime', '<', stay.expected_check_out_datetime),
+                    ('expected_check_out_datetime', '>=', stay.expected_check_out_datetime),
+                ])
+
+            overlapping = self.search_count(domain)
+            if overlapping:
+                raise ValidationError(
+                    _("Cage %s is already booked during this period.", stay.cage_id.name)
+                )
+
+    # CRUD methods
     @api.model_create_multi
     def create(self, vals_list):
-        """ Assign sequence on creation """
+        """Assign sequence on creation"""
         for vals in vals_list:
             if vals.get('name', _('New')) == _('New'):
                 vals['name'] = self.env['ir.sequence'].sudo().next_by_code('vet.boarding.stay') or _('New')
-            # Update cage state if created directly as 'checked_in'
+
+            # Validate cage availability
             if vals.get('state') == 'checked_in' and vals.get('cage_id'):
                 cage = self.env['vet.boarding.cage'].browse(vals['cage_id'])
                 if cage.state != 'available':
                     raise UserError(
-                        _("Cannot create a checked-in stay for cage '%s' as it is currently '%s'.", cage.name,
-                          cage.state))
-                # Defer cage state update to write? Risky if create fails later. Best in action.
+                        _("Cannot create a checked-in stay for cage '%s' as it is currently '%s'.",
+                          cage.name, cage.state))
+
         stays = super(VetBoardingStay, self).create(vals_list)
-        # Trigger cage update AFTER successful creation via write (or separate method)
+
+        # Update cage state after creation
         for stay in stays:
             if stay.state == 'checked_in':
-                stay.cage_id.sudo().write({'state': 'occupied'})  # Use sudo if needed
+                stay.cage_id.sudo().write({'state': 'occupied'})
+
         return stays
 
     def write(self, vals):
-        """ Update cage state on state changes """
-        # Store old states/cages if needed
-        old_cage_map = {s.id: s.cage_id for s in self} if 'cage_id' in vals or 'state' in vals else {}
-        old_state_map = {s.id: s.state for s in self} if 'state' in vals else {}
+        """Handle cage state updates on status changes"""
+        # Store old states/cages for comparison
+        old_data = {
+            stay.id: {
+                'cage_id': stay.cage_id,
+                'state': stay.state
+            } for stay in self
+        }
 
         res = super(VetBoardingStay, self).write(vals)
 
         # Handle state/cage changes
         for stay in self:
-            new_state = vals.get('state', stay.state)
-            new_cage_id_val = vals.get('cage_id')  # This is the ID or False
-            old_cage = old_cage_map.get(stay.id)
-            old_state = old_state_map.get(stay.id,
-                                          stay.state if stay.id not in old_state_map else None)  # Get pre-write state
+            old_cage = old_data[stay.id]['cage_id']
+            old_state = old_data[stay.id]['state']
 
-            # If state changes TO checked_in
-            if new_state == 'checked_in' and old_state != 'checked_in':
+            # State changed TO checked_in
+            if stay.state == 'checked_in' and old_state != 'checked_in':
                 if not stay.cage_id:
-                    raise UserError(_("Cannot check in stay '%s' without assigning a cage.", stay.name))
+                    raise UserError(_("Cannot check in without assigning a cage."))
                 if stay.cage_id.state != 'available':
-                    # Check if it's occupied by THIS stay already (e.g., write called multiple times)
-                    current_occupant = self.env['vet.boarding.stay'].search(
-                        [('cage_id', '=', stay.cage_id.id), ('state', '=', 'checked_in')], limit=1)
-                    if current_occupant and current_occupant != stay:
-                        raise UserError(
-                            _("Cannot check in to cage '%s'. It is already occupied by stay '%s'.", stay.cage_id.name,
-                              current_occupant.name))
-                    elif stay.cage_id.state == 'maintenance':
-                        raise UserError(
-                            _("Cannot check in to cage '%s' as it is under maintenance.", stay.cage_id.name))
-                # Mark new cage as occupied
+                    raise UserError(
+                        _("Cannot check in to cage '%s' - it is %s.",
+                          stay.cage_id.name, stay.cage_id.state))
                 stay.cage_id.sudo().write({'state': 'occupied'})
-                # If cage was changed *during* this write and old cage exists, free old cage
+
+                # Free old cage if changed
                 if old_cage and old_cage != stay.cage_id:
                     old_cage.sudo().write({'state': 'available'})
 
-            # If state changes FROM checked_in (to checked_out or cancelled)
-            elif old_state == 'checked_in' and new_state != 'checked_in':
-                # Free up the cage associated with the stay BEFORE the write
-                cage_to_free = old_cage_map.get(stay.id) or stay.cage_id
+            # State changed FROM checked_in
+            elif old_state == 'checked_in' and stay.state != 'checked_in':
+                cage_to_free = old_cage or stay.cage_id
                 if cage_to_free:
-                    # Ensure no OTHER stay is currently checked into this cage before freeing it
-                    other_occupants = self.env['vet.boarding.stay'].search_count([
+                    # Check no other stays are using this cage
+                    other_stays = self.search_count([
                         ('cage_id', '=', cage_to_free.id),
                         ('state', '=', 'checked_in'),
                         ('id', '!=', stay.id)
                     ])
-                    if other_occupants == 0:
+                    if not other_stays:
                         cage_to_free.sudo().write({'state': 'available'})
-                    else:
-                        _logger.warning(
-                            "Cage %s state not set to available after check-out/cancel of stay %s, as other occupants found.",
-                            cage_to_free.name, stay.name)
-                # Set actual check-out time if moving to checked_out
-                if new_state == 'checked_out' and not stay.actual_check_out_datetime:
-                    vals_checkout = {'actual_check_out_datetime': fields.Datetime.now()}
-                    super(VetBoardingStay, stay).write(vals_checkout)  # Use super to avoid recursion
 
-            # If cage is changed while stay is checked_in
-            elif new_state == 'checked_in' and 'cage_id' in vals and old_cage != stay.cage_id:
-                new_cage = stay.cage_id
-                if not new_cage: raise UserError(_("Cannot move checked-in stay '%s' to an empty cage.", stay.name))
-                if new_cage.state != 'available': raise UserError(
-                    _("Cannot move stay '%s' to cage '%s' as it is currently '%s'.", stay.name, new_cage.name,
-                      new_cage.state))
-                # Occupy new cage
-                new_cage.sudo().write({'state': 'occupied'})
-                # Free old cage
-                if old_cage: old_cage.sudo().write({'state': 'available'})
+                # Set checkout time if checking out
+                if stay.state == 'checked_out' and not stay.actual_check_out_datetime:
+                    stay.actual_check_out_datetime = fields.Datetime.now()
+
+            # Cage changed while checked in
+            elif stay.state == 'checked_in' and 'cage_id' in vals and old_cage != stay.cage_id:
+                if not stay.cage_id:
+                    raise UserError(_("Cannot remove cage from checked-in stay."))
+                if stay.cage_id.state != 'available':
+                    raise UserError(
+                        _("Cannot move to cage '%s' - it is %s.",
+                          stay.cage_id.name, stay.cage_id.state))
+
+                stay.cage_id.sudo().write({'state': 'occupied'})
+                if old_cage:
+                    old_cage.sudo().write({'state': 'available'})
 
         return res
 
-    # --- Actions ---
+    # Actions
     def action_check_in(self):
-        # Check permissions?
+        """Check in the pet"""
         for stay in self.filtered(lambda s: s.state in ('draft', 'scheduled')):
-            stay.write({'state': 'checked_in'})  # Write handles cage logic
+            if not stay.vaccination_proof_received:
+                raise UserError(_("Cannot check in without vaccination proof."))
+            if not stay.consent_form_signed:
+                raise UserError(_("Cannot check in without signed consent form."))
+            stay.write({
+                'state': 'checked_in',
+                'check_in_datetime': fields.Datetime.now()
+            })
 
     def action_check_out(self):
         # Check permissions?
@@ -256,13 +310,13 @@ class VetBoardingStay(models.Model):
                 'actual_check_out_datetime': fields.Datetime.now()  # Let write handle state change logic
             })
             # TODO: Trigger creation of pending billing items?
-            # self._create_boarding_billing_items()
+            self._create_boarding_billing_items()
 
     def action_cancel(self):
+        """Cancel the boarding stay"""
         for stay in self.filtered(lambda s: s.state not in ('checked_out', 'invoiced', 'cancelled')):
-            if stay.state == 'checked_in':
-                # Need to free the cage
-                if stay.cage_id: stay.cage_id.sudo().write({'state': 'available'})
+            if stay.state == 'checked_in' and stay.cage_id:
+                stay.cage_id.sudo().write({'state': 'available'})
             stay.write({'state': 'cancelled'})
 
     def action_reset_to_draft(self):
@@ -294,3 +348,51 @@ class VetBoardingStay(models.Model):
     #        # 'boarding_stay_id': self.id, # Needs field on pending item
     #    }
     #    PendingItem.sudo().create(item_vals)
+
+    def _create_boarding_billing_items(self):
+        """Create pending POS items for boarding stay"""
+        self.ensure_one()
+
+        # Get boarding product
+        # if not self.boarding_product_id:
+        #     # Try to get default from company
+        #     self.boarding_product_id = self.company_id.default_boarding_product_id
+
+        if not self.boarding_product_id:
+            # Try to find by sub-type
+            boarding_product = self.env['product.product'].search([
+                ('ths_product_sub_type_id.code', '=', 'BOARD'),
+                ('active', '=', True),
+                ('sale_ok', '=', True)
+            ], limit=1)
+            if boarding_product:
+                self.boarding_product_id = boarding_product
+            else:
+                raise UserError(_("No boarding product configured. Please create a product with sub-type 'BOARD'."))
+
+        # Create pending item
+        return self.env['ths.pending.pos.item'].sudo().create({
+            'partner_id': self.owner_id.id,
+            'patient_id': self.pet_id.id,
+            'product_id': self.boarding_product_id.id,
+            'description': _("Boarding: %(pet)s - Cage %(cage)s (%(days)d days)",
+                             pet=self.pet_id.name, cage=self.cage_id.name, days=self.duration_days),
+            'qty': self.duration_days,
+            'price_unit': self.daily_rate or self.boarding_product_id.list_price,
+            'practitioner_id': self.env.user.employee_id.id if self.env.user.employee_id else False,
+            'state': 'pending',
+            'notes': _("Boarding Stay: %(ref)s", ref=self.name),
+            'boarding_stay_id': self.id,
+        })
+
+    def action_view_pending_items(self):
+        """View related pending POS items"""
+        self.ensure_one()
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Pending Billing Items'),
+            'res_model': 'ths.pending.pos.item',
+            'view_mode': 'list,form',
+            'domain': [('boarding_stay_id', '=', self.id)],
+            'context': {'create': False}
+        }

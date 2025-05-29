@@ -104,6 +104,7 @@ class ThsPendingPosItem(models.Model):
         # When POS line is deleted (e.g. order deleted), unlink pending item? Or just clear link?
         ondelete='set null',  # Clear link if POS line deleted
     )
+
     notes = fields.Text(string='Internal Notes')
     company_id = fields.Many2one(
         'res.company', string='Company',

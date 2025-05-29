@@ -4,44 +4,119 @@
     'version': '18.0.1.0.0',
     'category': 'Point of Sale/Medical',
     'summary': 'Integrates medical encounters and billing with Point of Sale.',
-    'description': """
-Provides the bridge between backend medical encounters (ths_medical_base) and the Point of Sale interface.
-- Extends POS models to link orders/lines to pending medical items.
-- Adds fields for patient, provider, and commission tracking on POS lines.
-- Includes backend logic to update medical records upon POS order completion.
-- Adds frontend JS/OWL components to fetch and manage medical billing items in POS.
-    """,
+    'description': '''
+        Medical Point of Sale Extension
+        ==============================
+        
+        This module extends the Odoo 18 Point of Sale application to support medical practices:
+        
+        Features:
+        - Appointment management directly from POS
+        - Patient and pet management integration
+        - Pending medical items handling
+        - Medical practitioner assignment
+        - Treatment room booking
+        - Commission tracking for medical services
+        
+        Technical Implementation:
+        - Built with OWL 3 framework
+        - Follows Odoo 18 POS standards
+        - Responsive design for mobile and tablet use
+        - Real-time appointment calendar integration
+    ''',
     'author': 'Techouse Solutions / Ismail Abdelkhalik',
     'website': 'https://www.techouse.ae',
     'depends': [
         'point_of_sale',
         'ths_medical_base',  # Depends on the medical base for encounter/pending items
         'ths_hr',  # Needed for hr.employee (practitioner) access
+        'calendar',
+        'hr',
+        'resource',
+        'contacts',
     ],
     'data': [
+        # Security
         'security/ir.model.access.csv',
+
+        # Views
+        #'views/pos_config.xml',
+        #'views/calendar_event.xml',
+        # 'views/pending_pos_item_views.xml',
+        # 'views/hr_employee_views.xml',
+        # 'views/res_partner_views.xml',
+        #
+        # # Data
+        # 'data/pos_data.xml',
+        #
+        # # Assets
+        # 'views/assets.xml',
     ],
-    'assets': {
-        'point_of_sale.assets': [
+    # 'assets': {
+    #     'point_of_sale._assets_pos': [
+    #         #'ths_medical_pos/static/src/main.js',
+    #         # 1. Load FullCalendar Library CSS & JS FIRST
+    #         ('include', 'web._assets_helpers'),
+    #         'ths_medical_pos/static/lib/fullcalendar/index.global.min.js',
+    #
+    #         # Buttons
+    #         'ths_medical_pos/static/src/components/pending_items_button/pending_items_button.js',
+    #         'ths_medical_pos/static/src/components/pending_items_button/pending_items_button.xml',
+    #         'ths_medical_pos/static/src/components/appointment_calendar_button/appointment_calendar_button.js',
+    #         'ths_medical_pos/static/src/components/appointment_calendar_button/appointment_calendar_button.xml',
+    #         'ths_medical_pos/static/src/components/appointment_screen_button/appointment_screen_button.xml',
+    #         'ths_medical_pos/static/src/components/appointment_screen_button/appointment_screen_button.js',
+    #         # Popups
+    #         'ths_medical_pos/static/src/popups/pending_items_list_popup.js',
+    #         'ths_medical_pos/static/src/popups/pending_items_list_popup.xml',
+    #         'ths_medical_pos/static/src/popups/appointment_detail_popup.xml',
+    #         'ths_medical_pos/static/src/popups/appointment_detail_popup.js',
+    #         'ths_medical_pos/static/src/popups/appointment_create_popup.xml',
+    #         'ths_medical_pos/static/src/popups/appointment_create_popup.js',
+    #         # Screens
+    #         'ths_medical_pos/static/src/screens/appointment_screen/appointment_screen.xml',
+    #         'ths_medical_pos/static/src/screens/appointment_screen/appointment_screen.js',
+    #         'ths_medical_pos/static/src/screens/product_screen/product_screen.js',
+    #         'ths_medical_pos/static/src/screens/product_screen/product_screen.xml',
+    #         #Widget
+    #         'ths_medical_pos/static/src/components/calendar_widget/calendar_widget.js',
+    #         #CSS
+    #         'ths_medical_pos/static/src/css/medical_pos.css',
+    #
+    #     ],
+    # },
+'assets': {
+        'point_of_sale._assets_pos': [
+            #'ths_medical_pos/static/src/main.js',
             # 1. Load FullCalendar Library CSS & JS FIRST
             ('include', 'web._assets_helpers'),
             'ths_medical_pos/static/lib/fullcalendar/index.global.min.js',
 
-            # Buttons
-            'ths_medical_pos/static/src/components/pending_items_button/pending_items_button.js',
-            'ths_medical_pos/static/src/components/pending_items_button/pending_items_button.xml',
-            'ths_medical_pos/static/src/components/appointment_screen_button/appointment_screen_button.xml',
-            'ths_medical_pos/static/src/components/appointment_screen_button/appointment_screen_button.js',
-            # Popups
+            # Test new assets structure
+            'ths_medical_pos/static/src/popups/appointment_create_popup.js',
+            'ths_medical_pos/static/src/popups/appointment_create_popup.xml',
+            'ths_medical_pos/static/src/popups/appointment_detail_popup.js',
+            'ths_medical_pos/static/src/popups/appointment_detail_popup.xml',
             'ths_medical_pos/static/src/popups/pending_items_list_popup.js',
             'ths_medical_pos/static/src/popups/pending_items_list_popup.xml',
-            'ths_medical_pos/static/src/popups/appointment_detail_popup.xml',
-            'ths_medical_pos/static/src/popups/appointment_detail_popup.js',
-            'ths_medical_pos/static/src/popups/appointment_create_popup.xml',
-            'ths_medical_pos/static/src/popups/appointment_create_popup.js',
+            'ths_medical_pos/static/src/components/pending_items_button/pending_items_button.js',
+            'ths_medical_pos/static/src/components/pending_items_button/pending_items_button.xml',
+            'ths_medical_pos/static/src/components/appointment_calendar_button/appointment_calendar_button.js',
+            'ths_medical_pos/static/src/components/appointment_calendar_button/appointment_calendar_button.xml',
+            'ths_medical_pos/static/src/components/appointment_screen_button/appointment_screen_button.js',
+            'ths_medical_pos/static/src/components/appointment_screen_button/appointment_screen_button.xml',
+            'ths_medical_pos/static/src/screens/product_screen/product_screen.js',
+            'ths_medical_pos/static/src/screens/product_screen/product_screen.xml',
+
             # Screens
             'ths_medical_pos/static/src/screens/appointment_screen/appointment_screen.xml',
             'ths_medical_pos/static/src/screens/appointment_screen/appointment_screen.js',
+
+            #Widget
+            'ths_medical_pos/static/src/components/calendar_widget/calendar_widget.js',
+            #CSS
+            'ths_medical_pos/static/src/css/medical_pos.css',
+
         ],
     },
     'installable': True,

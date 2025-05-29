@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates id="template" xml:space="preserve">
 
-    <t t-name="ths_medical_pos.AppointmentScreen" owl="1">
+    <t t-name="ths_medical_pos.AppointmentScreen">
         <div class="appointment-screen screen h-100 d-flex flex-column bg-100">
             <div class="appointment-screen-header screen-header d-flex align-items-center justify-content-between p-2 gap-2">
                  <div class="d-flex align-items-center gap-3">

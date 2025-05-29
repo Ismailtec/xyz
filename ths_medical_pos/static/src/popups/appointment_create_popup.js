@@ -1,28 +1,35 @@
 /** @odoo-module */
+console.log("Loading: ths_medical_pos/static/src/popups/appointment_create_popup.js");
 
-import { AbstractAwaitablePopup } from "@point_of_sale/app/popup/abstract_awaitable_popup";
+import { Component, useState, useRef, onMounted } from "@odoo/owl";
 import { _t } from "@web/core/l10n/translation";
 import { usePos } from "@point_of_sale/app/store/pos_hook";
-import { useState, useRef, onMounted } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 import { formatDateTime, formatDate } from "@web/core/l10n/dates";
+import { registry } from "@web/core/registry";
 
-export class AppointmentCreatePopup extends AbstractAwaitablePopup {
+export class AppointmentCreatePopup extends Component {
     static template = "ths_medical_pos.AppointmentCreatePopup";
+    static props = {
+        title: { type: String, optional: true },
+        start: { type: Date, optional: true },
+        end: { type: Date, optional: true },
+        close: Function,
+        confirm: Function,
+    };
     static defaultProps = {
-        confirmText: _t("Create"),
-        cancelText: _t("Cancel"),
         title: _t("New Appointment"),
         start: null,
         end: null,
-        closePopup: () => {},
     };
+
 
     setup() {
         super.setup();
         this.pos = usePos();
         this.orm = useService("orm");
         this.notification = useService("notification");
+
         // Use state for form data
         this.state = useState({
              startDate: this.props.start ? new Date(this.props.start) : new Date(),
@@ -52,13 +59,11 @@ export class AppointmentCreatePopup extends AbstractAwaitablePopup {
         });
     }
 
-    // Updated: Load data, preferring loaded POS data
+    // Load data, preferring loaded POS data
     async loadSelectionData() {
         this.state.isLoading = true;
         try {
             // 1. Load Pets (Try using POS partner data first)
-            // We need partner type IDs (Pet) - assuming they are loaded or fetchable
-            // This requires partner types to be loaded or fetched once.
             const petTypeId = this.pos.db.partner_type_by_ref?.pet?.id; // Assumes types loaded by ref
             if (petTypeId) {
                  // Filter partners loaded in POS
@@ -79,19 +84,19 @@ export class AppointmentCreatePopup extends AbstractAwaitablePopup {
                 this.state.availablePatients = patients.map(p => ({ id: p.id, name: p.display_name + (p.ths_pet_owner_id ? ` (${p.ths_pet_owner_id[1]})` : '') }));
             }
 
-
             // 2. Load Practitioners (Try using POS employee data first)
             this.state.availablePractitioners = this.pos.employees
                 .filter(e => e.ths_is_medical && e.resource_id) // Filter based on loaded fields
                 .map(e => ({ id: e.id, name: e.name }))
                 .sort((a, b) => a.name.localeCompare(b.name));
             console.log("Loaded practitioners from pos.employees:", this.state.availablePractitioners.length);
+
             // Fallback RPC if needed (if pos.employees doesn't have required fields/domain)
             if (this.state.availablePractitioners.length === 0) {
                  console.warn("No suitable practitioners found in pos.employees. Falling back to RPC.");
                  const practitioners = await this.orm.searchRead(
                     'hr.employee',
-                    [['resource_id', '!=', false], ['ths_is_medical', '=', True]],
+                    [['resource_id', '!=', false], ['ths_is_medical', '=', true]],
                     ['id', 'name'],
                     { context: this.pos.user.context, limit: 100 }
                  );
@@ -101,7 +106,7 @@ export class AppointmentCreatePopup extends AbstractAwaitablePopup {
             // 3. Load Rooms (RPC is generally fine here unless list is huge/static)
              const rooms = await this.orm.searchRead(
                 'ths.treatment.room',
-                [['resource_id', '!=', false], ['active', '=', True]],
+                [['resource_id', '!=', false], ['active', '=', true]],
                 ['id', 'name'],
                 { context: this.pos.user.context, limit: 100 }
              );
@@ -142,21 +147,33 @@ export class AppointmentCreatePopup extends AbstractAwaitablePopup {
         return dateObj ? formatDateTime(dateObj) : '';
     }
 
-    // --- Confirmation / Save Logic ---
+    // Confirmation / Save Logic
     async confirm() {
         const startTime = this.state.startDate;
         const endTime = this.state.endDate;
         const derivedOwnerId = this.getOwnerIdForPet(this.state.patientId);
 
         // Validation
-        if (!this.state.name) { /* ... keep validation ... */ return; }
-        if (!this.state.patientId) { /* ... keep validation ... */ return; }
+        if (!this.state.name) {
+            this.notification.add(_t("Appointment name is required."), { type: 'danger' });
+            return;
+        }
+        if (!this.state.patientId) {
+            this.notification.add(_t("Please select a patient."), { type: 'danger' });
+            return;
+        }
          if (!derivedOwnerId) {
              this.notification.add(_t("Could not determine the Pet Owner for the selected Pet."), { type: 'danger' });
              return;
          }
-        if (!startTime || !endTime) { /* ... keep validation ... */ return; }
-        if (endTime <= startTime) { /* ... keep validation ... */ return; }
+        if (!startTime || !endTime) {
+            this.notification.add(_t("Start and end times are required."), { type: 'danger' });
+            return;
+        }
+        if (endTime <= startTime) {
+            this.notification.add(_t("End time must be after start time."), { type: 'danger' });
+            return;
+        }
 
         // Convert dates to Odoo/Postgres compatible format (UTC String)
         const formatForOdoo = (date) => date.toISOString().slice(0, 19).replace('T', ' ');
@@ -172,7 +189,6 @@ export class AppointmentCreatePopup extends AbstractAwaitablePopup {
             'ths_status': 'scheduled',
             'ths_reason_for_visit': this.state.reason || '',
              // Ensure required attendees (patient/owner/provider) are added if needed by backend model
-             // This might require passing partner_ids list
              'partner_ids': [(6, 0, [derivedOwnerId, this.state.patientId])], // Example: Owner and Pet
         };
 
@@ -184,13 +200,12 @@ export class AppointmentCreatePopup extends AbstractAwaitablePopup {
              }
         }
 
-
         console.log("Creating calendar event with vals:", vals);
 
         try {
             this.state.isLoading = true; // Indicate saving
             const newEventId = await this.orm.create('calendar.event', [vals], { context: this.pos.user.context });
-            _logger.info(`Appointment created successfully with ID: ${newEventId}`);
+            console.log(`Appointment created successfully with ID: ${newEventId}`);
             this.notification.add(_t("Appointment created successfully."), { type: 'success' });
             super.confirm({ created: true, eventId: newEventId }); // Close popup
         } catch (error) {
@@ -204,3 +219,6 @@ export class AppointmentCreatePopup extends AbstractAwaitablePopup {
         super.cancel();
     }
 }
+
+// Register the popup component
+registry.category("popups").add("AppointmentCreatePopup", AppointmentCreatePopup);

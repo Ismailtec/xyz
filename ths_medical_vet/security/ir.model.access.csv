@@ -10,3 +10,11 @@ access_ths_species_user,ths.species.user,model_ths_species,ths_medical_base.grou
 access_ths_species_manager,ths.species.manager,model_ths_species,ths_medical_base.group_medical_manager,1,1,1,1
 access_ths_breed_user,ths.breed.user,model_ths_breed,ths_medical_base.group_medical_user,1,1,1,1
 access_ths_breed_manager,ths.breed.manager,model_ths_breed,ths_medical_base.group_medical_manager,1,1,1,1
+access_vet_vaccine_user,vet.vaccine.user,model_vet_vaccine,ths_medical_base.group_medical_user,1,0,0,0
+access_vet_vaccine_manager,vet.vaccine.manager,model_vet_vaccine,ths_medical_base.group_medical_manager,1,1,1,1
+access_vet_vaccination_user,vet.vaccination.user,model_vet_vaccination,ths_medical_base.group_medical_user,1,1,1,0
+access_vet_vaccination_manager,vet.vaccination.manager,model_vet_vaccination,ths_medical_base.group_medical_manager,1,1,1,1
+access_species_breed_import_wizard,vet.species.breed.import.wizard,model_vet_species_breed_import_wizard,ths_medical_base.group_medical_user,1,1,1,1
+access_vet_vaccine_type_user,vet.vaccine.type.user,model_vet_vaccine_type,ths_medical_base.group_medical_user,1,1,1,1
+access_vet_vaccine_type_manager,vet.vaccine.type.manager,model_vet_vaccine_type,ths_medical_base.group_medical_manager,1,1,1,1
+access_vet_medical_history_summary,access_vet_medical_history_summary,ths_medical_vet.model_vet_medical_history_summary,ths_medical_base.group_medical_user,1,0,0,0

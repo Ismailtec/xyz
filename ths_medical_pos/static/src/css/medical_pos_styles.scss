@@ -1,0 +1,371 @@
+// Medical POS Component Styles
+// Follow Odoo 18 POS styling conventions
+
+// Pending Items Button
+.pending-items-btn {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+
+    &:hover {
+        background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+
+    .fa-medical-clipboard {
+        font-size: 1.2em;
+        margin-bottom: 4px;
+    }
+}
+
+// Appointment Calendar Button
+.appointment-calendar-btn, .appointment-create-btn {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+    margin-right: 8px;
+
+    &:hover {
+        background: linear-gradient(135deg, #3d8bfe 0%, #00d4fe 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+
+    .fa-calendar, .fa-plus {
+        font-size: 1.2em;
+        margin-bottom: 4px;
+    }
+}
+
+.control-buttons-group {
+    display: flex;
+    gap: 8px;
+}
+
+// Appointment Screen Button and Dropdown
+.appointment-screen-container {
+    position: relative;
+
+    .appointment-screen-btn {
+        background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        color: white;
+        position: relative;
+
+        &:hover {
+            background: linear-gradient(135deg, #f85a8a 0%, #fdd835 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .fa-stethoscope {
+            font-size: 1.2em;
+            margin-bottom: 4px;
+        }
+
+        .badge {
+            background-color: #dc3545;
+            font-size: 0.7em;
+            padding: 2px 6px;
+            border-radius: 10px;
+        }
+    }
+
+    .appointments-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        z-index: 1000;
+        max-height: 400px;
+        overflow-y: auto;
+        min-width: 350px;
+
+        .appointments-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid #dee2e6;
+            background: #f8f9fa;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+
+            h5 {
+                margin: 0;
+                font-size: 1.1em;
+                color: #495057;
+            }
+
+            .appointments-actions {
+                display: flex;
+                gap: 8px;
+
+                .btn {
+                    font-size: 0.85em;
+                    padding: 4px 12px;
+                }
+            }
+        }
+
+        .appointments-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .appointment-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid #f0f0f0;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+
+            &:hover {
+                background-color: #f8f9fa;
+            }
+
+            &:last-child {
+                border-bottom: none;
+            }
+
+            .appointment-time {
+                width: 80px;
+                font-weight: bold;
+                color: #495057;
+                font-size: 0.9em;
+            }
+
+            .appointment-details {
+                flex: 1;
+                margin-left: 12px;
+
+                .appointment-name {
+                    font-weight: 500;
+                    color: #212529;
+                    margin-bottom: 2px;
+                }
+
+                .appointment-patient {
+                    font-size: 0.8em;
+                    color: #6c757d;
+                }
+            }
+
+            .appointment-status {
+                margin-left: 12px;
+
+                .badge {
+                    font-size: 0.75em;
+                    padding: 4px 8px;
+                }
+            }
+        }
+    }
+}
+
+// Popup Styles
+.appointment-create-popup, .appointment-detail-popup, .pending-items-popup {
+    .popup-content {
+        max-width: 600px;
+        width: 90vw;
+        max-height: 80vh;
+        overflow-y: auto;
+    }
+
+    .loading-container, .error-container {
+        min-height: 200px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .appointment-form {
+        .form-group {
+            margin-bottom: 1rem;
+
+            label {
+                font-weight: 500;
+                margin-bottom: 0.5rem;
+                color: #495057;
+            }
+
+            .form-control {
+                border-radius: 6px;
+                border: 1px solid #ced4da;
+                transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+
+                &:focus {
+                    border-color: #80bdff;
+                    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+                }
+            }
+        }
+    }
+
+    .appointment-details {
+        .appointment-header {
+            padding-bottom: 12px;
+            border-bottom: 1px solid #dee2e6;
+
+            h4 {
+                margin: 0 0 8px 0;
+                color: #212529;
+            }
+        }
+
+        .appointment-info {
+            margin-top: 16px;
+
+            .row {
+                margin-bottom: 8px;
+
+                .col-sm-4 {
+                    color: #6c757d;
+                    font-size: 0.9em;
+                }
+
+                .col-sm-8 {
+                    color: #212529;
+                }
+            }
+        }
+
+        .appointment-actions {
+            padding-top: 16px;
+            border-top: 1px solid #dee2e6;
+
+            .btn {
+                margin-right: 8px;
+
+                &:last-child {
+                    margin-right: 0;
+                }
+            }
+        }
+    }
+
+    .pending-items-list {
+        .table {
+            margin-bottom: 0;
+
+            th {
+                border-top: none;
+                background-color: #f8f9fa;
+                font-weight: 600;
+                color: #495057;
+                font-size: 0.9em;
+            }
+
+            td {
+                vertical-align: middle;
+                font-size: 0.9em;
+
+                .btn {
+                    font-size: 0.8em;
+                    padding: 4px 8px;
+                }
+            }
+        }
+    }
+}
+
+// Status Badge Styles
+.badge {
+    &.badge-info {
+        background-color: #17a2b8;
+        color: white;
+    }
+
+    &.badge-success {
+        background-color: #28a745;
+        color: white;
+    }
+
+    &.badge-warning {
+        background-color: #ffc107;
+        color: #212529;
+    }
+
+    &.badge-danger {
+        background-color: #dc3545;
+        color: white;
+    }
+
+    &.badge-secondary {
+        background-color: #6c757d;
+        color: white;
+    }
+
+    &.badge-dark {
+        background-color: #343a40;
+        color: white;
+    }
+
+    &.badge-light {
+        background-color: #f8f9fa;
+        color: #212529;
+        border: 1px solid #dee2e6;
+    }
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+    .appointment-screen-container .appointments-dropdown {
+        min-width: 300px;
+        left: -50px;
+    }
+
+    .appointment-create-popup .popup-content,
+    .appointment-detail-popup .popup-content,
+    .pending-items-popup .popup-content {
+        width: 95vw;
+        max-height: 90vh;
+    }
+
+    .control-buttons-group {
+        flex-direction: column;
+        gap: 4px;
+
+        .control-button {
+            margin-right: 0;
+        }
+    }
+}
+
+// Loading spinner animation
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.fa-spin {
+    animation: spin 1s linear infinite;
+}
+
+// Hover effects for control buttons
+.control-button {
+    transition: all 0.3s ease;
+    cursor: pointer;
+
+    &:active {
+        transform: translateY(1px);
+    }
+}
+
+// Form validation styles
+.form-control.is-invalid {
+    border-color: #dc3545;
+
+    &:focus {
+        border-color: #dc3545;
+        box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+    }
+}
+
+.invalid-feedback {
+    color: #dc3545;
+    font-size: 0.875em;
+    margin-top: 0.25rem;
+}

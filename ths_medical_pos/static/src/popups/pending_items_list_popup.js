@@ -1,105 +1,117 @@
 /** @odoo-module */
+console.log("Loading: ths_medical_pos/static/src/popups/pending_items_list_popup.js");
 
-import { AbstractAwaitablePopup } from "@point_of_sale/app/popup/abstract_awaitable_popup";
+import { Component } from "@odoo/owl";
 import { _t } from "@web/core/l10n/translation";
+import { registry } from "@web/core/registry";
 import { usePos } from "@point_of_sale/app/store/pos_hook";
-import { useState } from "@odoo/owl";
-import { useService } from "@web/core/utils/hooks"; // Import useService hook
+import { useService } from "@web/core/utils/hooks";
 
-export class PendingItemsListPopup extends AbstractAwaitablePopup {
+export class PendingItemsListPopup extends Component {
     static template = "ths_medical_pos.PendingItemsListPopup";
+    static props = {
+        title: { type: String, optional: true },
+        items: { type: Array, optional: true },
+        close: Function,  // This is the function to close the popup
+    };
     static defaultProps = {
-        confirmText: _t("Ok"),
-        cancelText: _t("Close"),
-        title: _t("Pending Items"),
+        title: _t('Pending Medical Items'),
         items: [],
     };
 
     setup() {
-        super.setup();
         this.pos = usePos();
-        this.notification = useService("notification"); // Use notification service
-        console.log("PendingItemsListPopup setup with items:", this.props.items);
+        this.popup = useService("popup");
+        this.notification = useService("notification");
+        this.orm = useService("orm");
+    }
+
+    async addItemToOrder(item) {
+        console.log("Adding item to order:", item);
+
+        const order = this.pos.get_order();
+        const product = this.pos.db.product_by_id[item.product_id[0]];
+
+        if (!product) {
+            await this.popup.add("ErrorPopup", {
+                title: _t('Product Not Found'),
+                body: _t('Product %s not available in POS', item.product_id[1]),
+            });
+            return;
+        }
+
+        // Check if customer matches
+        const currentPartner = order.get_partner();
+        if (currentPartner && currentPartner.id !== item.partner_id[0]) {
+            const { confirmed } = await this.popup.add("ConfirmPopup", {
+                title: _t('Different Customer'),
+                body: _t('This item belongs to %s but current customer is %s. Continue?',
+                    item.partner_id[1], currentPartner.name),
+            });
+            if (!confirmed) {
+                return;
+            }
+        }
+
+        // Add to order with all details
+        const options = {
+            quantity: item.qty,
+            price: item.price_unit,
+            discount: item.discount || 0,
+            extras: {
+                pending_item_id: item.id,
+                practitioner_id: item.practitioner_id,
+                commission_pct: item.commission_pct,
+                patient_id: item.patient_id,
+                encounter_id: item.encounter_id,
+            }
+        };
+
+        const orderline = order.add_product(product, options);
+
+        // Set the description if provided
+        if (item.description && orderline) {
+            orderline.set_note(item.description);
+        }
+
+        // Mark as processed
+        try {
+            await this.orm.write('ths.pending.pos.item', [item.id], {
+                state: 'processed',
+            });
+
+            this.notification.add(
+                _t('Item added to order successfully'),
+                { type: 'success' }
+            );
+
+            // Remove from list and refresh
+            const index = this.props.items.findIndex(i => i.id === item.id);
+            if (index > -1) {
+                this.props.items.splice(index, 1);
+            }
+
+            if (this.props.items.length === 0) {
+                this.props.close();
+            }
+
+        } catch (error) {
+            console.error("Error updating pending item:", error);
+            await this.popup.add("ErrorPopup", {
+                title: _t('Error'),
+                body: _t('Error updating item status'),
+            });
+        }
     }
 
     get itemsToShow() {
         return this.props.items || [];
     }
 
-    formatCurrency(amount) {
-        return this.pos.format_currency(amount);
-    }
-
-    // Updated Action when an item row (or its button) is clicked
-    async selectItem(item) {
-        console.log("Attempting to add item:", item);
-
-        const order = this.pos.get_order();
-        if (!order) {
-            this.notification.add(_t("No active order found."), { type: 'danger' });
-            return;
-        }
-
-        const productId = item.product_id[0];
-        const product = this.pos.db.get_product_by_id(productId);
-
-        if (!product) {
-            console.error(`Product with ID ${productId} not found in POS DB.`);
-            this.notification.add(
-                _t("Product '%(productName)s' not available in POS.", { productName: item.product_id[1] }),
-                { type: 'danger', sticky: true }
-            );
-            // Maybe remove item from list or disable it? For now, just notify.
-            return;
-        }
-
-        console.log(`Adding product: ${product.display_name} to order.`);
-
-        // Prepare options for add_product
-        // Ensure keys match expected options for add_product and include custom data under 'extras'
-        const options = {
-            quantity: item.qty,
-            price: item.price_unit, // Set specific price from pending item
-            discount: item.discount || 0,
-            description: item.description || product.display_name, // Use specific description or fallback
-            // Standard place to pass extra context/data
-            extras: {
-                ths_pending_item_id: item.id,
-                ths_patient_id: item.patient_id ? item.patient_id[0] : null, // Pass ID
-                ths_provider_id: item.practitioner_id ? item.practitioner_id[0] : null, // Pass ID
-                ths_commission_pct: item.commission_pct || 0,
-                // Pass original price if needed for calculations later
-                // base_price: item.price_unit
-            },
-             // If merge: false is needed to prevent merging with identical lines, add it
-             // merge: false,
-        };
-
-        try {
-            // Add the product to the order
-            // add_product might be async depending on version/config
-            await order.add_product(product, options);
-            console.log("Product added successfully with options:", options);
-
-            this.notification.add(
-                _t("Added '%(productName)s' to order.", { productName: product.display_name }),
-                { type: 'success', sticky: false, duration: 2000 }
-            );
-
-            // Close the popup after successfully adding the item
-            this.confirm();
-
-        } catch (error) {
-            console.error("Error adding product to order:", error);
-            this.notification.add(
-                _t("Failed to add item '%(productName)s'.", { productName: product.display_name }),
-                { type: 'danger', sticky: true }
-            );
-            // Optionally, re-throw or handle specific errors if needed
-        }
-    }
-
     cancel() {
-        super.cancel();
+        this.props.close();
     }
 }
+
+// Register the popup
+registry.category("popups").add("PendingItemsListPopup", PendingItemsListPopup);

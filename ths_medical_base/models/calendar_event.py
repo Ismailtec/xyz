@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
+from datetime import timedelta
 
 from odoo import models, fields, api, _, Command
 from odoo.exceptions import UserError
+
 import logging
 
 _logger = logging.getLogger(__name__)
@@ -597,3 +599,32 @@ class CalendarEvent(models.Model):
         action['res_id'] = self.ths_encounter_id.id
         action['views'] = [(self.env.ref('ths_medical_base.view_ths_medical_encounter_form').id, 'form')]
         return action
+
+    @api.model
+    def _cron_send_appointment_reminders(self):
+        """Send appointment reminders 24 hours before"""
+        tomorrow = fields.Datetime.now() + timedelta(days=1)
+        tomorrow_start = tomorrow.replace(hour=0, minute=0, second=0)
+        tomorrow_end = tomorrow.replace(hour=23, minute=59, second=59)
+
+        appointments = self.search([
+            ('start', '>=', tomorrow_start),
+            ('start', '<=', tomorrow_end),
+            ('ths_status', 'in', ['scheduled', 'confirmed']),
+            ('ths_patient_id', '!=', False),
+        ])
+
+        template = self.env.ref('ths_medical_base.email_template_appointment_reminder', False)
+        if not template:
+            _logger.warning("Appointment reminder email template not found")
+            return
+
+        for appointment in appointments:
+            try:
+                template.send_mail(appointment.id, force_send=True)
+                appointment.message_post(
+                    body=_("Reminder sent to %s") % appointment.partner_id.name,
+                    message_type='notification'
+                )
+            except Exception as e:
+                _logger.error("Failed to send reminder for appointment %s: %s", appointment.id, e)

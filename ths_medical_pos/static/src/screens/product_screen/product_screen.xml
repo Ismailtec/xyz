@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="template" xml:space="preserve">
+    <t t-inherit="point_of_sale.ProductScreen" t-inherit-mode="extension">
+        <!-- Add buttons to control panel -->
+        <xpath expr="//div[hasclass('product-screen')]" position="inside">
+            <ths_medical_pos.PendingItemsButton/>
+            <ths_medical_pos.AppointmentCalendarButton/>
+            <ths_medical_pos.AppointmentScreenButton/>
+        </xpath>
+    </t>
+</templates>

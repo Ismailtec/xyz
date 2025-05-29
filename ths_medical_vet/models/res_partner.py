@@ -2,7 +2,6 @@
 
 from odoo import models, fields, api, _
 from odoo.exceptions import ValidationError
-
 import logging
 
 _logger = logging.getLogger(__name__)
@@ -11,7 +10,7 @@ _logger = logging.getLogger(__name__)
 class ResPartner(models.Model):
     _inherit = 'res.partner'
 
-    # === Fields for Pet Type ===
+    # Pet-specific fields
     ths_pet_owner_id = fields.Many2one(
         'res.partner',
         string='Pet Owner',
@@ -21,7 +20,7 @@ class ResPartner(models.Model):
     )
     ths_pet_ids = fields.One2many(
         'res.partner',
-        'ths_pet_owner_id',  # Inverse field name
+        'ths_pet_owner_id',
         string='Pets',
     )
     ths_pet_count = fields.Integer(compute='_compute_ths_pet_count', string="# Pets")
@@ -39,164 +38,120 @@ class ResPartner(models.Model):
 
     @api.depends('ths_partner_type_id')
     def _compute_type_flags(self):
+        """Compute pet/owner flags based on partner type"""
         pet_type = self.env.ref('ths_medical_vet.partner_type_pet', raise_if_not_found=False)
         owner_type = self.env.ref('ths_medical_vet.partner_type_pet_owner', raise_if_not_found=False)
+
         for rec in self:
-            rec.is_pet = rec.ths_partner_type_id.id == pet_type.id if pet_type else False
-            rec.is_pet_owner = rec.ths_partner_type_id.id == owner_type.id if owner_type else False
+            rec.is_pet = rec.ths_partner_type_id == pet_type if pet_type else False
+            rec.is_pet_owner = rec.ths_partner_type_id == owner_type if owner_type else False
 
     @api.depends('ths_pet_ids')
     def _compute_ths_pet_count(self):
-        # Note: This might be inefficient if called on many partners at once.
-        # Consider using a read_group instead if performance becomes an issue.
+        """Count pets for each owner"""
         for partner in self:
-            partner.ths_pet_count = len(partner.ths_pet_ids)  # Simple count
+            partner.ths_pet_count = len(partner.ths_pet_ids)
 
-    # === Constraints ===
-    @api.constrains('ths_partner_type_id', 'ths_pet_owner_id')
+    @api.depends_context('company', 'show_pet_owner')
+    @api.depends('name', 'is_pet', 'ths_pet_owner_id', 'ths_pet_owner_id.name')
+    def _compute_display_name(self):
+        """Optimized display name computation for pets with owner info"""
+        # Separate pets and non-pets for efficient processing
+        pets = self.filtered('is_pet')
+        others = self - pets
+
+        if pets:
+            # Prefetch owner names to avoid N+1 queries
+            pets.mapped('ths_pet_owner_id.name')
+
+            # Check context for display preference
+            show_owner = self.env.context.get('show_pet_owner', True)
+
+            for pet in pets:
+                base_name = pet.name or ''
+
+                if show_owner and pet.ths_pet_owner_id:
+                    # Remove any existing bracket info
+                    if ' [' in base_name and base_name.endswith(']'):
+                        base_name = base_name.split(' [')[0]
+
+                    formatted = f"{base_name} [{pet.ths_pet_owner_id.name}]"
+                    pet.display_name = formatted
+
+                    # Update complete_name for res.partner in Odoo 18
+                    if hasattr(pet, 'complete_name'):
+                        pet.complete_name = formatted
+                else:
+                    pet.display_name = base_name
+                    if hasattr(pet, 'complete_name'):
+                        pet.complete_name = base_name
+
+        # Let parent handle non-pets
+        if others:
+            super(ResPartner, others)._compute_display_name()
+
+    # Constraints
+    @api.constrains('ths_partner_type_id', 'ths_pet_owner_id', 'active')
     def _check_pet_has_owner(self):
-        """
-        Constraint to ensure an active Pet has an Owner.
-        TODO: Decide on the final desired behavior for this constraint.
-              Currently allows creation without an owner, but an active pet should have one.
-        """
-        pet_type_ref = self.env.ref('ths_medical_vet.partner_type_pet', raise_if_not_found=False)
-        if not pet_type_ref:
-            _logger.warning(
-                "Pet type XML ID 'ths_medical_vet.partner_type_pet' not found. Skipping _check_pet_has_owner constraint.")
+        """Ensure active pets have owners"""
+        pet_type = self.env.ref('ths_medical_vet.partner_type_pet', raise_if_not_found=False)
+        if not pet_type:
+            return
 
         for partner in self:
-            if partner.active and partner.ths_partner_type_id == pet_type_ref and not partner.ths_pet_owner_id:
-                # Raise error only if it's an existing record being saved as active pet without owner,
-                # or if you want to enforce it strictly always.
-                # For now, to ensure creation is possible and then it can be enforced on active records:
-                if partner.id:  # Only for existing records or make it a warning
-                    _logger.warning(
-                        f"Pet '{partner.name}' (ID: {partner.id}) is active and of type 'Pet' but has no Pet Owner assigned.")
-                # To make it a hard stop for existing active pets:
-                # raise ValidationError(_("An active partner of type 'Pet' must have a Pet Owner assigned."))
-        return True  # Explicitly return True if no issues
+            if (partner.active and
+                    partner.ths_partner_type_id == pet_type and
+                    not partner.ths_pet_owner_id and
+                    partner.id):  # Only for existing records
+                raise ValidationError(
+                    _("Pet '%s' must have an owner assigned.", partner.name)
+                )
 
     @api.constrains('ths_partner_type_id', 'parent_id', 'ths_pet_owner_id')
     def _check_owner_parent_consistency(self):
-        """ Ensure Owner matches parent if parent is Owner type """
+        """Ensure owner and parent consistency"""
         owner_type = self.env.ref('ths_medical_vet.partner_type_pet_owner', raise_if_not_found=False)
         pet_type = self.env.ref('ths_medical_vet.partner_type_pet', raise_if_not_found=False)
-        if not owner_type or not pet_type: return
+
+        if not owner_type or not pet_type:
+            return
 
         for partner in self:
             if partner.ths_partner_type_id == pet_type:
-                # Check if owner is set
-                if partner.ths_pet_owner_id:
-                    # If parent_id is also set and is an Owner, they should match the ths_pet_owner_id
-                    if partner.parent_id and partner.parent_id.ths_partner_type_id == owner_type:
-                        if partner.parent_id != partner.ths_pet_owner_id:
-                            raise ValidationError(
-                                _("If a Pet's parent contact is a Pet Owner, it must match the assigned Pet Owner field."))
-                    # Also ensure owner itself is not a Pet
-                    if partner.ths_pet_owner_id.ths_partner_type_id == pet_type:
-                        raise ValidationError(_("A Pet's Owner cannot be another Pet."))
+                # Check parent/owner consistency
+                if (partner.parent_id and
+                        partner.parent_id.ths_partner_type_id == owner_type and
+                        partner.parent_id != partner.ths_pet_owner_id):
+                    raise ValidationError(
+                        _("Pet's parent contact must match the assigned Pet Owner.")
+                    )
 
-    # === Name Get (Optional enhancement) ===
-    # def name_get(self):
-    #     """ Enhance display name for Pets to show Owner """
-    #     res = []
-    #     pet_type_id = self.env.ref('ths_medical_vet.partner_type_pet', raise_if_not_found=False).id
-    #     for partner in self:
-    #         name = partner.name
-    #         if pet_type_id and partner.ths_partner_type_id.id == pet_type_id and partner.ths_pet_owner_id:
-    #             name = f"{partner.name} ({partner.ths_pet_owner_id.name})"
-    #         res.append((partner.id, name))
-    #     # Handle partners not processed (fall back to super) - This logic needs care
-    #     remaining_ids = set(self.ids) - set(p[0] for p in res)
-    #     if remaining_ids:
-    #          res.extend(super(ResPartner, self.browse(list(remaining_ids))).name_get())
-    #     # Re-sort results to original order? Or trust Odoo to handle it?
-    #     return res
+                # Ensure owner is not another pet
+                if (partner.ths_pet_owner_id and
+                        partner.ths_pet_owner_id.ths_partner_type_id == pet_type):
+                    raise ValidationError(_("A Pet's Owner cannot be another Pet."))
 
-    # === Onchange (Set parent_id based on owner) ===
+    # Onchange methods
     @api.onchange('ths_pet_owner_id')
     def _onchange_pet_owner_id_set_parent(self):
-        """ When owner is selected for a Pet, suggest setting parent_id for address """
-        pet_type_xml_id = 'ths_medical_vet.partner_type_pet'
-        pet_type = self.env.ref(pet_type_xml_id, raise_if_not_found=False)
-
-        if not pet_type:
-            _logger.warning(
-                f"Partner type with XML ID '{pet_type_xml_id}' not found. Cannot execute onchange logic for setting parent based on pet owner.")
-            return
-
-        if self.ths_partner_type_id == pet_type and self.ths_pet_owner_id:
-            if not self.parent_id or self.parent_id != self.ths_pet_owner_id:
-                self.parent_id = self.ths_pet_owner_id
-                # Address sync from parent should happen via standard Odoo's _onchange_parent_id()
-                # which is typically triggered when parent_id changes.
-                # If it's not triggering or you need more specific sync:
-                # if self.parent_id:
-                # This will trigger Odoo's logic to copy address from parent
-                # It's better than manually copying fields as it respects `address_get` complexities.
-                # self.update(self.env['res.partner']._get_inverse_address_fields(self.parent_id, False, False))
-
-    # Action for the Pet Owner's "Pets" smart button
-    def action_view_partner_pets(self):
-        """Action to view pets linked to this Pet Owner."""
-        self.ensure_one()
-        pet_owner_type = self.env.ref('ths_medical_vet.partner_type_pet_owner', raise_if_not_found=False)
+        """Set parent_id when owner is selected"""
         pet_type = self.env.ref('ths_medical_vet.partner_type_pet', raise_if_not_found=False)
 
-        if not pet_owner_type or not pet_type:
-            _logger.warning("Pet Owner or Pet type XML ID not found. Cannot open pets view.")
-            return {}
+        if pet_type and self.ths_partner_type_id == pet_type and self.ths_pet_owner_id:
+            if not self.parent_id or self.parent_id != self.ths_pet_owner_id:
+                self.parent_id = self.ths_pet_owner_id
 
-        if self.ths_partner_type_id != pet_owner_type:
-            return {}  # Should not be called if button visibility is correct
-
-        return {
-            'name': _('Pets of %s') % self.name,
-            'type': 'ir.actions.act_window',
-            'res_model': 'res.partner',
-            'view_mode': 'list,form,kanban',
-            'domain': [('ths_pet_owner_id', '=', self.id), ('ths_partner_type_id', '=', pet_type.id)],
-            'context': {
-                'default_ths_pet_owner_id': self.id,
-                'default_ths_partner_type_id': pet_type.id,
-                'default_parent_id': self.id,  # Also default pet's parent to the owner
-            }
-        }
-
-    # Show Pet Name as Pet Name [Owner Name] in views
-    # In Odoo 18, res.partner uses complete_name instead of display_name for stored computation
-    @api.depends('name', 'is_pet', 'ths_pet_owner_id', 'ths_pet_owner_id.name')
-    def _compute_display_name(self):
-        """ Override display_name computation for pets - also updates complete_name for res.partner"""
-        # Separate pets and non-pets to avoid recursion issues
-        pets = self.filtered(lambda p: p.is_pet and p.ths_pet_owner_id)
-        non_pets = self - pets
-
-        # Process pets with custom formatting for BOTH display_name AND complete_name
-        for partner in pets:
-            base_name = partner.name or ''
-            if '[' in base_name and base_name.endswith(']'):
-                base_name = base_name.split(' [')[0]
-
-            formatted_name = f"{base_name} [{partner.ths_pet_owner_id.name}]"
-
-            # Update both fields for res.partner
-            partner.display_name = formatted_name
-            if hasattr(partner, 'complete_name'):
-                partner.complete_name = formatted_name
-
-        # Use standard Odoo computation for non-pets
-        if non_pets:
-            super(ResPartner, non_pets)._compute_display_name()
-
+    # Override create/write for cache invalidation
     def write(self, vals):
-        """Override write to ensure both complete_name and display_name are recomputed"""
+        """Override write to ensure proper display name recomputation"""
+        # Check if pet-related fields are changing
+        pet_fields = {'name', 'ths_pet_owner_id', 'ths_partner_type_id'}
+        needs_recompute = bool(pet_fields & set(vals.keys()))
+
         result = super().write(vals)
 
         # Force recomputation when pet-related fields change
-        if any(field in vals for field in ['name', 'ths_pet_owner_id', 'ths_partner_type_id']):
-            # Clear the cache for both fields to force recomputation
+        if needs_recompute:
             self.invalidate_recordset(['complete_name', 'display_name'])
 
         return result
@@ -204,11 +159,66 @@ class ResPartner(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         """Override create to ensure proper computation for new pets"""
+        # Process vals to set parent_id from owner
+        pet_type = self.env.ref('ths_medical_vet.partner_type_pet', raise_if_not_found=False)
+
+        for vals in vals_list:
+            if (pet_type and
+                    vals.get('ths_partner_type_id') == pet_type.id and
+                    vals.get('ths_pet_owner_id') and
+                    not vals.get('parent_id')):
+                vals['parent_id'] = vals['ths_pet_owner_id']
+
         records = super().create(vals_list)
 
         # Force computation for newly created pets
-        pet_records = records.filtered(lambda r: r.is_pet and r.ths_pet_owner_id)
+        pet_records = records.filtered('is_pet')
         if pet_records:
             pet_records.invalidate_recordset(['complete_name', 'display_name'])
 
         return records
+
+    # Actions
+    def action_view_partner_pets(self):
+        """Action to view pets linked to this Pet Owner"""
+        self.ensure_one()
+
+        if not self.is_pet_owner:
+            return {}
+
+        pet_type = self.env.ref('ths_medical_vet.partner_type_pet', raise_if_not_found=False)
+        if not pet_type:
+            return {}
+
+        return {
+            'name': _('Pets of %s') % self.name,
+            'type': 'ir.actions.act_window',
+            'res_model': 'res.partner',
+            'view_mode': 'kanban,list,form',
+            'domain': [('ths_pet_owner_id', '=', self.id)],
+            'context': {
+                'default_ths_pet_owner_id': self.id,
+                'default_ths_partner_type_id': pet_type.id,
+                'default_parent_id': self.id,
+                'show_pet_owner': False,  # Don't show owner in pet list
+            }
+        }
+
+    def action_view_medical_history(self):
+        """View complete medical history for a pet"""
+        self.ensure_one()
+
+        if not self.is_pet:
+            return {}
+
+        return {
+            'name': _('Medical History: %s') % self.name,
+            'type': 'ir.actions.act_window',
+            'res_model': 'ths.medical.base.encounter',
+            'view_mode': 'list,form',
+            'domain': [('patient_id', '=', self.id)],
+            'context': {
+                'search_default_groupby_date': 1,
+                'create': False,
+            }
+        }

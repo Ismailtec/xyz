@@ -1,0 +1,173 @@
+# -*- coding: utf-8 -*-
+
+from odoo import models, fields, api, _
+from odoo.exceptions import ValidationError
+from dateutil.relativedelta import relativedelta
+import logging
+
+_logger = logging.getLogger(__name__)
+
+
+class VetVaccine(models.Model):
+    _name = 'vet.vaccine'
+    _description = 'Vaccine Type'
+    _order = 'name'
+
+    name = fields.Char(string='Vaccine Name', required=True)
+    code = fields.Char(string='Code', required=True)
+    species_ids = fields.Many2many('ths.species', string='Applicable Species')
+    validity_months = fields.Integer(string='Validity (Months)', default=12)
+    notes = fields.Text(string='Administration Notes')
+    active = fields.Boolean(default=True)
+
+    _sql_constraints = [
+        ('code_uniq', 'unique(code)', 'Vaccine code must be unique!'),
+    ]
+
+
+class VetVaccination(models.Model):
+    _name = 'vet.vaccination'
+    _description = 'Pet Vaccination Record'
+    _inherit = ['mail.thread', 'mail.activity.mixin']
+    _order = 'date desc, id desc'
+    _rec_name = 'vaccine_type_id'
+
+    pet_id = fields.Many2one(
+        'res.partner',
+        string='Pet',
+        required=True,
+        index=True,
+        domain="[('ths_partner_type_id.name', '=', 'Pet')]",
+        tracking=True,
+    )
+    owner_id = fields.Many2one(
+        'res.partner',
+        string='Pet Owner',
+        related='pet_id.ths_pet_owner_id',
+        store=True,
+        readonly=True,
+    )
+    vaccine_type_id = fields.Many2one(
+        'vet.vaccine.type',
+        string='Vaccine Type',
+        required=True,
+        tracking=True,
+    )
+    date = fields.Date(
+        string='Vaccination Date',
+        required=True,
+        default=fields.Date.context_today,
+        tracking=True,
+    )
+    expiry_date = fields.Date(
+        string='Expiry Date',
+        compute='_compute_expiry_date',
+        store=True,
+        readonly=False,
+        tracking=True,
+    )
+    batch_number = fields.Char(
+        string='Batch/Lot Number',
+        tracking=True,
+    )
+    veterinarian_id = fields.Many2one(
+        'hr.employee',
+        string='Veterinarian',
+        domain="[('ths_is_medical', '=', True)]",
+        required=True,
+        tracking=True,
+    )
+    clinic_name = fields.Char(
+        string='Clinic/Hospital Name',
+        default=lambda self: self.env.company.name,
+    )
+    notes = fields.Text(string='Notes')
+
+    # Status tracking
+    is_expired = fields.Boolean(
+        string='Expired',
+        compute='_compute_is_expired',
+        store=True,
+    )
+    days_until_expiry = fields.Integer(
+        string='Days Until Expiry',
+        store=True,
+        compute='_compute_days_until_expiry',
+    )
+
+    company_id = fields.Many2one(
+        'res.company',
+        string='Company',
+        default=lambda self: self.env.company,
+    )
+
+    @api.depends('date', 'vaccine_type_id.validity_months')
+    def _compute_expiry_date(self):
+        """Calculate expiry date based on vaccine type validity"""
+        for record in self:
+            if record.date and record.vaccine_type_id and record.vaccine_type_id.validity_months:
+                record.expiry_date = record.date + relativedelta(months=record.vaccine_type_id.validity_months)
+            else:
+                record.expiry_date = False
+
+    @api.depends('expiry_date')
+    def _compute_is_expired(self):
+        """Check if vaccination is expired"""
+        today = fields.Date.context_today(self)
+        for record in self:
+            record.is_expired = bool(record.expiry_date and record.expiry_date < today)
+
+    @api.depends('expiry_date')
+    def _compute_days_until_expiry(self):
+        """Calculate days until expiry"""
+        today = fields.Date.context_today(self)
+        for record in self:
+            if record.expiry_date:
+                delta = record.expiry_date - today
+                record.days_until_expiry = delta.days
+            else:
+                record.days_until_expiry = 0
+
+    @api.constrains('date', 'expiry_date')
+    def _check_dates(self):
+        """Ensure expiry date is after vaccination date"""
+        for record in self:
+            if record.date and record.expiry_date and record.expiry_date <= record.date:
+                raise ValidationError(_("Expiry date must be after vaccination date."))
+
+    def action_schedule_reminder(self):
+        """Schedule activity reminder for vaccination renewal"""
+        self.ensure_one()
+        if self.expiry_date:
+            # Schedule 30 days before expiry
+            reminder_date = self.expiry_date - relativedelta(days=30)
+            if reminder_date > fields.Date.context_today(self):
+                self.activity_schedule(
+                    'mail.mail_activity_data_todo',
+                    date_deadline=reminder_date,
+                    summary=_('Vaccination Renewal: %s for %s') % (self.vaccine_type_id.name, self.pet_id.name),
+                    note=_('The %s vaccination for %s will expire on %s. Please schedule a renewal appointment.') % (
+                        self.vaccine_type_id.name, self.pet_id.name, self.expiry_date),
+                    user_id=self.env.user.id,
+                )
+
+
+class VetVaccineType(models.Model):
+    _name = 'vet.vaccine.type'
+    _description = 'Vaccine Type'
+    _order = 'name'
+
+    name = fields.Char(string='Vaccine Name', required=True)
+    code = fields.Char(string='Code', required=True)
+    validity_months = fields.Integer(
+        string='Validity (Months)',
+        required=True,
+        default=12,
+        help="Number of months this vaccine remains valid"
+    )
+    description = fields.Text(string='Description')
+    active = fields.Boolean(default=True)
+
+    _sql_constraints = [
+        ('code_uniq', 'unique (code)', 'Vaccine code must be unique!'),
+    ]

@@ -8,11 +8,6 @@
             <xpath expr="//sheet//h2//field[@name='job_title']" position="before">
                 <field name="name_ar" placeholder="Name in Arabic" class="oe_inline"/>
             </xpath>
-<!--            <xpath expr="//page[@name='hr_settings']//field[@name='user_id']" position="after">-->
-<!--                <group>-->
-<!--                    <field name="employee_type"/>-->
-<!--                </group>-->
-<!--            </xpath>-->
             <xpath expr="//page[@name='hr_settings']/group[last()]" position="after">
                 <group string="Accounting &amp; Inventory Links">
                     <field name="ths_analytic_acc_id" readonly="1"
@@ -20,6 +15,9 @@
                     <field name="ths_inv_loss_loc_id" readonly="1"
                            options="{'no_create': True, 'no_quick_create': True}"/>
                 </group>
+            </xpath>
+            <xpath expr="//widget[@name='contract_warning_tooltip']" position="attributes">
+                <attribute name="groups">hr.group_hr_user</attribute>
             </xpath>
 
             <xpath expr="//header" position="inside">

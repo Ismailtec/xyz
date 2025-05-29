@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <!-- POS Configuration Form View Extension -->
+        <record id="view_pos_config_form_medical" model="ir.ui.view">
+            <field name="name">pos.config.form.medical</field>
+            <field name="model">pos.config</field>
+            <field name="inherit_id" ref="point_of_sale.pos_config_view_form"/>
+            <field name="arch" type="xml">
+                <xpath expr="//page[@name='inventory']" position="after">
+                    <page name="medical" string="Medical Settings">
+                        <group>
+                            <group name="appointment_settings" string="Appointment Settings">
+                                <field name="appointment_default_duration"/>
+                                <field name="allow_walk_in_appointments"/>
+                                <field name="require_practitioner_selection"/>
+                            </group>
+                            <group name="billing_settings" string="Medical Billing">
+                                <field name="auto_load_pending_items"/>
+                                <field name="commission_calculation_method"/>
+                                <field name="default_medical_category_id"/>
+                            </group>
+                        </group>
+                        <group>
+                            <group name="patient_settings" string="Patient Management">
+                                <field name="require_patient_selection"/>
+                                <field name="auto_create_medical_records"/>
+                                <field name="default_appointment_type_id"/>
+                            </group>
+                            <group name="integration_settings" string="Integration">
+                                <field name="sync_with_calendar"/>
+                                <field name="notification_settings"/>
+                            </group>
+                        </group>
+                    </page>
+                </xpath>
+            </field>
+        </record>
+
+        <!-- POS Configuration Model Extension -->
+        <record id="view_pos_config_medical_fields" model="ir.model">
+            <field name="model">pos.config</field>
+            <field name="state">manual</field>
+        </record>
+
+    </data>
+</odoo>

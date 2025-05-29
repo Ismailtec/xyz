@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<templates id="template" xml:space="preserve">
+    <t t-name="ths_medical_pos.AppointmentCalendarButton">
+        <button class="btn btn-secondary m-2 control-button"
+                t-on-click="onClick">
+            <i class="fa fa-calendar me-1" role="img" aria-label="Calendar" title="Calendar"/>
+            <span>Calendar</span>
+        </button>
+    </t>
+</templates>

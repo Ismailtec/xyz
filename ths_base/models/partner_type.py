@@ -20,7 +20,7 @@ class ThsPartnerType(models.Model):
     _parent_store = True  # Enable parent/child features
     _order = 'parent_path asc, name asc'  # Order by hierarchy then name
 
-    name = fields.Char(string='Name', required=True, translate=True)
+    name = fields.Char(string='Name', required=True)
     parent_id = fields.Many2one(
         'ths.partner.type',
         string='Parent Partner Type',

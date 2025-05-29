@@ -1,0 +1,343 @@
+<?xml version="1.0" encoding="utf-8"?>
+<templates id="template" xml:space="preserve">
+
+    <!-- Pending Items Button Template -->
+    <t t-name="ths_medical_pos.PendingItemsButton">
+        <div class="control-button pending-items-btn" t-on-click="onClick">
+            <i class="fa fa-medical-clipboard"/>
+            <div class="control-button-title">Pending Items</div>
+        </div>
+    </t>
+
+    <!-- Appointment Calendar Button Template -->
+    <t t-name="ths_medical_pos.AppointmentCalendarButton">
+        <div class="control-buttons-group">
+            <div class="control-button appointment-calendar-btn" t-on-click="onClick">
+                <i class="fa fa-calendar"/>
+                <div class="control-button-title">Calendar</div>
+            </div>
+            <div class="control-button appointment-create-btn" t-on-click="onCreateAppointment">
+                <i class="fa fa-plus"/>
+                <div class="control-button-title">New Appt</div>
+            </div>
+        </div>
+    </t>
+
+    <!-- Appointment Screen Button Template -->
+    <t t-name="ths_medical_pos.AppointmentScreenButton">
+        <div class="appointment-screen-container">
+            <div class="control-button appointment-screen-btn" t-on-click="onClick">
+                <i class="fa fa-stethoscope"/>
+                <div class="control-button-title">
+                    Appointments
+                    <span t-if="appointmentCount > 0" class="badge badge-primary ml-1" t-esc="appointmentCount"/>
+                </div>
+            </div>
+
+            <!-- Appointments List Dropdown -->
+            <div t-if="state.showAppointmentsList" class="appointments-dropdown">
+                <div class="appointments-header">
+                    <h5>Today's Appointments</h5>
+                    <div class="appointments-actions">
+                        <button class="btn btn-sm btn-primary" t-on-click="onCreateNewAppointment">
+                            <i class="fa fa-plus"/>
+                            New
+                        </button>
+                        <button class="btn btn-sm btn-secondary" t-on-click="onRefreshAppointments">
+                            <i class="fa fa-refresh"/>
+                            Refresh
+                        </button>
+                    </div>
+                </div>
+
+                <div class="appointments-list">
+                    <div t-if="state.isLoading" class="text-center p-3">
+                        <i class="fa fa-spinner fa-spin"/>
+                        Loading...
+                    </div>
+
+                    <div t-if="!state.isLoading and !hasAppointments" class="text-center p-3 text-muted">
+                        No appointments for today
+                    </div>
+
+                    <div t-if="!state.isLoading and hasAppointments" class="appointment-items">
+                        <div t-foreach="state.todayAppointments" t-as="appointment" t-key="appointment.id"
+                             class="appointment-item" t-on-click="() => this.onAppointmentClick(appointment)">
+                            <div class="appointment-time">
+                                <t t-esc="formatAppointmentTime(appointment.start)"/>
+                            </div>
+                            <div class="appointment-details">
+                                <div class="appointment-name" t-esc="appointment.display_name"/>
+                                <div class="appointment-patient">
+                                    <small t-if="appointment.ths_patient_id" class="text-muted">
+                                        Patient: <t t-esc="appointment.ths_patient_id[1]"/>
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="appointment-status">
+                                <span t-att-class="getStatusBadgeClass(appointment.ths_status)"
+                                      t-esc="appointment.ths_status"/>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </t>
+
+    <!-- Appointment Create Popup Template -->
+    <t t-name="ths_medical_pos.AppointmentCreatePopup">
+        <div class="popup appointment-create-popup">
+            <div class="popup-content">
+                <header class="title">
+                    <t t-esc="props.title"/>
+                </header>
+
+                <main class="body">
+                    <div t-if="state.isLoading" class="loading-container text-center p-4">
+                        <i class="fa fa-spinner fa-spin fa-2x"/>
+                        <p>Loading appointment data...</p>
+                    </div>
+
+                    <div t-if="!state.isLoading" class="appointment-form">
+                        <!-- Appointment Name -->
+                        <div class="form-group">
+                            <label for="appointment-name">Appointment Subject *</label>
+                            <input type="text" id="appointment-name" class="form-control"
+                                   t-model="state.name" placeholder="Enter appointment description"/>
+                        </div>
+
+                        <!-- Patient Selection -->
+                        <div class="form-group">
+                            <label for="patient-select">Patient *</label>
+                            <select id="patient-select" class="form-control"
+                                    t-on-change="onPatientChange">
+                                <option value="">Select a patient...</option>
+                                <option t-foreach="state.availablePatients" t-as="patient"
+                                        t-key="patient.id" t-att-value="patient.id"
+                                        t-esc="patient.name"/>
+                            </select>
+                        </div>
+
+                        <!-- Practitioner Selection -->
+                        <div class="form-group">
+                            <label for="practitioner-select">Practitioner</label>
+                            <select id="practitioner-select" class="form-control"
+                                    t-model="state.practitionerId">
+                                <option value="">Select a practitioner...</option>
+                                <option t-foreach="state.availablePractitioners" t-as="practitioner"
+                                        t-key="practitioner.id" t-att-value="practitioner.id"
+                                        t-esc="practitioner.name"/>
+                            </select>
+                        </div>
+
+                        <!-- Room Selection -->
+                        <div class="form-group">
+                            <label for="room-select">Treatment Room</label>
+                            <select id="room-select" class="form-control"
+                                    t-model="state.roomId">
+                                <option value="">Select a room...</option>
+                                <option t-foreach="state.availableRooms" t-as="room"
+                                        t-key="room.id" t-att-value="room.id"
+                                        t-esc="room.name"/>
+                            </select>
+                        </div>
+
+                        <!-- Date and Time -->
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="start-datetime">Start Date &amp; Time *</label>
+                                    <input type="datetime-local" id="start-datetime" class="form-control"
+                                           t-att-value="state.startDate?.toISOString().slice(0,16)"
+                                           t-on-change="(e) => this.state.startDate = new Date(e.target.value)"/>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="end-datetime">End Date &amp; Time *</label>
+                                    <input type="datetime-local" id="end-datetime" class="form-control"
+                                           t-att-value="state.endDate?.toISOString().slice(0,16)"
+                                           t-on-change="(e) => this.state.endDate = new Date(e.target.value)"/>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Reason for Visit -->
+                        <div class="form-group">
+                            <label for="reason-visit">Reason for Visit</label>
+                            <textarea id="reason-visit" class="form-control" rows="3"
+                                      t-model="state.reason" placeholder="Optional: Enter reason for visit"/>
+                        </div>
+                    </div>
+                </main>
+
+                <footer class="footer">
+                    <div class="confirm" t-on-click="confirm">
+                        <t t-esc="props.confirmText"/>
+                    </div>
+                    <div class="cancel" t-on-click="cancel">
+                        <t t-esc="props.cancelText"/>
+                    </div>
+                </footer>
+            </div>
+        </div>
+    </t>
+
+    <!-- Appointment Detail Popup Template -->
+    <t t-name="ths_medical_pos.AppointmentDetailPopup">
+        <div class="popup appointment-detail-popup">
+            <div class="popup-content">
+                <header class="title">
+                    <t t-esc="props.title"/>
+                </header>
+
+                <main class="body">
+                    <div t-if="state.isLoading" class="loading-container text-center p-4">
+                        <i class="fa fa-spinner fa-spin fa-2x"/>
+                        <p>Loading appointment details...</p>
+                    </div>
+
+                    <div t-if="!state.isLoading and !state.eventData" class="error-container text-center p-4">
+                        <i class="fa fa-exclamation-triangle fa-2x text-warning"/>
+                        <p>Could not load appointment details.</p>
+                    </div>
+
+                    <div t-if="!state.isLoading and state.eventData" class="appointment-details">
+                        <!-- Appointment Header -->
+                        <div class="appointment-header mb-3">
+                            <h4 t-esc="state.eventData.display_name"/>
+                            <span t-att-class="getStatusClass(state.eventData.ths_status) + ' badge'"
+                                  t-esc="state.eventData.ths_status"/>
+                        </div>
+
+                        <!-- Appointment Info -->
+                        <div class="appointment-info">
+                            <div class="row mb-2">
+                                <div class="col-sm-4"><strong>Start:</strong></div>
+                                <div class="col-sm-8" t-esc="formatDisplayDateTime(state.eventData.start)"/>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-sm-4"><strong>End:</strong></div>
+                                <div class="col-sm-8" t-esc="formatDisplayDateTime(state.eventData.stop)"/>
+                            </div>
+                            <div class="row mb-2" t-if="state.eventData.duration">
+                                <div class="col-sm-4"><strong>Duration:</strong></div>
+                                <div class="col-sm-8"><t t-esc="state.eventData.duration"/>
+                                    hours</div>
+                            </div>
+                            <div class="row mb-2" t-if="state.eventData.partner_id">
+                                <div class="col-sm-4"><strong>Owner:</strong></div>
+                                <div class="col-sm-8" t-esc="state.eventData.partner_id[1]"/>
+                            </div>
+                            <div class="row mb-2" t-if="state.eventData.ths_patient_id">
+                                <div class="col-sm-4"><strong>Patient:</strong></div>
+                                <div class="col-sm-8" t-esc="state.eventData.ths_patient_id[1]"/>
+                            </div>
+                            <div class="row mb-2" t-if="state.eventData.ths_practitioner_id">
+                                <div class="col-sm-4"><strong>Practitioner:</strong></div>
+                                <div class="col-sm-8" t-esc="state.eventData.ths_practitioner_id[1]"/>
+                            </div>
+                            <div class="row mb-2" t-if="state.eventData.ths_room_id">
+                                <div class="col-sm-4"><strong>Room:</strong></div>
+                                <div class="col-sm-8" t-esc="state.eventData.ths_room_id[1]"/>
+                            </div>
+                            <div class="row mb-2" t-if="state.eventData.ths_reason_for_visit">
+                                <div class="col-sm-4"><strong>Reason:</strong></div>
+                                <div class="col-sm-8" t-esc="state.eventData.ths_reason_for_visit"/>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="appointment-actions mt-4">
+                            <button class="btn btn-primary mr-2" t-on-click="onEditClick">
+                                <i class="fa fa-edit"/>
+                                Edit
+                            </button>
+                            <button class="btn btn-success" t-on-click="onPayClick"
+                                    t-att-disabled="state.isPaying">
+                                <i class="fa fa-credit-card"/>
+                                <span t-if="!state.isPaying">Add to Order</span>
+                                <span t-if="state.isPaying">Processing...</span>
+                            </button>
+                        </div>
+                    </div>
+                </main>
+
+                <footer class="footer">
+                    <div class="cancel" t-on-click="cancel">
+                        Close
+                    </div>
+                </footer>
+            </div>
+        </div>
+    </t>
+
+    <!-- Pending Items List Popup Template -->
+    <t t-name="ths_medical_pos.PendingItemsListPopup">
+        <div class="popup pending-items-popup">
+            <div class="popup-content">
+                <header class="title">
+                    <t t-esc="props.title"/>
+                </header>
+
+                <main class="body">
+                    <div t-if="!itemsToShow.length" class="text-center p-4">
+                        <i class="fa fa-info-circle fa-2x text-info"/>
+                        <p class="mt-2">No pending items found.</p>
+                    </div>
+
+                    <div t-if="itemsToShow.length" class="pending-items-list">
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>Patient</th>
+                                        <th>Qty</th>
+                                        <th>Price</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr t-foreach="itemsToShow" t-as="item" t-key="item.id">
+                                        <td>
+                                            <strong t-esc="item.product_id[1]"/>
+                                            <br/>
+                                            <small t-if="item.description" class="text-muted" t-esc="item.description"/>
+                                        </td>
+                                        <td>
+                                            <span t-if="item.patient_id" t-esc="item.patient_id[1]"/>
+                                            <span t-if="!item.patient_id" class="text-muted">-</span>
+                                        </td>
+                                        <td t-esc="item.qty"/>
+                                        <td>
+                                            $<t t-esc="item.price_unit.toFixed(2)"/>
+                                            <div t-if="item.discount > 0" class="small text-success">
+                                                <t t-esc="item.discount"/>% discount
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-primary"
+                                                    t-on-click="() => this.addItemToOrder(item)">
+                                                <i class="fa fa-plus"/>
+                                                Add
+                                            </button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </main>
+
+                <footer class="footer">
+                    <div class="cancel" t-on-click="cancel">
+                        Close
+                    </div>
+                </footer>
+            </div>
+        </div>
+    </t>
+
+</templates>
