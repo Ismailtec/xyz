@@ -1,11 +1,42 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates id="template" xml:space="preserve">
-    <t t-inherit="point_of_sale.ProductScreen" t-inherit-mode="extension">
-        <!-- Add buttons to control panel -->
-        <xpath expr="//div[hasclass('product-screen')]" position="inside">
-            <ths_medical_pos.PendingItemsButton/>
-            <ths_medical_pos.AppointmentCalendarButton/>
-            <ths_medical_pos.AppointmentScreenButton/>
+
+    <!-- Extend the ProductScreen to add medical buttons -->
+    <t t-inherit="point_of_sale.Navbar" t-inherit-mode="extension">
+
+        <!-- Add medical control buttons to the existing control-buttons div -->
+        <xpath expr="//div[hasclass('pos-leftheader')]" position="inside">
+
+            <!-- Medical Appointments Button -->
+            <button class="medical-controls d-flex align-items-center gap-2 p-2 border rounded"
+                    t-att-class="{'btn-primary': screen === 'ActionScreen' and pos.mainScreen.props.actionName === 'ManageBookings'}"
+                    t-on-click="() => this.pos.manageBookings()" >
+
+                <span t-if="!ui.isSmall">Appointments</span>
+                <i t-else="" class="fa fa-lg fa-fw fa-calendar"/>
+            </button>
+
         </xpath>
+
+        <!-- Alternative: Add buttons to subpads if the above doesn't work -->
+<!--        <xpath expr="//div[hasclass('subpads')]" position="inside">-->
+
+<!--            &lt;!&ndash; Container for Medical Buttons &ndash;&gt;-->
+<!--            <div class="medical-controls d-flex gap-2 p-2 border rounded">-->
+
+<!--                &lt;!&ndash; Pending Items Button Component &ndash;&gt;-->
+<!--                <PendingItemsButton/>-->
+
+<!--                &lt;!&ndash; Appointment Calendar Button Component &ndash;&gt;-->
+<!--                <AppointmentCalendarButton/>-->
+
+<!--                &lt;!&ndash; Appointment Screen Button Component &ndash;&gt;-->
+<!--                <AppointmentScreenButton/>-->
+
+<!--            </div>-->
+
+<!--        </xpath>-->
+
     </t>
+
 </templates>

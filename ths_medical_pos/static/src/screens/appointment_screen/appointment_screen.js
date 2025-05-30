@@ -1,30 +1,34 @@
 /** @odoo-module */
-console.log("Loading: ths_medical_pos/static/src/screens/appointment_screen/appointment_screen.js");
 
 import { Component, onWillStart, onMounted, onWillUnmount, useRef, useState } from "@odoo/owl";
 import { useService } from "@web/core/utils/hooks";
 import { _t } from "@web/core/l10n/translation";
-import { formatDateTime, formatDate } from "@web/core/l10n/dates";
+import { formatDateTime } from "@web/core/l10n/dates";
 import { registry } from "@web/core/registry";
 import { usePos } from "@point_of_sale/app/store/pos_hook";
-import { Domain } from "@web/core/domain"; // Import Domain utility
 
-// !!! IMPORTANT !!!
-// This code ASSUMES the FullCalendar v5+ library (window.FullCalendar) is loaded globally
-// into the POS assets via your manifest file (using index.global.min.js).
-
+/**
+ * Appointment Screen Component for Medical POS
+ * Displays a full calendar view of medical appointments with drag-drop functionality
+ * Requires FullCalendar library to be loaded in assets
+ */
 export class AppointmentScreen extends Component {
     static template = "ths_medical_pos.AppointmentScreen";
-    static hideOrderSelector = true;
 
     setup() {
-        super.setup();
+        // Latest Odoo 18 POS hook pattern
         this.pos = usePos();
+
+        // Latest Odoo 18 service injection patterns - CORRECT USAGE
         this.orm = useService("orm");
         this.notification = useService("notification");
+        this.dialogService = useService("dialog"); // CORRECT: dialog service usage in Odoo 18
+
+        // DOM reference for calendar container
         this.calendarRef = useRef("calendar-container");
         this.calendarInstance = null;
 
+        // Component state using latest OWL 3 patterns
         this.state = useState({
             appointments: [],
             isLoading: false,
@@ -34,288 +38,372 @@ export class AppointmentScreen extends Component {
             selectedRoomIds: [],
         });
 
+        // Latest OWL 3 lifecycle hooks
         onWillStart(async () => {
             await this.fetchAppointments();
         });
 
         onMounted(() => {
+            // Use requestAnimationFrame for DOM-ready operations
             requestAnimationFrame(() => {
                 this.initializeCalendar();
             });
         });
 
         onWillUnmount(() => {
-            if (this.calendarInstance) {
-                this.calendarInstance.destroy();
-                this.calendarInstance = null;
-            }
+            this.destroyCalendar();
         });
     }
 
+    /**
+     * Initialize FullCalendar with latest configuration
+     * Uses modern FullCalendar v6+ API patterns
+     */
     initializeCalendar() {
         if (!window.FullCalendar) {
-            console.error("FullCalendar library is not loaded! Check manifest assets.");
-            this.notification.add(_t("Calendar library failed to load."), { type: 'danger', sticky: true });
+            console.error("FullCalendar library not loaded in assets");
+            this.notification.add(_t("Calendar library failed to load."), {
+                type: 'danger'
+            });
             return;
         }
 
         if (!this.calendarRef.el) {
-            console.error("Calendar container element not found in template!");
-            this.notification.add(_t("Calendar container failed to load."), { type: 'danger', sticky: true });
+            console.error("Calendar container element not found");
             return;
         }
 
-        if (this.calendarInstance) {
-            this.calendarInstance.destroy();
-        }
-
-        const calendarEl = this.calendarRef.el;
-        const self = this;
+        this.destroyCalendar(); // Ensure clean state
 
         try {
+            const calendarEl = this.calendarRef.el;
+
             this.calendarInstance = new window.FullCalendar.Calendar(calendarEl, {
-                initialView: self.state.calendarView,
-                initialDate: self.state.calendarDate,
+                // Latest FullCalendar configuration patterns
+                initialView: this.state.calendarView,
+                initialDate: this.state.calendarDate,
+
+                // Modern header toolbar configuration
                 headerToolbar: {
                     left: 'prev,next today',
                     center: 'title',
                     right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
                 },
+
+                // View-specific configurations
                 views: {
-                    timeGridWeek: {},
-                    dayGridMonth: {},
-                    timeGridDay: {},
-                    listWeek: {}
+                    timeGridWeek: {
+                        slotMinTime: '08:00:00',
+                        slotMaxTime: '18:00:00',
+                        slotDuration: '00:30:00'
+                    },
+                    dayGridMonth: {
+                        dayMaxEvents: 3
+                    }
                 },
-                events: self.mapOdooEventsToFullCalendar(self.state.appointments),
+
+                // Event data source
+                events: this.mapAppointmentsToCalendar(this.state.appointments),
+
+                // Latest interaction patterns
                 navLinks: true,
                 editable: true,
                 selectable: true,
                 selectMirror: true,
                 dayMaxEvents: true,
-                eventClick: (info) => self.onEventClick(info.event),
-                dateClick: (info) => self.onDateClick(info),
-                select: (info) => self.onDateSelect(info),
-                eventDrop: (info) => self.onEventDropOrResize(info.event, info.oldEvent, info.delta, info.revert),
-                eventResize: (info) => self.onEventDropOrResize(info.event, info.oldEvent, info.endDelta, info.revert),
-                locale: this.env.services.user.context.lang?.replace(/_/g, '-') || 'en',
+
+                // Event handlers using latest patterns
+                eventClick: (info) => this.onEventClick(info.event),
+                dateClick: (info) => this.onDateClick(info),
+                select: (info) => this.onDateSelect(info),
+                eventDrop: (info) => this.onEventChange(info),
+                eventResize: (info) => this.onEventChange(info),
+
+                // Localization using latest patterns
+                locale: this.env.services.user.context.lang?.replace(/_/g, '-') || 'en-US',
                 timeZone: 'local',
-                contentHeight: 'auto',
+
+                // Modern styling
+                height: 'auto',
+                aspectRatio: 1.8,
             });
 
             this.calendarInstance.render();
+
         } catch (error) {
-            console.error("Error initializing FullCalendar:", error);
-            this.notification.add(_t("Failed to initialize calendar view: %(error)s", { error: error.message || error }), { type: 'danger' });
+            console.error("Calendar initialization failed:", error);
+            this.notification.add(
+                _t("Failed to initialize calendar: %(error)s", {
+                    error: error.message || error
+                }),
+                { type: 'danger' }
+            );
         }
     }
 
-    mapOdooEventsToFullCalendar(odooEvents) {
-        return odooEvents.map(event => ({
-            id: event.id,
-            title: event.display_name,
-            start: event.start,
-            end: event.stop,
-            allDay: event.allday,
+    /**
+     * Safely destroy calendar instance
+     */
+    destroyCalendar() {
+        if (this.calendarInstance) {
+            try {
+                this.calendarInstance.destroy();
+            } catch (error) {
+                console.warn("Error destroying calendar:", error);
+            } finally {
+                this.calendarInstance = null;
+            }
+        }
+    }
+
+    /**
+     * Map Odoo appointments to FullCalendar event format
+     * Uses latest appointment data structure
+     */
+    mapAppointmentsToCalendar(appointments) {
+        return appointments.map(appointment => ({
+            id: appointment.id,
+            title: appointment.display_name || appointment.name,
+            start: appointment.start,
+            end: appointment.stop,
+            allDay: appointment.allday || false,
+
+            // Extended properties for medical context
             extendedProps: {
-                odoo_id: event.id,
-                status: event.ths_status,
-                patient: event.ths_patient_id ? event.ths_patient_id[1] : null,
-                provider: event.ths_practitioner_id ? event.ths_practitioner_id[1] : null,
-                room: event.ths_room_id ? event.ths_room_id[1] : null,
+                odoo_id: appointment.id,
+                status: appointment.ths_status,
+                patient: appointment.ths_patient_id?.[1] || null,
+                practitioner: appointment.ths_practitioner_id?.[1] || null,
+                room: appointment.ths_room_id?.[1] || null,
+                owner: appointment.partner_id?.[1] || null,
             },
-            backgroundColor: this.getColorForStatus(event.ths_status),
-            borderColor: this.getColorForStatus(event.ths_status),
+
+            // Status-based styling
+            backgroundColor: this.getStatusColor(appointment.ths_status),
+            borderColor: this.getStatusColor(appointment.ths_status),
+            textColor: this.getTextColor(appointment.ths_status),
         }));
     }
 
-    getColorForStatus(status) {
-        switch (status) {
-            case 'scheduled': return '#3a87ad';
-            case 'confirmed': return '#468847';
-            case 'checked_in': return '#f89406';
-            case 'in_progress': return '#b94a48';
-            case 'completed': return '#777777';
-            case 'billed': return '#333333';
-            case 'cancelled_by_patient':
-            case 'cancelled_by_clinic':
-            case 'no_show': return '#cccccc';
-            default: return '#3a87ad';
-        }
+    /**
+     * Get color based on appointment status
+     * Uses modern medical appointment status colors
+     */
+    getStatusColor(status) {
+        const statusColors = {
+            'scheduled': '#3498db',    // Blue
+            'confirmed': '#2ecc71',    // Green
+            'checked_in': '#f39c12',   // Orange
+            'in_progress': '#e74c3c',  // Red
+            'completed': '#95a5a6',    // Gray
+            'billed': '#34495e',       // Dark gray
+            'cancelled_by_patient': '#bdc3c7',
+            'cancelled_by_clinic': '#bdc3c7',
+            'no_show': '#ecf0f1',
+        };
+        return statusColors[status] || '#3498db';
     }
 
+    /**
+     * Get text color for readability
+     */
+    getTextColor(status) {
+        const lightStatuses = ['no_show', 'cancelled_by_patient', 'cancelled_by_clinic'];
+        return lightStatuses.includes(status) ? '#2c3e50' : '#ffffff';
+    }
+
+    /**
+     * Fetch appointments using latest ORM patterns
+     * Implements efficient domain filtering and field selection
+     */
     async fetchAppointments() {
         this.state.isLoading = true;
+
         try {
-            const domain = this._getAppointmentDomain(true);
-            const fieldsToFetch = [
-                'id', 'display_name', 'start', 'stop', 'duration', 'partner_id',
-                'ths_patient_id', 'ths_practitioner_id', 'ths_room_id',
-                'ths_status', 'allday',
+            const domain = this.buildAppointmentDomain();
+            const fields = [
+                'id', 'display_name', 'name', 'start', 'stop', 'duration',
+                'partner_id', 'ths_patient_id', 'ths_practitioner_id',
+                'ths_room_id', 'ths_status', 'allday'
             ];
-            const fetchedAppointments = await this.orm.searchRead(
+
+            const appointments = await this.orm.searchRead(
                 'calendar.event',
                 domain,
-                fieldsToFetch,
-                { context: this.env.services.user.context }
+                fields,
+                {
+                    context: this.env.services.user.context,
+                    order: 'start ASC'
+                }
             );
-            this.state.appointments = fetchedAppointments;
 
+            this.state.appointments = appointments || [];
+
+            // Update calendar if initialized
             if (this.calendarInstance) {
                 this.calendarInstance.removeAllEventSources();
-                this.calendarInstance.addEventSource(this.mapOdooEventsToFullCalendar(this.state.appointments));
+                this.calendarInstance.addEventSource(
+                    this.mapAppointmentsToCalendar(appointments)
+                );
             }
 
         } catch (error) {
-            console.error("Error fetching appointments:", error);
-            this.notification.add(_t("Error fetching appointments."), { type: 'danger' });
+            console.error("Failed to fetch appointments:", error);
+            this.notification.add(_t("Error loading appointments."), { type: 'danger' });
             this.state.appointments = [];
-            if (this.calendarInstance) {
-                this.calendarInstance.removeAllEventSources();
-            }
         } finally {
             this.state.isLoading = false;
         }
     }
 
-    _getAppointmentDomain(includeFilters = false) {
-        let start, end;
-        const view = this.calendarInstance?.view;
-        if (view) {
-            start = view.activeStart;
-            end = view.activeEnd;
+    /**
+     * Build domain for appointment filtering
+     * Uses latest domain construction patterns
+     */
+    buildAppointmentDomain() {
+        // Get date range from calendar view
+        let startDate, endDate;
+
+        if (this.calendarInstance?.view) {
+            startDate = this.calendarInstance.view.activeStart;
+            endDate = this.calendarInstance.view.activeEnd;
         } else {
-            start = new Date(this.state.calendarDate);
-            start.setDate(start.getDate() - 7);
-            start.setHours(0,0,0,0);
-            end = new Date(this.state.calendarDate);
-            end.setDate(end.getDate() + 7);
-            end.setHours(23,59,59,999);
+            // Default to current week
+            const now = new Date();
+            startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
+            endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 14);
         }
 
-        const formatForOdoo = (date) => {
-            if (!date) return false;
-            return date.toISOString().slice(0, 19).replace('T', ' ');
-        }
+        const formatForOdoo = (date) => date.toISOString().slice(0, 19).replace('T', ' ');
 
-        const odooStartDate = formatForOdoo(start);
-        const odooEndDate = formatForOdoo(end);
-
-        if (!odooStartDate || !odooEndDate) {
-            console.error("Could not determine date range for fetching appointments.");
-            return [];
-        }
-
-        let domainList = [
-            '&',
-            ['start', '<=', odooEndDate],
-            ['stop', '>=', odooStartDate],
+        let domain = [
+            ['start', '<=', formatForOdoo(endDate)],
+            ['stop', '>=', formatForOdoo(startDate)],
+            // Remove vet-specific filtering - this should be in vet extension
         ];
 
-        if (includeFilters) {
-            if (this.state.selectedPractitionerIds && this.state.selectedPractitionerIds.length > 0) {
-                domainList.push(['ths_practitioner_id', 'in', this.state.selectedPractitionerIds]);
-            }
-            if (this.state.selectedRoomIds && this.state.selectedRoomIds.length > 0) {
-                domainList.push(['ths_room_id', 'in', this.state.selectedRoomIds]);
-            }
+        // Apply filters
+        if (this.state.selectedPractitionerIds.length > 0) {
+            domain.push(['ths_practitioner_id', 'in', this.state.selectedPractitionerIds]);
         }
 
-        const finalDomain = Domain.and(domainList);
-        return finalDomain;
+        if (this.state.selectedRoomIds.length > 0) {
+            domain.push(['ths_room_id', 'in', this.state.selectedRoomIds]);
+        }
+
+        return domain;
     }
 
-    onPractitionerFilterChange(selectedIds) {
-        this.state.selectedPractitionerIds = selectedIds;
-        this.fetchAppointments();
-    }
-
-    onRoomFilterChange(selectedIds) {
-        this.state.selectedRoomIds = selectedIds;
-        this.fetchAppointments();
-    }
-
+    /**
+     * Handle calendar event click using ACTUAL Odoo 18 dialog patterns
+     */
     async onEventClick(event) {
-        const odooEventId = event.extendedProps?.odoo_id;
-        if (!odooEventId) {
-            console.error("Could not get Odoo event ID from clicked calendar event.");
-            this.notification.add(_t("Could not identify the clicked appointment."), { type: 'danger' });
+        const appointmentId = event.extendedProps?.odoo_id;
+        if (!appointmentId) {
+            console.error("Missing appointment ID in event");
             return;
         }
 
-        const { AppointmentDetailPopup } = await import("@ths_medical_pos/static/src/popups/appointment_detail_popup");
-        await this.pos.popup.add(AppointmentDetailPopup, {
-            title: _t("Appointment: ") + event.title,
-            eventId: odooEventId
-        });
+        try {
+            // CORRECT Odoo 18 pattern: Import registered components from registry
+            const { AppointmentDetailPopup } = registry.category("popups").get("AppointmentDetailPopup");
+
+            // CORRECT Odoo 18 dialog service usage
+            this.dialogService.add(AppointmentDetailPopup, {
+                title: _t("Appointment: %(name)s", { name: event.title }),
+                eventId: appointmentId,
+            });
+        } catch (error) {
+            console.error("Failed to open appointment details:", error);
+            this.notification.add(_t("Error opening appointment details."), { type: 'danger' });
+        }
     }
 
-    onDateClick(info) {
-        this.createNewAppointment(info.dateStr);
+    /**
+     * Handle date click for new appointment creation
+     */
+    async onDateClick(info) {
+        await this.createNewAppointment(info.dateStr);
     }
 
-    onDateSelect(info) {
-        this.createNewAppointment(info.startStr, info.endStr);
+    /**
+     * Handle date range selection
+     */
+    async onDateSelect(info) {
+        await this.createNewAppointment(info.startStr, info.endStr);
     }
 
-    async onEventDropOrResize(event, oldEvent, delta, revertFunc) {
-        const odooEventId = event.extendedProps?.odoo_id;
-        if (!odooEventId) {
-            console.error("Cannot update event: Missing Odoo ID.");
-            if (typeof revertFunc === 'function') revertFunc();
+    /**
+     * Handle event drag/resize using latest ORM update patterns
+     */
+    async onEventChange(info) {
+        const appointmentId = info.event.extendedProps?.odoo_id;
+        if (!appointmentId) {
+            console.error("Cannot update: Missing appointment ID");
+            info.revert();
             return;
         }
 
-        const valuesToUpdate = {
-            start: event.start.toISOString(),
-            stop: event.end ? event.end.toISOString() : null,
+        const updateData = {
+            start: info.event.start.toISOString().slice(0, 19).replace('T', ' '),
+            stop: info.event.end?.toISOString().slice(0, 19).replace('T', ' ') || null,
         };
 
-        this.notification.add(_t("Saving changes..."), {type:'info', sticky: false, duration: 1500});
-
         try {
-            await this.orm.write('calendar.event', [odooEventId], valuesToUpdate);
-            this.notification.add(_t("Appointment updated successfully."), {type:'success', sticky: false, duration: 3000});
-            await this.fetchAppointments();
-
+            await this.orm.write('calendar.event', [appointmentId], updateData);
+            this.notification.add(_t("Appointment updated successfully."), {
+                type: 'success',
+                duration: 2000
+            });
         } catch (error) {
-            console.error("Error updating appointment:", error);
-            this.notification.add(_t("Failed to save changes: %(message)s", { message: error.message || error }), { type: 'danger', sticky: true });
-            if (typeof revertFunc === 'function') {
-                revertFunc();
-            } else {
-                this.notification.add(_t("Refetching appointments to revert change."), { type: 'warning'});
-                await this.fetchAppointments();
-            }
+            console.error("Failed to update appointment:", error);
+            this.notification.add(_t("Failed to save changes."), { type: 'danger' });
+            info.revert();
         }
     }
 
+    /**
+     * Create new appointment using ACTUAL Odoo 18 dialog patterns
+     */
     async createNewAppointment(start = null, end = null) {
-        const { AppointmentCreatePopup } = await import("@ths_medical_pos/static/src/popups/appointment_create_popup");
-        await this.pos.popup.add(AppointmentCreatePopup, {
-            title: _t("Create New Appointment"),
-            start: start,
-            end: end,
-            onConfirm: async () => {
+        try {
+            // CORRECT Odoo 18 pattern: Get component from registry
+            const { AppointmentCreatePopup } = registry.category("popups").get("AppointmentCreatePopup");
+
+            // CORRECT Odoo 18 dialog service usage
+            const result = await this.dialogService.add(AppointmentCreatePopup, {
+                title: _t("Create New Appointment"),
+                start: start,
+                end: end,
+            });
+
+            if (result?.created) {
                 await this.fetchAppointments();
             }
-        });
-    }
-
-    formatDisplayDateTime(dateTimeStr) {
-        if (!dateTimeStr) return "";
-        try {
-            const formattedStr = dateTimeStr.includes('T') ? dateTimeStr : dateTimeStr.replace(' ', 'T');
-            return formatDateTime(formattedStr);
-        } catch (e) {
-            console.warn(`Could not format date: ${dateTimeStr}`, e);
-            return dateTimeStr;
+        } catch (error) {
+            console.error("Failed to create appointment:", error);
+            this.notification.add(_t("Error creating appointment."), { type: 'danger' });
         }
     }
 
+    /**
+     * Navigate back to ProductScreen using latest navigation patterns
+     */
     back() {
         this.pos.showScreen('ProductScreen');
     }
+
+    /**
+     * Refresh appointments data
+     */
+    async refreshAppointments() {
+        await this.fetchAppointments();
+        this.notification.add(_t("Appointments refreshed."), {
+            type: 'info',
+            duration: 1500
+        });
+    }
 }
 
+// Register the screen component in the POS screens registry
 registry.category("pos_screens").add("AppointmentScreen", AppointmentScreen);

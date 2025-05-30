@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from odoo import models
+from odoo import models, api, fields
 
 
 class PosSession(models.Model):
@@ -45,7 +45,8 @@ class PosSession(models.Model):
         return params
 
     # Add Loader for ths.treatment.room
-    def _loader_params_ths_treatment_room(self):
+    @staticmethod
+    def _loader_params_ths_treatment_room():
         """ Define fields and domain for loading rooms into POS """
         return {
             'search_params': {
@@ -57,11 +58,52 @@ class PosSession(models.Model):
             },
         }
 
+    # Add Loader for calendar.event (medical appointments)
+    @staticmethod
+    def _loader_params_calendar_event():
+        """ Define fields and domain for loading medical appointments into POS """
+        return {
+            'search_params': {
+                'domain': [
+                    ('ths_patient_id', '!=', False),  # Only medical appointments
+                    ('start', '>=', '2024-01-01 00:00:00'),  # Recent appointments only
+                ],
+                'fields': [
+                    'id', 'name', 'display_name', 'start', 'stop', 'duration',
+                    'partner_id', 'ths_patient_id', 'ths_practitioner_id',
+                    'ths_room_id', 'ths_status', 'ths_reason_for_visit',
+                    'appointment_type_id', 'ths_is_walk_in', 'allday'
+                ],
+                'order': 'start DESC',
+                'limit': 500,  # Reasonable limit for POS performance
+            },
+        }
+
+    # Add Loader for ths.partner.type
+    @staticmethod
+    def _loader_params_ths_partner_type():
+        """ Load partner types for patient filtering """
+        return {
+            'search_params': {
+                'domain': [('active', '=', True)],
+                'fields': ['id', 'name', 'code', 'is_patient', 'is_employee'],
+            },
+        }
+
     # Override _pos_ui_models_to_load to include ths.treatment.room
     def _pos_ui_models_to_load(self):
         """ Add ths.treatment.room to the list of models loaded by POS """
         models_to_load = super()._pos_ui_models_to_load()
         # Add our custom models if they aren't already included via dependencies/other modules
+        medical_models = [
+            'ths.treatment.room',
+            'calendar.event',  # For appointments
+            'ths.partner.type',  # For patient types
+        ]
+        for model in medical_models:
+            if model not in models_to_load:
+                models_to_load.append(model)
+
         if 'ths.treatment.room' not in models_to_load:
             models_to_load.append('ths.treatment.room')
         # Ensure partner types are loaded if ths_base doesn't handle it via pos context
@@ -78,6 +120,14 @@ class PosSession(models.Model):
         """ Method called by POS UI to load treatment rooms """
         return self.env['ths.treatment.room'].search_read(**params['search_params'])
 
+    def get_pos_ui_calendar_event(self, params):
+        """ Method called by POS UI to load medical appointments """
+        return self.env['calendar.event'].search_read(**params['search_params'])
+
+    def get_pos_ui_ths_partner_type(self, params):
+        """ Method called by POS UI to load partner types """
+        return self.env['ths.partner.type'].search_read(**params['search_params'])
+
     # Override get_pos_ui_hr_employee to use the modified loader params
     # This ensures our domain/fields are used when POS loads employees
     def get_pos_ui_hr_employee(self, params):
@@ -93,3 +143,13 @@ class PosSession(models.Model):
     def get_pos_ui_res_partner(self, params):
         loader_params = self._loader_params_res_partner()
         return self.env['res.partner'].search_read(**loader_params['search_params'])
+
+    @api.model
+    def get_pos_ui_medical_config(self):
+        """ Get medical-specific configuration for POS """
+        return {
+            'appointment_default_duration': 30,  # Default 30 minutes
+            'show_medical_screens': True,
+            'load_appointments': True,
+            'max_appointments_to_load': 500,
+        }

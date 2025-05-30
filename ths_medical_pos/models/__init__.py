@@ -7,7 +7,7 @@ from . import pos_session
 # from . import pending_pos_item
 # from . import treatment_room
 # from . import medical_encounter
-# from . import calendar_event
+from . import calendar_event
 # from . import pos_config
 
 # Partner and Employee Extensions

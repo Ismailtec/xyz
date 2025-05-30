@@ -5,8 +5,8 @@ import { Component, useState, onMounted } from "@odoo/owl";
 import { usePos } from "@point_of_sale/app/store/pos_hook";
 import { useService } from "@web/core/utils/hooks";
 import { _t } from "@web/core/l10n/translation";
-import { AppointmentDetailPopup } from "@ths_medical_pos/static/src/popups/appointment_detail_popup";
-import { AppointmentCreatePopup } from "@ths_medical_pos/static/src/popups/appointment_create_popup";
+import { AppointmentDetailPopup } from "@ths_medical_pos/popups/appointment_detail_popup";
+import { AppointmentCreatePopup } from "@ths_medical_pos/popups/appointment_create_popup";
 
 export class AppointmentScreenButton extends Component {
     static template = "ths_medical_pos.AppointmentScreenButton";

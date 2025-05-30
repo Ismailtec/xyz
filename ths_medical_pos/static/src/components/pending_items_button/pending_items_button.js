@@ -6,7 +6,7 @@ import { usePos } from "@point_of_sale/app/store/pos_hook";
 import { useService } from "@web/core/utils/hooks";
 import { _t } from "@web/core/l10n/translation";
 import { registry } from "@web/core/registry";
-import { PendingItemsListPopup } from "@ths_medical_pos/static/src/popups/pending_items_list_popup";
+import { PendingItemsListPopup } from "@ths_medical_pos/popups/pending_items_list_popup";
 
 export class PendingItemsButton extends Component {
     static template = "ths_medical_pos.PendingItemsButton";

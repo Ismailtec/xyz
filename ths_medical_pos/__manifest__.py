@@ -105,12 +105,12 @@
             'ths_medical_pos/static/src/components/appointment_calendar_button/appointment_calendar_button.xml',
             'ths_medical_pos/static/src/components/appointment_screen_button/appointment_screen_button.js',
             'ths_medical_pos/static/src/components/appointment_screen_button/appointment_screen_button.xml',
-            'ths_medical_pos/static/src/screens/product_screen/product_screen.js',
-            'ths_medical_pos/static/src/screens/product_screen/product_screen.xml',
 
             # Screens
             'ths_medical_pos/static/src/screens/appointment_screen/appointment_screen.xml',
             'ths_medical_pos/static/src/screens/appointment_screen/appointment_screen.js',
+            'ths_medical_pos/static/src/screens/product_screen/product_screen.js',
+            'ths_medical_pos/static/src/screens/product_screen/product_screen.xml',
 
             #Widget
             'ths_medical_pos/static/src/components/calendar_widget/calendar_widget.js',
