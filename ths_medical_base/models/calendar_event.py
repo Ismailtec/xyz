@@ -13,6 +13,8 @@ class CalendarEvent(models.Model):
     """ Inherit Calendar Event to add medical context and encounter creation. """
     _inherit = 'calendar.event'
 
+    name = fields.Char(default="Draft")
+
     # --- Fields to select specific Appointment Resources ---
     ths_practitioner_ar_id = fields.Many2one(
         'appointment.resource',
@@ -381,7 +383,7 @@ class CalendarEvent(models.Model):
                             'capacity_reserved': resource.capacity or 1
                         }))
                 vals['appointment_booking_line_ids'] = lines
-
+            vals['name'] = self.env['ir.sequence'].next_by_code('medical.appointment')
             processed_vals_list.append(vals)
 
         return super().create(processed_vals_list)

@@ -1,5 +1,59 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <record id="calendar_event_form_inherit_gantt_booking_ths_medical" model="ir.ui.view">
+        <field name="name">calendar.event.form.inherit.gantt.booking.ths.medical</field>
+        <field name="model">calendar.event</field>
+        <field name="inherit_id" ref="appointment.calendar_event_view_form_gantt_booking"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='appointment_status']" position="after">
+                <field name="ths_status"/>
+            </xpath>
+            <!--            <xpath expr="//field[@name='appointment_status']" position="attributes">-->
+            <!--                <attribute name="invisible">1</attribute>-->
+            <!--            </xpath>-->
+            <xpath expr="//field[@name='appointment_type_id']" position="after">
+                <xpath expr="//field[@name='resource_ids']" position="move"/>
+                <xpath expr="//field[@name='partner_ids']" position="move"/>
+            </xpath>
+            <xpath expr="//field[@name='resource_ids']" position="attributes">
+                <attribute name="string">Doctor/Room</attribute>
+            </xpath>
+            <xpath expr="//label[@for='duration']" position="before">
+                <xpath expr="//label[@for='start']" position="move"/>
+                <xpath expr="//div[hasclass('o_row')]" position="move"/>
+            </xpath>
+            <xpath expr="//field[@name='appointment_resource_ids']" position="attributes">
+                <attribute name="invisible">0</attribute>
+            </xpath>
+
+            <!--            <field name="ths_patient_id" widget="many2one_avatar_user" string="Patient"/>-->
+            <!--            <field name="ths_practitioner_ar_id" widget="many2one_avatar_user" string="Doctor"/>-->
+            <!--            <field name="ths_location_ar_id" widget="many2one_avatar_user" string="Room"/>-->
+
+            <xpath expr="//field[@name='appointment_type_id']" position="attributes">
+                <attribute name="invisible">0</attribute>
+            </xpath>
+            <xpath expr="//field[@name='partner_ids']" position="attributes">
+                <attribute name="invisible">0</attribute>
+                <attribute name="string">Patients</attribute>
+                <attribute name="widget">many2many_tags</attribute>
+                <attribute name="class">o_required_modifier o_field_highlight</attribute>
+                <attribute name="options">{"no_create": True, "no_quick_create": True}</attribute>
+                <attribute name="placeholder">Patients...</attribute>
+                <attribute name="domain">[('ths_partner_type_id.is_patient', '=', True)]</attribute>
+            </xpath>
+            <xpath expr="//field[@name='name']" position="attributes">
+                <attribute name="readonly">1</attribute>
+            </xpath>
+            <xpath expr="//label[@for='name']" position="attributes">
+                <attribute name="string">Appointment</attribute>
+            </xpath>
+            <xpath expr="//field[@name='user_id']" position="attributes">
+                <attribute name="string">Responsible</attribute>
+                <attribute name="invisible">1</attribute>
+            </xpath>
+        </field>
+    </record>
 
     <record id="view_calendar_event_form_inherit_ths_medical" model="ir.ui.view">
         <field name="name">calendar.event.form.inherit.ths.medical</field>
@@ -38,7 +92,7 @@
                 </button>
             </xpath>
 
-            <xpath expr="//notebook" position="inside">
+            <xpath expr="//notebook//page[@name='page_invitations']" position="before">
                 <page string="Medical Details" name="medical_details">
                     <group name="medical_top">
                         <group name="medical_col_1">
@@ -159,8 +213,8 @@
         </field>
     </record>
 
-    <record id="ths_medical_resource_booking_gantt" model="ir.ui.view">
-        <field name="name">calendar.event.medical.resource.gantt</field>
+    <record id="calendar_event_medical_resource_gantt_ths_medical" model="ir.ui.view">
+        <field name="name">calendar.event.medical.resource.gantt.ths.medical</field>
         <field name="model">calendar.event</field>
         <field name="inherit_id" ref="appointment.calendar_event_view_gantt_booking_resource"/>
         <field name="arch" type="xml">
@@ -168,6 +222,12 @@
                 <field name="ths_practitioner_id"/>
                 <field name="ths_room_id"/>
             </xpath>
+            <xpath expr="//field[@name='appointment_resource_ids']" position="attributes">
+                <attribute name="string">Doctor/Room</attribute>
+                <attribute name="invisible">0</attribute>
+            </xpath>
+
+
             <!--            <gantt class="o_appointment_resource_booking_gantt"-->
             <!--                   date_start="start"-->
             <!--                   date_stop="stop"-->
@@ -211,6 +271,7 @@
             <!--&lt;!&ndash;                    </div>&ndash;&gt;-->
             <!--&lt;!&ndash;                </templates>&ndash;&gt;-->
             <!--            </gantt>-->
+
         </field>
     </record>
 
@@ -218,7 +279,7 @@
         <field name="name">Medical Schedule</field>
         <field name="res_model">calendar.event</field>
         <field name="view_mode">gantt,calendar,tree,form</field>
-        <field name="view_id" ref="ths_medical_resource_booking_gantt"/>
+        <field name="view_id" ref="calendar_event_medical_resource_gantt_ths_medical"/>
         <field name="domain">[('ths_practitioner_id', '!=', False)]</field>
         <field name="context">{
             'default_schedule_based_on': 'resources',

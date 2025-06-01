@@ -1,0 +1,68 @@
+/* ths_medical_pos/static/src/css/medical_pos.css */
+
+.medical-controls {
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    margin-bottom: 8px;
+}
+
+.pending-items-popup {
+    min-width: 80%;
+}
+
+.pending-items-table {
+    width: 100%;
+    margin-top: 1rem;
+}
+
+.pending-items-table th {
+    background-color: #e9ecef;
+    padding: 0.5rem;
+    text-align: left;
+}
+
+.pending-items-table td {
+    padding: 0.5rem;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.pending-items-table tr:hover {
+    background-color: #f8f9fa;
+}
+
+.control-button.medical-button {
+    background-color: #28a745;
+    color: white;
+}
+
+.control-button.medical-button:hover {
+    background-color: #218838;
+}
+
+/* Medical Appointments Button in POS Navbar */
+.medical-appointments-btn {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    margin: 0 5px;
+    transition: all 0.3s ease;
+}
+
+.medical-appointments-btn:hover {
+    background: linear-gradient(135deg, #218838 0%, #1aa179 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+}
+
+.medical-appointments-btn.btn-primary {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+}
+
+.medical-appointments-btn.btn-primary:hover {
+    background: linear-gradient(135deg, #0056b3 0%, #003d82 100%);
+}
+
+.medical-appointments-btn .fa-stethoscope {
+    color: inherit;
+}

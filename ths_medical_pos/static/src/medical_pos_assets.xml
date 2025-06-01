@@ -27,7 +27,7 @@
 
             <!-- SCSS Styles -->
             <link rel="stylesheet" type="text/scss"
-                  href="/ths_medical_pos/static/src/css/medical_pos_styles.scss"/>
+                  href="/ths_medical_pos/static/src/css/style.css"/>
         </xpath>
 
     </template>

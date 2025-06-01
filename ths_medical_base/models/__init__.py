@@ -12,8 +12,8 @@ from . import appointment_resource
 from . import daily_encounter
 from . import medical_encounter
 from . import pending_pos_item
-from . import calendar_event
 from . import appointment_type
 from . import cancellation_reason
 from . import medical_encounter_service
 from . import res_partner
+from . import calendar_event

@@ -59,8 +59,8 @@
         'views/appointment_resource.xml',
         'views/product.xml',  # Adds sub-type field to Product views & domain logic
         'views/hr_department.xml',  # Adds medical flag to Department views
-        'views/calendar_event.xml',  # Inherited Calendar Event view
         'views/partner_type.xml',
+        'views/calendar_event.xml',  # Inherited Calendar Event view
     ],
     'installable': True,
     'application': True,

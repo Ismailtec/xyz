@@ -1,90 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates id="template" xml:space="preserve">
 
-    <t t-name="ths_medical_pos.AppointmentScreen">
-        <div class="appointment-screen screen h-100 d-flex flex-column bg-100">
-            <!-- Header Section -->
-            <div class="appointment-screen-header screen-header d-flex align-items-center justify-content-between p-3 border-bottom">
-                <div class="d-flex align-items-center gap-3">
-                    <h1 class="title m-0 fs-4 fw-bold">Medical Appointments</h1>
-
-                    <!-- Filter Controls (Future Enhancement) -->
-                    <div class="filter-controls d-flex gap-2">
-                        <div class="filter-practitioners border rounded p-2 bg-light text-muted small">
-                            <i class="fa fa-user-md me-1"/>
-                            All Practitioners
-                        </div>
-                        <div class="filter-rooms border rounded p-2 bg-light text-muted small">
-                            <i class="fa fa-home me-1"/>
-                            All Rooms
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Action Buttons -->
-                <div class="controls d-flex align-items-center gap-2">
-                    <button class="btn btn-outline-secondary"
-                            t-on-click="() => this.refreshAppointments()"
-                            t-att-disabled="state.isLoading">
-                        <i class="fa fa-refresh me-1"/>
-                        <t t-if="!state.isLoading">Refresh</t>
-                        <t t-if="state.isLoading">Loading...</t>
-                    </button>
-
-                    <button class="btn btn-primary"
-                            t-on-click="() => this.createNewAppointment()"
-                            t-att-disabled="state.isLoading">
-                        <i class="fa fa-plus me-1"/>
-                        New Appointment
-                    </button>
-
-                    <button class="btn btn-secondary"
-                            t-on-click="() => this.back()">
-                        <i class="fa fa-arrow-left me-1"/>
-                        Back to POS
-                    </button>
-                </div>
-            </div>
-
-            <!-- Main Content -->
-            <div class="appointment-screen-content flex-grow-1 p-3 position-relative overflow-hidden">
-                <!-- Loading Indicator -->
-                <div t-if="state.isLoading"
-                     class="loading-overlay position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-white bg-opacity-75"
-                     style="z-index: 1000;">
-                    <div class="text-center">
-                        <div class="spinner-border text-primary mb-2" role="status">
-                            <span class="visually-hidden">Loading...</span>
-                        </div>
-                        <p class="text-muted">Loading appointments...</p>
-                    </div>
-                </div>
-
-                <!-- Calendar Container -->
-                <div class="calendar-wrapper h-100 w-100 position-relative">
-                    <div t-ref="calendar-container"
-                         class="calendar-container h-100 w-100 border rounded bg-white"/>
-
-                    <!-- Fallback Message if Calendar Fails -->
-                    <div t-if="!calendarInstance"
-                         class="calendar-fallback position-absolute top-50 start-50 translate-middle text-center">
-                        <i class="fa fa-calendar fa-3x text-muted mb-3"/>
-                        <h4 class="text-muted">Calendar Loading...</h4>
-                        <p class="text-muted">Please wait while the appointment calendar initializes.</p>
-                    </div>
-                </div>
-
-                <!-- Appointment Stats (Optional) -->
-                <div class="appointment-stats position-absolute bottom-0 start-0 p-3 bg-light rounded-top-end"
-                     style="z-index: 999;"
-                     t-if="state.appointments.length > 0">
-                    <small class="text-muted">
-                        <i class="fa fa-info-circle me-1"/>
-                        Showing <strong t-esc="state.appointments.length"/> appointments
-                    </small>
-                </div>
-            </div>
-        </div>
+    <t t-name="point_of_sale.Navbar" t-inherit="point_of_sale.Navbar" t-inherit-mode="extension">
+        <xpath expr="//div[hasclass('pos-leftheader')]" position="inside">
+            <!-- Medical appointments button - always visible when module is installed -->
+            <button class="btn btn-lg lh-lg medical-appointments-btn"
+                    t-att-class="{'btn-primary': screen === 'ActionScreen' and pos.mainScreen?.props?.actionName === 'ManageMedicalAppointments'}"
+                    t-on-click="() => this.pos.manageMedicalAppointments()">
+                <span t-if="!ui.isSmall">Medical Schedule</span>
+                <i t-else="" class="fa fa-lg fa-fw fa-stethoscope"/>
+            </button>
+        </xpath>
     </t>
 
 </templates>

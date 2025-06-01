@@ -40,71 +40,26 @@
         'security/ir.model.access.csv',
 
         # Views
-        #'views/pos_config.xml',
-        #'views/calendar_event.xml',
-        # 'views/pending_pos_item_views.xml',
-        # 'views/hr_employee_views.xml',
-        # 'views/res_partner_views.xml',
         #
         # # Data
-        # 'data/pos_data.xml',
         #
         # # Assets
         # 'views/assets.xml',
     ],
-    # 'assets': {
-    #     'point_of_sale._assets_pos': [
-    #         #'ths_medical_pos/static/src/main.js',
-    #         # 1. Load FullCalendar Library CSS & JS FIRST
-    #         ('include', 'web._assets_helpers'),
-    #         'ths_medical_pos/static/lib/fullcalendar/index.global.min.js',
-    #
-    #         # Buttons
-    #         'ths_medical_pos/static/src/components/pending_items_button/pending_items_button.js',
-    #         'ths_medical_pos/static/src/components/pending_items_button/pending_items_button.xml',
-    #         'ths_medical_pos/static/src/components/appointment_calendar_button/appointment_calendar_button.js',
-    #         'ths_medical_pos/static/src/components/appointment_calendar_button/appointment_calendar_button.xml',
-    #         'ths_medical_pos/static/src/components/appointment_screen_button/appointment_screen_button.xml',
-    #         'ths_medical_pos/static/src/components/appointment_screen_button/appointment_screen_button.js',
-    #         # Popups
-    #         'ths_medical_pos/static/src/popups/pending_items_list_popup.js',
-    #         'ths_medical_pos/static/src/popups/pending_items_list_popup.xml',
-    #         'ths_medical_pos/static/src/popups/appointment_detail_popup.xml',
-    #         'ths_medical_pos/static/src/popups/appointment_detail_popup.js',
-    #         'ths_medical_pos/static/src/popups/appointment_create_popup.xml',
-    #         'ths_medical_pos/static/src/popups/appointment_create_popup.js',
-    #         # Screens
-    #         'ths_medical_pos/static/src/screens/appointment_screen/appointment_screen.xml',
-    #         'ths_medical_pos/static/src/screens/appointment_screen/appointment_screen.js',
-    #         'ths_medical_pos/static/src/screens/product_screen/product_screen.js',
-    #         'ths_medical_pos/static/src/screens/product_screen/product_screen.xml',
-    #         #Widget
-    #         'ths_medical_pos/static/src/components/calendar_widget/calendar_widget.js',
-    #         #CSS
-    #         'ths_medical_pos/static/src/css/medical_pos.css',
-    #
-    #     ],
-    # },
+
 'assets': {
         'point_of_sale._assets_pos': [
-            #'ths_medical_pos/static/src/main.js',
-            # 1. Load FullCalendar Library CSS & JS FIRST
-            ('include', 'web._assets_helpers'),
-            'ths_medical_pos/static/lib/fullcalendar/index.global.min.js',
+            # Odoo standard assets required for Gantt and calendar views
+            'web_gantt/static/src/**/*',
+            'appointment/static/src/views/gantt/**/*',
+            'calendar/static/src/views/widgets/**/*',
+            'calendar/static/src/views/calendar_form/**/*',
 
-            # Test new assets structure
-            'ths_medical_pos/static/src/popups/appointment_create_popup.js',
-            'ths_medical_pos/static/src/popups/appointment_create_popup.xml',
-            'ths_medical_pos/static/src/popups/appointment_detail_popup.js',
-            'ths_medical_pos/static/src/popups/appointment_detail_popup.xml',
+            # Popups and Components
             'ths_medical_pos/static/src/popups/pending_items_list_popup.js',
             'ths_medical_pos/static/src/popups/pending_items_list_popup.xml',
             'ths_medical_pos/static/src/components/pending_items_button/pending_items_button.js',
             'ths_medical_pos/static/src/components/pending_items_button/pending_items_button.xml',
-            'ths_medical_pos/static/src/components/appointment_calendar_button/appointment_calendar_button.js',
-            'ths_medical_pos/static/src/components/appointment_calendar_button/appointment_calendar_button.xml',
-            'ths_medical_pos/static/src/components/appointment_screen_button/appointment_screen_button.js',
-            'ths_medical_pos/static/src/components/appointment_screen_button/appointment_screen_button.xml',
 
             # Screens
             'ths_medical_pos/static/src/screens/appointment_screen/appointment_screen.xml',
@@ -115,7 +70,7 @@
             #Widget
             'ths_medical_pos/static/src/components/calendar_widget/calendar_widget.js',
             #CSS
-            'ths_medical_pos/static/src/css/medical_pos.css',
+            'ths_medical_pos/static/src/css/style.css',
 
         ],
     },
