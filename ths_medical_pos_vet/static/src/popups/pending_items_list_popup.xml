@@ -1,27 +1,51 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates id="template" xml:space="preserve">
 
-    <t t-patch="ths_medical_pos.PendingItemsListPopup" t-name="ths_medical_pos_vet.PendingItemsListPopupVet">
+    <!--
+    IMPORTANT: This follows Odoo 18 OWL 3 template inheritance methodology using t-inherit.
+    This is the LATEST and CORRECT approach for extending existing popup templates in Odoo 18.
+    The t-inherit system allows modifying specific parts of templates without breaking inheritance.
 
+    Veterinary-specific adaptation of PendingItemsListPopup template
+    Modifies the base medical popup to show Pet/Owner information clearly
+    -->
+    <t t-inherit="ths_medical_pos.PendingItemsListPopup" t-inherit-mode="extension">
+
+        <!--
+        Veterinary Enhancement: Replace table header to show Pet and Owner columns
+        Changes "Patient" to "Pet" and adds separate "Owner" column for clarity
+        -->
         <xpath expr="//thead/tr" position="replace">
              <tr>
-                <th>Pet</th>
-                 <th>Owner</th>
-                 <th>Product/Service</th>
-                 <th>Qty</th>
-                 <th>Unit Price</th>
-                 <th>Provider</th>
-                 <th>Encounter</th>
-                 <th>Action</th>
+                <th>Pet</th>              <!-- Veterinary-specific: Changed from "Patient" -->
+                 <th>Owner</th>            <!-- Veterinary-specific: Added Pet Owner column -->
+                 <th>Product/Service</th>  <!-- Preserved from base -->
+                 <th>Qty</th>              <!-- Preserved from base -->
+                 <th>Unit Price</th>       <!-- Preserved from base -->
+                 <th>Provider</th>         <!-- Preserved from base -->
+                 <th>Encounter</th>        <!-- Preserved from base -->
+                 <th>Action</th>           <!-- Preserved from base -->
             </tr>
         </xpath>
 
+        <!--
+        Veterinary Enhancement: Update colspan for "no items" message row
+        Adjusts colspan from 7 to 8 to account for the new Owner column
+        -->
         <xpath expr="//tbody/tr[td[@colspan='7']]" position="attributes">
-            <attribute name="colspan">8</attribute> </xpath>
+            <attribute name="colspan">8</attribute>
+        </xpath>
 
+        <!--
+        Veterinary Enhancement: Replace first data column to show Pet and Owner separately
+        Splits the single patient column into Pet and Owner for better veterinary workflow
+        -->
         <xpath expr="//tbody/t[@t-foreach='itemsToShow']/tr/td[1]" position="replace">
-             <td><t t-esc="item.patient_id ? item.patient_id[1] : 'N/A'"/></td>
-            <td><t t-esc="item.partner_id ? item.partner_id[1] : 'N/A'"/></td> </xpath>
+             <!-- Pet column: Shows the pet name -->
+            <td><t t-esc="item.patient_id ? item.patient_id[1] : 'N/A'"/></td>
+            <!-- Owner column: Shows the pet owner name who will pay -->
+            <td><t t-esc="item.partner_id ? item.partner_id[1] : 'N/A'"/></td>
+        </xpath>
 
     </t>
 
