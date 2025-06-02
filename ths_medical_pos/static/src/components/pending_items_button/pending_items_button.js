@@ -7,9 +7,9 @@ import { _t } from "@web/core/l10n/translation";
 import { registry } from "@web/core/registry";
 
 /**
- * Button component for accessing pending medical items in POS
- * Handles core functionality for non-veterinary medical practices
- * Displays pending items that need to be billed through POS
+ * Button component for accessing pending medical items in POS.
+ * Handles core functionality for non-veterinary medical practices.
+ * Displays pending items that need to be billed through POS.
  */
 export class PendingItemsButton extends Component {
     static template = "ths_medical_pos.PendingItemsButton";
@@ -19,19 +19,16 @@ export class PendingItemsButton extends Component {
     setup() {
         // Initialize POS store hook and required services
         this.pos = usePos();
-        this.dialog = useService("dialog"); // Use dialog service instead of popup for Odoo 18 POS
+        this.dialog = useService("dialog"); // Use dialog service to open popups
         this.notification = useService("notification");
         this.orm = useService("orm");
     }
 
     /**
-     * Handle button click to fetch and display pending items
-     * Base implementation for general medical practices
-     * Filters items by current customer if one is selected
+     * Handle button click to fetch and display pending items.
+     * Filters items by current customer if one is selected.
      */
     async onClick() {
-        console.log("Medical POS: Pending Items Button Clicked");
-
         const order = this.pos.get_order();
         const client = order?.get_partner();
         const domain = [['state', '=', 'pending']];
@@ -45,20 +42,12 @@ export class PendingItemsButton extends Component {
 
         try {
             // Fetch pending items from backend
-//            const items = await this.orm.searchRead("ths.pending.pos.item", domain, [
-//                "id", "display_name", "encounter_id", "appointment_id",
-//                "partner_id", "patient_id", "product_id", "description",
-//                "qty", "price_unit", "discount", "practitioner_id",
-//                "commission_pct", "state",
-//            ]);
             const fieldsToFetch = [
                 'id', 'display_name', 'encounter_id', 'appointment_id',
                 'partner_id', 'patient_id', 'product_id', 'description',
                 'qty', 'price_unit', 'discount', 'practitioner_id',
                 'commission_pct', 'state',
             ];
-
-            console.log("Making RPC call with domain:", domain);
 
             const pendingItems = await this.orm.searchRead(
                 'ths.pending.pos.item',
@@ -67,15 +56,13 @@ export class PendingItemsButton extends Component {
                 { context: this.pos.user.context }
             );
 
-            console.log("RPC call successful. Pending items fetched:", pendingItems);
-
             if (pendingItems && pendingItems.length > 0) {
                 // Use dialog service to show pending items list popup
                 this.dialog.add("PendingItemsListPopup", {
                     title: popupTitle,
                     items: pendingItems,
+                    close: () => {}, // Optional: pass a close function if needed
                 });
-                console.log("Popup opened successfully");
             } else {
                 // Show notification when no items found
                 const message = client
@@ -89,32 +76,11 @@ export class PendingItemsButton extends Component {
             }
 
         } catch (error) {
-            console.error("Error fetching or showing pending medical items:", error);
             this.notification.add(
                 _t('Error fetching pending items. Check connection or logs.'),
                 { type: 'danger', sticky: true }
             );
         }
-
-//            if (items.length) {
-//                // Use popup service to show pending items list
-//                await this.popup.add("PendingItemsListPopup", {
-//                    title: popupTitle,
-//                    items,
-//                });
-//            } else {
-//                // Show notification when no items found
-//                this.notification.add(
-//                    client
-//                        ? _t("No pending items for %(partner)s", { partner: client.name })
-//                        : _t("No pending medical items found."),
-//                    { type: "warning" }
-//                );
-//            }
-//        } catch (error) {
-//            console.error("Error fetching pending items:", error);
-//            this.notification.add(_t("Failed to fetch pending items."), { type: "danger" });
-//        }
     }
 }
 

@@ -8,7 +8,11 @@
             <!-- Container for Medical Buttons -->
             <div class="medical-controls d-flex gap-2 p-2 border rounded">
                 <!-- Pending Items Button Component -->
-                <PendingItemsButton/>
+                <PendingItemsButton />
+                <!-- Add a simple test button instead -->
+<!--                <button class="btn btn-secondary" onclick="console.log('Test medical button clicked')">-->
+<!--                    Test Button-->
+<!--                </button>-->
             </div>
         </xpath>
     </t>

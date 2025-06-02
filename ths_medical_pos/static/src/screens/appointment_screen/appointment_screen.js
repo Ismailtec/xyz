@@ -1,5 +1,5 @@
 /** @odoo-module */
-console.log("Loading: ths_medical_pos/static/src/screens/appointment_screen/appointment_screen.js");
+console.log("Loading: ths_medical_pos/static/src/screens/appointment_screen.js");
 
 import { patch } from "@web/core/utils/patch";
 import { PosStore } from "@point_of_sale/app/store/pos_store";
@@ -12,6 +12,7 @@ patch(PosStore.prototype, {
 
     /**
      * Open the medical appointments gantt view
+     * Similar to pos_restaurant_appointment's manageBookings method
      */
     async manageMedicalAppointments() {
         console.log("Medical POS: Opening medical appointments gantt view");
@@ -26,6 +27,7 @@ patch(PosStore.prototype, {
             // Call the backend method to get the gantt action
             const action = await this.data.call("calendar.event", "action_open_medical_gantt_view", [false], {
                 context: {
+                    // Pass any relevant context
                     default_ths_status: 'scheduled',
                     appointment_booking_gantt_show_all_resources: true,
                     active_model: 'appointment.type'

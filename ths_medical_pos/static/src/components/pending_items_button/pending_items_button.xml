@@ -1,16 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<templates id="template" xml:space="preserve">
 
-<!--    <t t-name="ths_medical_pos.PendingItemsButton">-->
-    <!--        <div class="control-button btn btn-light rounded-0 fw-bolder" t-on-click="onClick">-->
-    <!--            <i class="fa fa-stethoscope me-1" role="img" aria-label="Pending Items" title="Pending Items"/>-->
-    <!--            Pending Items-->
-    <!--        </div>-->
-    <!--    </t>-->
+<templates id="template" xml:space="preserve">
     <t t-name="ths_medical_pos.PendingItemsButton">
         <div class="control-button btn btn-light" t-on-click="onClick">
             <i class="fa fa-stethoscope me-1"/> Pending Items
         </div>
     </t>
-
 </templates>

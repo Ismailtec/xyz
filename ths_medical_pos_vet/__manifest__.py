@@ -18,19 +18,18 @@ Extends the Techouse Medical POS Integration for veterinary specifics.
         'membership',
     ],
     'data': [
-        # 'security/ir.model.access.csv', # Add if specific permissions needed later
+        # 'security/ir.model.access.csv', # If specific permissions needed later
     ],
     'assets': {
         'point_of_sale.assets': [
             # Patches should load after the original components they patch
-            # === ADD PATCH FILE ===
+            # === PATCH FILE ===
             'ths_medical_pos_vet/static/src/popups/pending_items_list_popup.xml',
             'ths_medical_pos_vet/static/src/components/pending_items_button/pending_items_button.js', # Vet JS patch for button logic
-            # === ADD MEMBERSHIP DISPLAY PATCHES ===
+            # === MEMBERSHIP DISPLAY PATCHES ===
             'ths_medical_pos_vet/static/src/screens/product_screen/product_screen.xml',
             'ths_medical_pos_vet/static/src/screens/product_screen/product_screen.js',
-            # === END ADD ===
-            # 'ths_medical_pos_vet/static/src/popups/pending_items_list_popup.js',
+            # === END ===
         ],
     },
     'installable': True,

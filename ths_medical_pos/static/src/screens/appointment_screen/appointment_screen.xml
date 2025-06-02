@@ -7,7 +7,7 @@
             <button class="btn btn-lg lh-lg medical-appointments-btn"
                     t-att-class="{'btn-primary': screen === 'ActionScreen' and pos.mainScreen?.props?.actionName === 'ManageMedicalAppointments'}"
                     t-on-click="() => this.pos.manageMedicalAppointments()">
-                <span t-if="!ui.isSmall">Medical Schedule</span>
+                <span t-if="!ui.isSmall">Appointments</span>
                 <i t-else="" class="fa fa-lg fa-fw fa-stethoscope"/>
             </button>
         </xpath>

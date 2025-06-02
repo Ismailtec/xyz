@@ -19,7 +19,7 @@ class CalendarEvent(models.Model):
             'name': _('Medical Schedule'),
             'type': 'ir.actions.act_window',
             'res_model': 'calendar.event',
-            'views': [(self.env.ref("ths_medical_base.ths_medical_resource_booking_gantt").id, "gantt")],
+            'views': [(self.env.ref("ths_medical_base.calendar_event_medical_resource_gantt_ths_medical").id, "gantt")],
             'target': 'current',
             'context': {
                 'appointment_booking_gantt_show_all_resources': True,
