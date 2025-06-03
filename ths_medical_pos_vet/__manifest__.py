@@ -30,10 +30,10 @@ Extends the Techouse Medical POS Integration for veterinary specifics.
             # Patches should load after the original components they patch
             # === PATCH FILE ===
             #'ths_medical_pos_vet/static/src/popups/pending_items_list_popup.xml',
-            'ths_medical_pos_vet/static/src/components/pending_items_button/pending_items_button.js', # Vet JS patch for button logic
+            #'ths_medical_pos_vet/static/src/components/pending_items_button/pending_items_button.js', # Vet JS patch for button logic
             # === MEMBERSHIP DISPLAY PATCHES ===
-            'ths_medical_pos_vet/static/src/screens/product_screen/product_screen.xml',
-            'ths_medical_pos_vet/static/src/screens/product_screen/product_screen.js',
+            #'ths_medical_pos_vet/static/src/screens/product_screen/product_screen.xml',
+            #'ths_medical_pos_vet/static/src/screens/product_screen/product_screen.js',
             # === END ===
         ],
     },

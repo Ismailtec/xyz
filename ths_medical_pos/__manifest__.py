@@ -49,29 +49,25 @@
 
     'assets': {
         'point_of_sale._assets_pos': [
-            # Odoo standard assets required for Gantt and calendar views
-            'web_gantt/static/src/**/*',
-            'appointment/static/src/views/gantt/**/*',
-            'calendar/static/src/views/widgets/**/*',
-            'calendar/static/src/views/calendar_form/**/*',
-
-            # Popups and Components
+            # 1. Base popup component (no dependencies on other medical components)
             'ths_medical_pos/static/src/popups/pending_items_list_popup.js',
             'ths_medical_pos/static/src/popups/pending_items_list_popup.xml',
+
+            # 2. Button component (depends on popup component)
             'ths_medical_pos/static/src/components/pending_items_button/pending_items_button.js',
             'ths_medical_pos/static/src/components/pending_items_button/pending_items_button.xml',
 
-            # Screens
-            'ths_medical_pos/static/src/screens/appointment_screen/appointment_screen.xml',
-            'ths_medical_pos/static/src/screens/appointment_screen/appointment_screen.js',
+            # 3. Screen patches (depend on button component)
             'ths_medical_pos/static/src/screens/product_screen/product_screen.js',
             'ths_medical_pos/static/src/screens/product_screen/product_screen.xml',
 
-            #Widget
-            'ths_medical_pos/static/src/components/calendar_widget/calendar_widget.js',
-            #CSS
-            'ths_medical_pos/static/src/css/style.css',
+            # 4. Appointment screen functionality
+            'ths_medical_pos/static/src/screens/appointment_screen/appointment_screen.xml',
+            'ths_medical_pos/static/src/screens/appointment_screen/appointment_screen.js',
 
+            # 5. Additional widgets and styling (no dependencies)
+            'ths_medical_pos/static/src/components/calendar_widget/calendar_widget.js',
+            'ths_medical_pos/static/src/css/style.css',
         ],
     },
     'installable': True,

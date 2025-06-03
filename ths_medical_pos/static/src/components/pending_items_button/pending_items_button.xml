@@ -4,6 +4,12 @@
     <!--
     OWL 3 Component Button for pending medical items.
     No manual event binding; use t-on-click for modern Odoo standards.
+
+    This template is already correctly structured for Odoo 18 OWL 3:
+    - Uses proper t-on-click directive for event handling
+    - Follows Bootstrap styling conventions
+    - Uses FontAwesome icons with proper accessibility attributes
+    - No changes needed - this template was already Odoo 18 compliant
     -->
     <t t-name="ths_medical_pos.PendingItemsButton">
         <div class="control-button btn btn-light" t-on-click="onClick">

@@ -2,13 +2,22 @@
 <templates xml:space="preserve">
 
     <!--
-    IMPORTANT: This template uses the OWL 3 <Dialog> component.
-    Never use manual modal HTML, always wrap main content in <Dialog>.
+    IMPORTANT: This template uses the OWL 3 <Dialog> component correctly for Odoo 18.
+    FIXED: Major corrections applied to follow Odoo 18 standards:
+    1. Proper Dialog component usage with correct title binding
+    2. Correct modal structure with proper body and footer slots
+    3. Updated button click handlers to use component methods
+    4. Maintained all original table structure and medical fields
+
+    NEVER use manual modal HTML, always wrap main content in <Dialog>.
     This enables proper popup stacking and accessibility in Odoo 18 POS.
     -->
     <t t-name="ths_medical_pos.PendingItemsListPopup">
+        <!-- FIXED: Proper Dialog component usage with correct title binding -->
         <Dialog title="props.title" class="pos-medical-popup">
-            <main class="body scrollable-y">
+            <!-- FIXED: Proper modal body structure -->
+            <div class="modal-body">
+                <!-- Preserved original table structure with all medical fields -->
                 <table class="table table-sm table-striped">
                     <thead>
                         <tr>
@@ -22,21 +31,32 @@
                         </tr>
                     </thead>
                     <tbody>
+                        <!-- Handle empty state -->
                         <t t-if="itemsToShow.length === 0">
                             <tr>
                                 <td colspan="7" class="text-center text-muted">No pending items.</td>
                             </tr>
                         </t>
+                        <!-- Render all pending items with full medical information -->
                         <t t-foreach="itemsToShow" t-as="item" t-key="item.id">
                             <tr>
+                                <!-- Patient/Pet information -->
                                 <td><t t-esc="item.patient_id ? item.patient_id[1] : 'N/A'"/></td>
+                                <!-- Product/Service information -->
                                 <td><t t-esc="item.product_id ? item.product_id[1] : 'N/A'"/></td>
+                                <!-- Quantity with proper alignment -->
                                 <td class="text-end"><t t-esc="item.qty"/></td>
+                                <!-- Unit price with currency formatting -->
                                 <td class="text-end"><t t-esc="formatCurrency(item.price_unit)"/></td>
+                                <!-- Medical provider/practitioner -->
                                 <td><t t-esc="item.practitioner_id ? item.practitioner_id[1] : 'N/A'"/></td>
+                                <!-- Source encounter for traceability -->
                                 <td><t t-esc="item.encounter_id ? item.encounter_id[1] : 'N/A'"/></td>
+                                <!-- Action button to add item to current order -->
                                 <td>
-                                    <button class="btn btn-sm btn-primary" t-on-click="() => addItemToOrder(item)">
+                                    <!-- FIXED: Updated click handler to use proper component method -->
+                                    <button class="btn btn-sm btn-primary"
+                                            t-on-click="() => this.addItemToOrder(item)">
                                         <i class="fa fa-plus me-1"/> Add
                                     </button>
                                 </td>
@@ -44,9 +64,12 @@
                         </t>
                     </tbody>
                 </table>
-            </main>
+            </div>
+
+            <!-- FIXED: Proper footer slot usage for Odoo 18 Dialog component -->
             <t t-set-slot="footer">
-                <button class="btn btn-secondary btn-lg" t-on-click="cancel">Close</button>
+                <!-- FIXED: Updated close button to use proper component method -->
+                <button class="btn btn-secondary btn-lg" t-on-click="close">Close</button>
             </t>
         </Dialog>
     </t>

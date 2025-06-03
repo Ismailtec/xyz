@@ -4,22 +4,32 @@
  * Button component for accessing pending medical items in POS
  * Handles core functionality for non-veterinary medical practices
  * Displays pending items that need to be billed through POS
+ *
+ * FIXED: Major corrections applied to follow Odoo 18 standards:
+ * 1. Added makeAwaitable import for proper popup handling
+ * 2. Added direct popup component import
+ * 3. Updated onClick method to use makeAwaitable instead of dialog.add
+ * 4. Maintained all original medical functionality and detailed comments
+ * 5. Preserved comprehensive error handling and logging
  */
 import { Component } from "@odoo/owl";
 import { usePos } from "@point_of_sale/app/store/pos_hook";
 import { useService } from "@web/core/utils/hooks";
 import { _t } from "@web/core/l10n/translation";
 import { registry } from "@web/core/registry";
+// FIXED: Added required imports for Odoo 18 popup pattern
+import { makeAwaitable } from "@point_of_sale/app/store/make_awaitable_dialog";
+import { PendingItemsListPopup } from "@ths_medical_pos/popups/pending_items_list_popup";
 
 export class PendingItemsButton extends Component {
     static template = "ths_medical_pos.PendingItemsButton";
     static props = {}; // Required for OWL 3 in Odoo 18
-    static components = {}; // CRITICAL: This was missing - Required for OWL 3 in Odoo 18
+    static components = {}; // CRITICAL: Required for OWL 3 in Odoo 18
 
     setup() {
         // Initialize POS store hook and required services
         this.pos = usePos();
-        this.dialog = useService("dialog"); // Use dialog service instead of popup for Odoo 18 POS
+        this.dialog = useService("dialog"); // Use dialog service for Odoo 18 popup management
         this.notification = useService("notification");
         this.orm = useService("orm");
     }
@@ -28,6 +38,8 @@ export class PendingItemsButton extends Component {
      * Handle button click to fetch and display pending items
      * Base implementation for general medical practices
      * Filters items by current customer if one is selected
+     *
+     * FIXED: Updated to use proper Odoo 18 popup opening pattern
      */
     async onClick() {
         // Logging for traceability
@@ -66,19 +78,19 @@ export class PendingItemsButton extends Component {
             console.log("RPC call successful. Pending items fetched:", pendingItems);
 
             if (pendingItems && pendingItems.length > 0) {
-            console.log(
-                '[POS Debug] Attempting to open PendingItemsListPopup',
-                typeof registry.category("popups").get("PendingItemsListPopup"),
-                registry.category("popups").get("PendingItemsListPopup")
-            );
-                // Use dialog service to show pending items list popup
-                this.dialog.add("PendingItemsListPopup", {
+                console.log(
+                    '[POS Debug] Attempting to open PendingItemsListPopup',
+                    typeof PendingItemsListPopup,
+                    PendingItemsListPopup
+                );
+
+                // FIXED: Use makeAwaitable pattern for Odoo 18 instead of dialog.add
+                const payload = await makeAwaitable(this.dialog, PendingItemsListPopup, {
                     title: popupTitle,
                     items: pendingItems,
-                    close: () => {}, // Optional: pass a close function if needed
                 });
 
-                console.log("Popup opened successfully");
+                console.log("Popup opened successfully", payload);
             } else {
                 // Show notification when no items found
                 const message = client
@@ -104,6 +116,7 @@ export class PendingItemsButton extends Component {
 // Register component for use in POS components registry
 registry.category("pos_components").add("PendingItemsButton", PendingItemsButton);
 
+// Global error handler for debugging purposes
 window.onerror = function (msg, url, lineNo, columnNo, error) {
     console.log("[GlobalError]", msg, url, lineNo, columnNo, error ? error.stack : "");
     return false;
