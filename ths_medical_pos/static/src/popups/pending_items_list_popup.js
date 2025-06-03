@@ -16,6 +16,12 @@ import { usePos } from "@point_of_sale/app/store/pos_hook";
 import { useService } from "@web/core/utils/hooks";
 import { registry } from "@web/core/registry";
 
+console.log("Dialog is", Dialog, "typeof Dialog:", typeof Dialog);
+if (typeof Dialog !== "function") {
+    throw new Error(
+        "Dialog is not a function/class! Check your import path: @web/core/dialog/dialog"
+    );
+}
 export class PendingItemsListPopup extends Component {
     constructor(...args) {
         console.log('PendingItemsListPopup: constructed with', args);
@@ -38,6 +44,7 @@ export class PendingItemsListPopup extends Component {
         console.log("PendingItemsListPopup: setup called");
         // Initialize POS store and required services using Odoo 18 hooks
         this.pos = usePos();
+        console.log("Registering with Dialog:", Dialog);
         this.dialog = useService("dialog"); // Use dialog service for nested popups in Odoo 18
         this.notification = useService("notification");
         this.orm = useService("orm");
