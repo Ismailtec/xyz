@@ -1,13 +1,6 @@
 /** @odoo-module */
 
-import { Component } from "@odoo/owl";
-import { Dialog } from "@web/core/dialog/dialog";
-import { _t } from "@web/core/l10n/translation";
-import { usePos } from "@point_of_sale/app/store/pos_hook";
-import { useService } from "@web/core/utils/hooks";
-import { registry } from "@web/core/registry";
-
-/**
+/*
  * IMPORTANT: This component follows Odoo 18 OWL 3 standards with mandatory static properties.
  * All OWL 3 components MUST have static template, props, and components properties defined.
  * This is the LATEST required methodology for Odoo 18 POS popup components.
@@ -15,33 +8,44 @@ import { registry } from "@web/core/registry";
  * Popup component for displaying and managing pending medical items
  * Base implementation for general medical practices (non-veterinary)
  */
-export class PendingItemsListPopup extends Component {
-    static template = "ths_medical_pos.PendingItemsListPopup";
-    static components = { Dialog }; // Required for OWL 3
 
+import { Component } from "@odoo/owl";
+import { Dialog } from "@web/core/dialog/dialog"; // Required: For OWL 3 popup content rendering
+import { _t } from "@web/core/l10n/translation";
+import { usePos } from "@point_of_sale/app/store/pos_hook";
+import { useService } from "@web/core/utils/hooks";
+import { registry } from "@web/core/registry";
+
+export class PendingItemsListPopup extends Component {
+    constructor(...args) {
+        console.log('PendingItemsListPopup: constructed with', args);
+        super(...args);
+    }
+    static template = "ths_medical_pos.PendingItemsListPopup";
+    static components = { Dialog }; // CRITICAL: OWL 3 requirement for rendering Dialog
     // REQUIRED: Props definition for OWL 3 validation
     static props = {
         title: { type: String, optional: true },
         items: { type: Array },
         close: Function,
     };
-
     static defaultProps = {
         title: _t("Pending Medical Items"),
         items: [],
     };
 
     setup() {
+        console.log("PendingItemsListPopup: setup called");
         // Initialize POS store and required services using Odoo 18 hooks
         this.pos = usePos();
-        this.dialog = useService("dialog"); // Use dialog service for nested popups
+        this.dialog = useService("dialog"); // Use dialog service for nested popups in Odoo 18
         this.notification = useService("notification");
         this.orm = useService("orm");
     }
 
     /**
-     * Add a pending medical item to the current POS order.
-     * Handles product validation, customer verification, and order line creation.
+     * Add a pending medical item to the current POS order
+     * Handles product validation, customer verification, and order line creation
      */
     async addItemToOrder(item) {
         const order = this.pos.get_order();
@@ -104,6 +108,7 @@ export class PendingItemsListPopup extends Component {
             }
 
         } catch (error) {
+            // Note: ErrorPopup uses the dialog service for nested popups in Odoo 18
             await this.dialog.add("ErrorPopup", {
                 title: _t("Update Error"),
                 body: _t("Could not update item status."),
@@ -112,26 +117,32 @@ export class PendingItemsListPopup extends Component {
     }
 
     /**
-     * Close the popup.
+     * Close the popup
      */
     cancel() {
         this.props.close();
     }
 
     /**
-     * Get items to display in the popup.
+     * Get items to display in the popup
      */
     get itemsToShow() {
         return this.props.items;
     }
 
     /**
-     * Format currency amount using POS formatting.
+     * Format currency amount using POS formatting
      */
     formatCurrency(amount) {
         return this.pos.format_currency(amount);
     }
 }
 
-// Register popup in Odoo 18 registry system
+console.log(
+    "Registering PendingItemsListPopup in popups registry",
+    typeof PendingItemsListPopup
+);
+// REQUIRED: Register popup in Odoo 18 registry system
 registry.category("popups").add("PendingItemsListPopup", PendingItemsListPopup);
+
+console.log("Loaded file:", "ths_medical_pos/static/src/popups/pending_items_list_popup.js");

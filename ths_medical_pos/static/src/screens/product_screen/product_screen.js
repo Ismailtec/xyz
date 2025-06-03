@@ -1,14 +1,15 @@
 /** @odoo-module */
 
+/**
+ * IMPORTANT: This follows Odoo 18 OWL 3 patching methodology using @web/core/utils/patch.
+ * This is the LATEST required approach for extending existing POS screens in Odoo 18.
+ * The patch system allows extending components without breaking inheritance chains.
+ */
 import { patch } from "@web/core/utils/patch";
 import { ProductScreen } from "@point_of_sale/app/screens/product_screen/product_screen";
 import { PendingItemsButton } from "@ths_medical_pos/components/pending_items_button/pending_items_button";
 
 /**
- * IMPORTANT: This follows Odoo 18 OWL 3 patching methodology using @web/core/utils/patch.
- * This is the LATEST required approach for extending existing POS screens in Odoo 18.
- * The patch system allows extending components without breaking inheritance chains.
- *
  * Patch ProductScreen to add medical functionality for base medical practices
  * Adds PendingItemsButton component to the ProductScreen interface
  */

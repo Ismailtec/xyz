@@ -3,16 +3,12 @@
 
     <!-- Extend the ProductScreen to add medical buttons -->
     <t t-inherit="point_of_sale.ProductScreen" t-inherit-mode="extension">
-        <!-- Alternative: Add buttons to subpads if the above doesn't work -->
+        <!-- Add medical controls to product screen layout -->
         <xpath expr="//div[hasclass('product-screen d-flex h-100')]" position="inside">
             <!-- Container for Medical Buttons -->
             <div class="medical-controls d-flex gap-2 p-2 border rounded">
                 <!-- Pending Items Button Component -->
-                <PendingItemsButton />
-                <!-- Add a simple test button instead -->
-<!--                <button class="btn btn-secondary" onclick="console.log('Test medical button clicked')">-->
-<!--                    Test Button-->
-<!--                </button>-->
+                <PendingItemsButton/>
             </div>
         </xpath>
     </t>

@@ -1,8 +1,9 @@
 /** @odoo-module */
 
 import { patch } from "@web/core/utils/patch";
-import { OrderWidget } from "@point_of_sale/app/screens/order_widget/order_widget";
+//import { OrderWidget } from "@point_of_sale/app/screens/order_widget/order_widget";
 import { formatDateTime, formatDate } from "@web/core/l10n/dates";
+import { OrderWidget } from "@point_of_sale/app/generic_components/order_widget/order_widget";
 
 /**
  * IMPORTANT: This follows Odoo 18 OWL 3 component patching methodology for veterinary extensions.

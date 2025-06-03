@@ -1,34 +1,38 @@
 /** @odoo-module */
 
+/**
+ * Button component for accessing pending medical items in POS
+ * Handles core functionality for non-veterinary medical practices
+ * Displays pending items that need to be billed through POS
+ */
 import { Component } from "@odoo/owl";
 import { usePos } from "@point_of_sale/app/store/pos_hook";
 import { useService } from "@web/core/utils/hooks";
 import { _t } from "@web/core/l10n/translation";
 import { registry } from "@web/core/registry";
 
-/**
- * Button component for accessing pending medical items in POS.
- * Handles core functionality for non-veterinary medical practices.
- * Displays pending items that need to be billed through POS.
- */
 export class PendingItemsButton extends Component {
     static template = "ths_medical_pos.PendingItemsButton";
     static props = {}; // Required for OWL 3 in Odoo 18
-    static components = {}; // Required for OWL 3 in Odoo 18
+    static components = {}; // CRITICAL: This was missing - Required for OWL 3 in Odoo 18
 
     setup() {
         // Initialize POS store hook and required services
         this.pos = usePos();
-        this.dialog = useService("dialog"); // Use dialog service to open popups
+        this.dialog = useService("dialog"); // Use dialog service instead of popup for Odoo 18 POS
         this.notification = useService("notification");
         this.orm = useService("orm");
     }
 
     /**
-     * Handle button click to fetch and display pending items.
-     * Filters items by current customer if one is selected.
+     * Handle button click to fetch and display pending items
+     * Base implementation for general medical practices
+     * Filters items by current customer if one is selected
      */
     async onClick() {
+        // Logging for traceability
+        console.log("Medical POS: Pending Items Button Clicked");
+
         const order = this.pos.get_order();
         const client = order?.get_partner();
         const domain = [['state', '=', 'pending']];
@@ -49,6 +53,9 @@ export class PendingItemsButton extends Component {
                 'commission_pct', 'state',
             ];
 
+            // For diagnostic purposes
+            console.log("Making RPC call with domain:", domain);
+
             const pendingItems = await this.orm.searchRead(
                 'ths.pending.pos.item',
                 domain,
@@ -56,13 +63,22 @@ export class PendingItemsButton extends Component {
                 { context: this.pos.user.context }
             );
 
+            console.log("RPC call successful. Pending items fetched:", pendingItems);
+
             if (pendingItems && pendingItems.length > 0) {
+            console.log(
+                '[POS Debug] Attempting to open PendingItemsListPopup',
+                typeof registry.category("popups").get("PendingItemsListPopup"),
+                registry.category("popups").get("PendingItemsListPopup")
+            );
                 // Use dialog service to show pending items list popup
                 this.dialog.add("PendingItemsListPopup", {
                     title: popupTitle,
                     items: pendingItems,
                     close: () => {}, // Optional: pass a close function if needed
                 });
+
+                console.log("Popup opened successfully");
             } else {
                 // Show notification when no items found
                 const message = client
@@ -76,6 +92,7 @@ export class PendingItemsButton extends Component {
             }
 
         } catch (error) {
+            console.error("Error fetching or showing pending medical items:", error);
             this.notification.add(
                 _t('Error fetching pending items. Check connection or logs.'),
                 { type: 'danger', sticky: true }
@@ -86,3 +103,10 @@ export class PendingItemsButton extends Component {
 
 // Register component for use in POS components registry
 registry.category("pos_components").add("PendingItemsButton", PendingItemsButton);
+
+window.onerror = function (msg, url, lineNo, columnNo, error) {
+    console.log("[GlobalError]", msg, url, lineNo, columnNo, error ? error.stack : "");
+    return false;
+};
+
+console.log("Loaded file:", "ths_medical_pos/static/src/components/pending_items_button/pending_items_button.js");

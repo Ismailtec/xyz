@@ -24,7 +24,7 @@
         Veterinary Enhancement: Add membership status display after partner name
         Shows membership status, type, and expiration dates for pet owners
         -->
-        <xpath expr="//div[hasclass('partner')]//span[hasclass('name')]" position="after">
+        <xpath expr="//div[hasclass('order-summary')]" position="inside">
             <!-- Only show membership info if partner exists and has membership state -->
             <t t-if="partner and partner.membership_state">
                 <span class="partner-membership-status ms-2 small">

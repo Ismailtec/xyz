@@ -34,7 +34,7 @@ patch(PendingItemsButton.prototype, {
             // In vet context, partner_id refers to the Pet Owner who pays the bills
             const ownerFilter = ['partner_id', '=', client.id];
             // Use Domain.and() for proper domain combination in Odoo 18
-            filterDomain = Domain.and([filterDomain, [ownerFilter]]);
+            filterDomain = [...filterDomain, ownerFilter];
             popupTitle = _t("Pending Items for %(ownerName)s's Pets", { ownerName: client.name });
         } else {
             console.log("Vet POS: No Pet Owner selected, fetching all pending items for all pets.");

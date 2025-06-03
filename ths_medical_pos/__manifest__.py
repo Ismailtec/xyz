@@ -47,7 +47,7 @@
         # 'views/assets.xml',
     ],
 
-'assets': {
+    'assets': {
         'point_of_sale._assets_pos': [
             # Odoo standard assets required for Gantt and calendar views
             'web_gantt/static/src/**/*',

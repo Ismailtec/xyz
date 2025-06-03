@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-
 <templates xml:space="preserve">
+
+    <!--
+    IMPORTANT: This template uses the OWL 3 <Dialog> component.
+    Never use manual modal HTML, always wrap main content in <Dialog>.
+    This enables proper popup stacking and accessibility in Odoo 18 POS.
+    -->
     <t t-name="ths_medical_pos.PendingItemsListPopup">
         <Dialog title="props.title" class="pos-medical-popup">
             <main class="body scrollable-y">
@@ -45,4 +50,5 @@
             </t>
         </Dialog>
     </t>
+
 </templates>
