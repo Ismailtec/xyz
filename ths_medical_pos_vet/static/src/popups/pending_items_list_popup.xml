@@ -14,6 +14,7 @@
         <!--
         Veterinary Enhancement: Replace table header to show Pet and Owner columns
         Changes "Patient" to "Pet" and adds separate "Owner" column for clarity
+        FIXED: Updated to match the fixed base template structure
         -->
         <xpath expr="//thead/tr" position="replace">
              <tr>
@@ -30,14 +31,15 @@
 
         <!--
         Veterinary Enhancement: Update colspan for "no items" message row
-        Adjusts colspan from 7 to 8 to account for the new Owner column
+        FIXED: Adjusts colspan from 7 to 8 to account for the new Owner column
         -->
-        <xpath expr="//tbody/tr[td[@colspan='7']]" position="attributes">
+        <xpath expr="//tbody/tr/td[@colspan='7']" position="attributes">
             <attribute name="colspan">8</attribute>
         </xpath>
 
         <!--
         Veterinary Enhancement: Replace first data column to show Pet and Owner separately
+        FIXED: Updated XPath to work with the fixed base template structure
         Splits the single patient column into Pet and Owner for better veterinary workflow
         -->
         <xpath expr="//tbody/t[@t-foreach='itemsToShow']/tr/td[1]" position="replace">

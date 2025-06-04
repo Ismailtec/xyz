@@ -6,62 +6,74 @@
     This is the LATEST and CORRECT approach for extending POS screen templates in Odoo 18.
     The t-inherit system with t-inherit-mode="extension" allows adding veterinary features.
 
-    Veterinary-specific enhancement of ProductScreen template
+    Veterinary-specific enhancement of OrderWidget template for Odoo 18
+    Updated to work with the latest OWL 3 template inheritance system
     Adds membership status display for pet owners in the order widget
+    Shows pet owner membership information for veterinary practices
     -->
     <t t-inherit="point_of_sale.ProductScreen" t-inherit-mode="extension">
         <!-- This template inheritance is intentionally empty as no ProductScreen changes needed -->
     </t>
 
     <!--
-    Veterinary-specific enhancement of OrderWidget template
-    Adds membership status display after the partner name in the order widget
+    Veterinary-specific enhancement of OrderWidget template for Odoo 18
+    Updated to work with the latest OWL 3 template inheritance system
+    Adds membership status display for pet owners in the order widget
     Shows pet owner membership information for veterinary practices
     -->
     <t t-inherit="point_of_sale.OrderWidget" t-inherit-mode="extension">
 
         <!--
-        Veterinary Enhancement: Add membership status display after partner name
+        FIXED: Veterinary Enhancement - Add membership status display
+        Using a more reliable XPath that exists in the OrderWidget template
         Shows membership status, type, and expiration dates for pet owners
         -->
-        <xpath expr="//div[hasclass('order-summary')]" position="inside">
-            <!-- Only show membership info if partner exists and has membership state -->
-            <t t-if="partner and partner.membership_state">
-                <span class="partner-membership-status ms-2 small">
-                    <!-- Membership icon and label -->
-                    <i class="fa fa-star me-1 text-muted" role="img" aria-label="Membership" title="Membership"/>
+        <xpath expr="//div[hasclass('order-summary')]" position="after">
+            <!-- FIXED: Only show membership info if partner exists and has membership state -->
+            <t t-if="order and order.get_partner() and order.get_partner().membership_state">
+                <t t-set="partner" t-value="order.get_partner()"/>
 
-                    <!-- Active membership display (paid or free) -->
-                    <t t-if="partner.membership_state == 'paid' or partner.membership_state == 'free'">
-                         <span class="text-success">Active Member</span>
-                        <!-- Show expiration date if available -->
-                        <t t-if="partner.membership_stop"> (until <t
-                                t-esc="formatMembershipDate(partner.membership_stop)"/>)</t>
-                    </t>
+                <div class="partner-membership-status mt-2 p-2 bg-light rounded">
+                    <!-- FIXED: Membership icon and label with proper accessibility -->
+                    <small class="text-muted">
+                        <i class="fa fa-star me-1"
+                           role="img"
+                           aria-label="Membership Status"
+                           title="Pet Owner Membership"/>
 
-                    <!-- Pending payment membership status -->
-                    <t t-elif="partner.membership_state == 'invoiced'">
-                         <span class="text-warning">Member (Pending Payment)</span>
-                    </t>
+                        <!-- Active membership display (paid or free) -->
+                        <t t-if="partner.membership_state == 'paid' or partner.membership_state == 'free'">
+                             <span class="text-success">Active Member</span>
+                            <!-- Show expiration date if available -->
+                            <t t-if="partner.membership_stop"> (until <t
+                                    t-esc="formatMembershipDate(partner.membership_stop)"/>)</t>
+                        </t>
 
-                    <!-- Cancelled membership status -->
-                    <t t-elif="partner.membership_state == 'canceled'">
-                         <span class="text-danger">Membership Cancelled</span>
-                    </t>
+                        <!-- Pending payment membership status -->
+                        <t t-elif="partner.membership_state == 'invoiced'">
+                             <span class="text-warning">Member (Pending Payment)</span>
+                        </t>
 
-                    <!-- Expired membership status -->
-                    <t t-elif="partner.membership_state == 'old'">
-                         <span class="text-muted">Membership Expired</span>
-                        <!-- Show expiration date if available -->
-                        <t t-if="partner.membership_stop">(<t t-esc="formatMembershipDate(partner.membership_stop)"/>
-                            )</t>
-                    </t>
+                        <!-- Cancelled membership status -->
+                        <t t-elif="partner.membership_state == 'canceled'">
+                             <span class="text-danger">Membership Cancelled</span>
+                        </t>
 
-                    <!-- Fallback for unknown membership states -->
-                    <t t-else="">
-                         <span class="text-muted">Membership: <t t-esc="partner.membership_state"/></span>
-                    </t>
-                </span>
+                        <!-- Expired membership status -->
+                        <t t-elif="partner.membership_state == 'old'">
+                             <span class="text-muted">Membership Expired</span>
+                            <!-- Show expiration date if available -->
+                            <t t-if="partner.membership_stop">(<t
+                                    t-esc="formatMembershipDate(partner.membership_stop)"/>
+                                )</t>
+                        </t>
+
+                        <!-- Fallback for unknown membership states -->
+                        <t t-else="">
+                             <span class="text-muted">Membership: <t t-esc="partner.membership_state"/></span>
+                        </t>
+                    </small>
+                </div>
             </t>
         </xpath>
 

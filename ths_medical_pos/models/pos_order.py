@@ -55,14 +55,14 @@ class PosOrder(models.Model):
     #     return lines_values
 
     @api.model
-    def _process_order(self, order, draft, existing_order):
+    def _process_order(self, order, draft, existing_order=None):
         """ Override to link pending items and update encounter state. """
         # --- (Keep the existing refined _process_order logic from previous step) ---
         ui_order_lines_data = {line[2]['uid']: line[2] for line in order.get('lines', []) if
                                len(line) > 2 and 'uid' in line[2]}
         _logger.debug(f"UI Order Lines Data Keys (UIDs): {list(ui_order_lines_data.keys())}")
 
-        order_id = super(PosOrder, self)._process_order(order, draft, existing_order)
+        order_id = super(PosOrder, self)._process_order(order, draft)
         _logger.info(f"Processing POS Order ID: {order_id} from UI Order: {order.get('name')}")
 
         pos_order = self.browse(order_id)
