@@ -2,21 +2,14 @@
 <templates xml:space="preserve">
 
     <!--
-    IMPORTANT: This template uses the OWL 3 <Dialog> component correctly for Odoo 18.
-    FIXED: Major corrections applied to follow Odoo 18 standards:
-    1. Proper Dialog component usage with correct title binding
-    2. Correct modal structure with proper body and footer slots
-    3. Updated button click handlers to use component methods
-    4. Maintained all original table structure and medical fields
-
-    NEVER use manual modal HTML, always wrap main content in <Dialog>.
-    This enables proper popup stacking and accessibility in Odoo 18 POS.
+    FIXED: Removed invalid 'class' prop from Dialog component
+    OWL 3 Dialog component in Odoo 18 has strict prop validation
     -->
     <t t-name="ths_medical_pos.PendingItemsListPopup">
-        <!-- FIXED: Proper Dialog component usage with correct title binding -->
-        <Dialog title="props.title" class="pos-medical-popup">
-            <!-- FIXED: Proper modal body structure -->
-            <div class="modal-body">
+        <!-- FIXED: Removed class prop, only use valid Dialog props -->
+        <Dialog title="props.title">
+            <!-- Modal body content with proper CSS classes on inner div instead -->
+            <div class="modal-body pos-medical-popup">
                 <!-- Preserved original table structure with all medical fields -->
                 <table class="table table-sm table-striped">
                     <thead>
@@ -54,7 +47,7 @@
                                 <td><t t-esc="item.encounter_id ? item.encounter_id[1] : 'N/A'"/></td>
                                 <!-- Action button to add item to current order -->
                                 <td>
-                                    <!-- FIXED: Updated click handler to use proper component method -->
+                                    <!-- Updated click handler to use proper component method -->
                                     <button class="btn btn-sm btn-primary"
                                             t-on-click="() => this.addItemToOrder(item)">
                                         <i class="fa fa-plus me-1"/> Add
@@ -68,7 +61,7 @@
 
             <!-- FIXED: Proper footer slot usage for Odoo 18 Dialog component -->
             <t t-set-slot="footer">
-                <!-- FIXED: Updated close button to use proper component method -->
+                <!-- Close button with proper component method -->
                 <button class="btn btn-secondary btn-lg" t-on-click="close">Close</button>
             </t>
         </Dialog>
