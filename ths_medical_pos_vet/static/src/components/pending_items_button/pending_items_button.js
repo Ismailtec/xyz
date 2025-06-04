@@ -3,6 +3,8 @@
 import { patch } from "@web/core/utils/patch";
 import { PendingItemsButton } from "@ths_medical_pos/components/pending_items_button/pending_items_button";
 import { _t } from "@web/core/l10n/translation";
+import { makeAwaitable } from "@point_of_sale/app/store/make_awaitable_dialog";
+import { PendingItemsListPopup } from "@ths_medical_pos/popups/pending_items_list_popup";
 
 /**
  * IMPORTANT: This follows Odoo 18 OWL 3 component patching methodology.
@@ -18,6 +20,7 @@ patch(PendingItemsButton.prototype, {
      * FIXED: Override onClick method to add veterinary-specific behavior
      * Enhanced to work with the updated base medical functionality
      * Adds Pet/Owner context for veterinary practices
+     * FIXED: Removed dynamic import that was causing module resolution errors
      */
     async onClick() {
         console.log("Vet POS: Pending Items Button Clicked - Enhanced for Veterinary");
@@ -71,10 +74,8 @@ patch(PendingItemsButton.prototype, {
             if (pendingItems && pendingItems.length > 0) {
                 console.log('Vet POS: Attempting to open PendingItemsListPopup with veterinary adaptations');
 
-                // FIXED: Use the updated makeAwaitable pattern from base module
-                const { makeAwaitable } = await import("@point_of_sale/app/store/make_awaitable_dialog");
-                const { PendingItemsListPopup } = await import("@ths_medical_pos/popups/pending_items_list_popup");
-
+                // FIXED: Use statically imported makeAwaitable and PendingItemsListPopup
+                // Removed dynamic import that was causing module resolution errors
                 const payload = await makeAwaitable(this.dialog, PendingItemsListPopup, {
                     title: popupTitle, // Veterinary-specific title
                     items: pendingItems,
@@ -117,5 +118,9 @@ patch(PendingItemsButton.prototype, {
 
 // NOTE: No additional registry registration needed - this patches the existing component
 // The base component is already registered in ths_medical_pos module
+
+// TODO: Consider adding veterinary-specific filtering options in the popup itself
+// TODO: Add support for filtering by pet species or breed if needed
+// TODO: Consider adding pet health status indicators in the pending items display
 
 console.log("Loaded FIXED vet button patch - compatible with updated base module:", "pending_items_button.js");

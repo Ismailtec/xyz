@@ -33,7 +33,7 @@
         Veterinary Enhancement: Update colspan for "no items" message row
         FIXED: Adjusts colspan from 7 to 8 to account for the new Owner column
         -->
-        <xpath expr="//tbody/tr/td[@colspan='7']" position="attributes">
+        <xpath expr="//tbody/t/tr/td" position="attributes">
             <attribute name="colspan">8</attribute>
         </xpath>
 

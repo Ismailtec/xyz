@@ -221,56 +221,39 @@
             <xpath expr="//gantt" position="inside">
                 <field name="ths_practitioner_id"/>
                 <field name="ths_room_id"/>
+                <field name="name"/>
+                <field name="start"/>
+                <field name="stop"/>
+                <field name="ths_practitioner_id"/>
+                <field name="ths_room_id"/>
+                <field name="ths_patient_id"/>
+                <field name="ths_status"/>
+                <field name="duration" invisible="1"/>
+                <field name="resource_ids" widget="many2many_tags"/>
+                <field name="appointment_type_id"/>
             </xpath>
             <xpath expr="//field[@name='appointment_resource_ids']" position="attributes">
                 <attribute name="string">Doctor/Room</attribute>
                 <attribute name="invisible">0</attribute>
             </xpath>
 
+            <!-- Template for popover -->
+            <xpath expr="//gantt//templates//div//ul/li[@t-if='appointment_type_id']" position="before">
+                <!-- Empty line before medical information section -->
+                <li class="mt-2"></li>
+                <li><strong>Doctor: </strong><t t-out="ths_practitioner_id[1]"/></li>
+                <li t-if="ths_room_id[1]"><strong>Room: </strong><t t-out="ths_room_id[1]"/></li>
+                <li><strong>Patient: </strong><t t-out="ths_patient_id[1]"/></li>
+                <!-- Empty line after patient information -->
+                <li class="mb-2"></li>
+                <!--                    <li class="mt-2">-->
+                <!--                        <strong>Status: </strong>-->
+                <!--                        <span t-attf-class="badge badge-#{ths_status}">-->
+                <!--                            <t t-out="ths_status"/>-->
+                <!--                        </span>-->
+                <!--                    </li>-->
+            </xpath>
 
-            <!--            <gantt class="o_appointment_resource_booking_gantt"-->
-            <!--                   date_start="start"-->
-            <!--                   date_stop="stop"-->
-            <!--                   default_group_by="ths_practitioner_id"-->
-            <!--                   default_scale="day"-->
-            <!--                   display_unavailability="1"-->
-            <!--                   precision="{'day': 'hour:quarter', 'week': 'day:half', 'month': 'day:half', 'year': 'day:full'}"-->
-            <!--                   string="Medical Resources">-->
-
-            <!--                &lt;!&ndash; Required fields &ndash;&gt;-->
-            <!--                <field name="name"/>-->
-            <!--                <field name="start"/>-->
-            <!--                <field name="stop"/>-->
-            <!--                <field name="ths_practitioner_id"/>-->
-            <!--                <field name="ths_room_id"/>-->
-            <!--                <field name="ths_patient_id"/>-->
-            <!--                <field name="ths_status"/>-->
-            <!--                <field name="duration" invisible="1"/>-->
-            <!--                <field name="resource_ids" widget="many2many_tags"/>-->
-            <!--                <field name="appointment_type_id"/>-->
-
-            <!--                &lt;!&ndash; Template for popover &ndash;&gt;-->
-            <!--&lt;!&ndash;                <templates>&ndash;&gt;-->
-            <!--&lt;!&ndash;                    <div t-name="gantt-block">&ndash;&gt;-->
-            <!--&lt;!&ndash;                        <div class="o_gantt_title"><t t-esc="record.name"/></div>&ndash;&gt;-->
-            <!--&lt;!&ndash;                    </div>&ndash;&gt;-->
-            <!--&lt;!&ndash;                    <div t-name="gantt-popover">&ndash;&gt;-->
-            <!--&lt;!&ndash;                        <ul class="ps-1 mb-0 list-unstyled">&ndash;&gt;-->
-            <!--&lt;!&ndash;                            <li><strong>Doctor: </strong><t t-out="ths_practitioner_id[1]"/></li>&ndash;&gt;-->
-            <!--&lt;!&ndash;                            <li><strong>Room: </strong><t t-out="ths_room_id[1]"/></li>&ndash;&gt;-->
-            <!--&lt;!&ndash;                            <li><strong>Patient: </strong><t t-out="ths_patient_id[1]"/></li>&ndash;&gt;-->
-            <!--&lt;!&ndash;                            <li><strong>Start: </strong><t t-out="start.toFormat('f')"/></li>&ndash;&gt;-->
-            <!--&lt;!&ndash;                            <li><strong>End: </strong><t t-out="stop.toFormat('f')"/></li>&ndash;&gt;-->
-            <!--&lt;!&ndash;                            <li class="mt-2">&ndash;&gt;-->
-            <!--&lt;!&ndash;                                <strong>Status: </strong>&ndash;&gt;-->
-            <!--&lt;!&ndash;                                <span t-attf-class="badge badge-#{ths_status}">&ndash;&gt;-->
-            <!--&lt;!&ndash;                                    <t t-out="ths_status"/>&ndash;&gt;-->
-            <!--&lt;!&ndash;                                </span>&ndash;&gt;-->
-            <!--&lt;!&ndash;                            </li>&ndash;&gt;-->
-            <!--&lt;!&ndash;                        </ul>&ndash;&gt;-->
-            <!--&lt;!&ndash;                    </div>&ndash;&gt;-->
-            <!--&lt;!&ndash;                </templates>&ndash;&gt;-->
-            <!--            </gantt>-->
 
         </field>
     </record>
