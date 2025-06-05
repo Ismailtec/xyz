@@ -33,7 +33,7 @@ class CalendarEvent(models.Model):
     )
 
     # --- Helper fields to store direct links to Employee and Treatment Room ---
-    # These will be populated based on the _ar_id fields.
+    # These will be populated based on the _ar_id fields for your custom logic.
     # They can be readonly in the UI if selection happens via _ar_id fields.
     ths_practitioner_id = fields.Many2one(
         'hr.employee', string='Practitioner (Employee)',
@@ -53,39 +53,18 @@ class CalendarEvent(models.Model):
         help="The patient this appointment is for."
     )
     ths_reason_for_visit = fields.Text(string='Reason for Visit')
-    # ths_status = fields.Selection([
-    #     ('scheduled', 'Scheduled'),
-    #     ('confirmed', 'Confirmed'),
-    #     ('checked_in', 'Checked In'),
-    #     ('in_progress', 'In Progress'),
-    #     ('completed', 'Completed'),
-    #     ('billed', 'Billed/Departed'),
-    #     ('cancelled_by_patient', 'Cancelled (Patient)'),
-    #     ('cancelled_by_clinic', 'Cancelled (Clinic)'),
-    #     ('no_show', 'No Show')
-    # ], string='Medical Status', index=True, tracking=True, default='scheduled', copy=False,
-    #     help="Detailed status of the medical appointment.")
-
-    # --- EXTEND ODOO'S APPOINTMENT_STATUS INSTEAD OF CREATING NEW FIELD ---
-    appointment_status = fields.Selection(
-        selection_add=[
-            ('scheduled', 'Scheduled'),
-            ('confirmed', 'Confirmed'),
-            ('checked_in', 'Checked In'),
-            ('in_progress', 'In Progress'),
-            ('completed', 'Completed'),
-            ('billed', 'Billed/Departed'),
-            ('cancelled_by_patient', 'Cancelled (Patient)'),
-            ('cancelled_by_clinic', 'Cancelled (Clinic)'),
-            ('no_show', 'No Show')
-        ],
-        ondelete={
-            'scheduled': 'cascade', 'confirmed': 'cascade', 'checked_in': 'cascade',
-            'in_progress': 'cascade', 'completed': 'cascade', 'billed': 'cascade',
-            'cancelled_by_patient': 'cascade', 'cancelled_by_clinic': 'cascade',
-            'no_show': 'cascade'
-        }
-    )
+    ths_status = fields.Selection([
+        ('scheduled', 'Scheduled'),
+        ('confirmed', 'Confirmed'),
+        ('checked_in', 'Checked In'),
+        ('in_progress', 'In Progress'),
+        ('completed', 'Completed'),
+        ('billed', 'Billed/Departed'),
+        ('cancelled_by_patient', 'Cancelled (Patient)'),
+        ('cancelled_by_clinic', 'Cancelled (Clinic)'),
+        ('no_show', 'No Show')
+    ], string='Medical Status', index=True, tracking=True, default='scheduled', copy=False,
+        help="Detailed status of the medical appointment.")
 
     ths_check_in_time = fields.Datetime(string='Check-in Time', readonly=True, copy=False)
     ths_check_out_time = fields.Datetime(string='Check-out Time', readonly=True, copy=False)
@@ -117,115 +96,64 @@ class CalendarEvent(models.Model):
         for rec in self:
             rec.is_resource_based_type = rec.appointment_type_id.schedule_based_on == 'resources'
 
-    # @api.model
-    # def default_get(self, fields_list):
-    #     res = super().default_get(fields_list)
-    #     _logger.info(f"CALENDAR_EVENT DG: Initial res: {res}, context: {self.env.context}")
-    #
-    #     ctx_appointment_type_id = self.env.context.get('default_appointment_type_id')
-    #     ctx_resource_ids_m2m = self.env.context.get('default_appointment_resource_ids')
-    #     ctx_resource_id_m2o = self.env.context.get('default_resource_id')
-    #
-    #     appointment_type = self.env['appointment.type']
-    #     if ctx_appointment_type_id:
-    #         appointment_type = self.env['appointment.type'].browse(ctx_appointment_type_id).exists()
-    #         if appointment_type and 'appointment_type_id' in fields_list:
-    #             res['appointment_type_id'] = appointment_type.id
-    #             _logger.info(f"CALENDAR_EVENT DG: Set appointment_type_id from context: {appointment_type.id}")
-    #
-    #     context_ar_ids_to_process = []
-    #     if ctx_resource_ids_m2m and isinstance(ctx_resource_ids_m2m, list):
-    #         context_ar_ids_to_process.extend(ctx_resource_ids_m2m)
-    #     if ctx_resource_id_m2o and isinstance(ctx_resource_id_m2o, int):
-    #         if ctx_resource_id_m2o not in context_ar_ids_to_process:
-    #             context_ar_ids_to_process.append(ctx_resource_id_m2o)
-    #
-    #     final_selected_ar_ids_for_m2m = []
-    #
-    #     if context_ar_ids_to_process:
-    #         appt_resources = self.env['appointment.resource'].browse(list(set(context_ar_ids_to_process))).exists()
-    #         _logger.info(f"CALENDAR_EVENT DG: Context appointment_resources found: {appt_resources.mapped('name')}")
-    #
-    #         practitioner_ar = appt_resources.filtered(lambda r: r.ths_resource_category == 'practitioner')
-    #         if practitioner_ar and 'ths_practitioner_ar_id' in fields_list:
-    #             res['ths_practitioner_ar_id'] = practitioner_ar[0].id
-    #             final_selected_ar_ids_for_m2m.append(practitioner_ar[0].id)
-    #             _logger.info(
-    #                 f"CALENDAR_EVENT DG: Defaulting ths_practitioner_ar_id from context: {practitioner_ar[0].name}")
-    #
-    #         location_ar = appt_resources.filtered(lambda r: r.ths_resource_category == 'location')
-    #         if location_ar and 'ths_location_ar_id' in fields_list:
-    #             res['ths_location_ar_id'] = location_ar[0].id
-    #             final_selected_ar_ids_for_m2m.append(location_ar[0].id)
-    #             _logger.info(f"CALENDAR_EVENT DG: Defaulting ths_location_ar_id from context: {location_ar[0].name}")
-    #
-    #         if not appointment_type and appt_resources:
-    #             possible_types = self.env['appointment.type'].search([('schedule_based_on', '=', 'resources')])
-    #             valid_appointment_types = self.env['appointment.type']
-    #             for apt_type_rec in possible_types:
-    #                 if all(ar_id in apt_type_rec.resource_ids.ids for ar_id in appt_resources.ids):
-    #                     valid_appointment_types |= apt_type_rec
-    #             if len(valid_appointment_types) == 1:
-    #                 res['appointment_type_id'] = valid_appointment_types.id
-    #                 appointment_type = valid_appointment_types
-    #                 _logger.info(
-    #                     f"CALENDAR_EVENT DG: Inferred appointment_type_id from context resources: {valid_appointment_types.name}")
-    #
-    #     if 'appointment_resource_ids' in fields_list and final_selected_ar_ids_for_m2m:
-    #         res['appointment_resource_ids'] = [Command.set(list(set(final_selected_ar_ids_for_m2m)))]
-    #         _logger.info(
-    #             f"CALENDAR_EVENT DG: Defaulting standard appointment_resource_ids to: {final_selected_ar_ids_for_m2m}")
-    #
-    #     _logger.info(f"CALENDAR_EVENT DG: Final default_get res: {res}")
-    #     return res
-
-    # New default_get test
     @api.model
     def default_get(self, fields_list):
         res = super().default_get(fields_list)
         _logger.info(f"CALENDAR_EVENT DG: Initial res: {res}, context: {self.env.context}")
 
-        # Handle gantt context - when user clicks on a resource in gantt view
         ctx_appointment_type_id = self.env.context.get('default_appointment_type_id')
-        ctx_resource_ids = self.env.context.get('default_resource_ids', [])
+        ctx_resource_ids_m2m = self.env.context.get('default_appointment_resource_ids')
+        ctx_resource_id_m2o = self.env.context.get('default_resource_id')
 
-        # Set appointment type if provided in context
-        if ctx_appointment_type_id and 'appointment_type_id' in fields_list:
-            res['appointment_type_id'] = ctx_appointment_type_id
-            _logger.info(f"CALENDAR_EVENT DG: Set appointment_type_id from context: {ctx_appointment_type_id}")
+        appointment_type = self.env['appointment.type']
+        if ctx_appointment_type_id:
+            appointment_type = self.env['appointment.type'].browse(ctx_appointment_type_id).exists()
+            if appointment_type and 'appointment_type_id' in fields_list:
+                res['appointment_type_id'] = appointment_type.id
+                _logger.info(f"CALENDAR_EVENT DG: Set appointment_type_id from context: {appointment_type.id}")
 
-        # Handle resource selection from gantt click
-        if ctx_resource_ids and isinstance(ctx_resource_ids, list) and len(ctx_resource_ids) == 1:
-            resource_id = ctx_resource_ids[0]
-            resource = self.env['appointment.resource'].browse(resource_id).exists()
+        context_ar_ids_to_process = []
+        if ctx_resource_ids_m2m and isinstance(ctx_resource_ids_m2m, list):
+            context_ar_ids_to_process.extend(ctx_resource_ids_m2m)
+        if ctx_resource_id_m2o and isinstance(ctx_resource_id_m2o, int):
+            if ctx_resource_id_m2o not in context_ar_ids_to_process:
+                context_ar_ids_to_process.append(ctx_resource_id_m2o)
 
-            if resource:
+        final_selected_ar_ids_for_m2m = []
+
+        if context_ar_ids_to_process:
+            appt_resources = self.env['appointment.resource'].browse(list(set(context_ar_ids_to_process))).exists()
+            _logger.info(f"CALENDAR_EVENT DG: Context appointment_resources found: {appt_resources.mapped('name')}")
+
+            practitioner_ar = appt_resources.filtered(lambda r: r.ths_resource_category == 'practitioner')
+            if practitioner_ar and 'ths_practitioner_ar_id' in fields_list:
+                res['ths_practitioner_ar_id'] = practitioner_ar[0].id
+                final_selected_ar_ids_for_m2m.append(practitioner_ar[0].id)
                 _logger.info(
-                    f"CALENDAR_EVENT DG: Processing clicked resource: {resource.name} (category: {resource.ths_resource_category})")
+                    f"CALENDAR_EVENT DG: Defaulting ths_practitioner_ar_id from context: {practitioner_ar[0].name}")
 
-                # Only populate the specific field based on resource type
-                if resource.ths_resource_category == 'practitioner' and 'ths_practitioner_ar_id' in fields_list:
-                    res['ths_practitioner_ar_id'] = resource.id
-                    _logger.info(f"CALENDAR_EVENT DG: Set practitioner from gantt click: {resource.name}")
-                elif resource.ths_resource_category == 'location' and 'ths_location_ar_id' in fields_list:
-                    res['ths_location_ar_id'] = resource.id
-                    _logger.info(f"CALENDAR_EVENT DG: Set location from gantt click: {resource.name}")
+            location_ar = appt_resources.filtered(lambda r: r.ths_resource_category == 'location')
+            if location_ar and 'ths_location_ar_id' in fields_list:
+                res['ths_location_ar_id'] = location_ar[0].id
+                final_selected_ar_ids_for_m2m.append(location_ar[0].id)
+                _logger.info(f"CALENDAR_EVENT DG: Defaulting ths_location_ar_id from context: {location_ar[0].name}")
 
-                # Always sync to appointment_resource_ids
-                if 'appointment_resource_ids' in fields_list:
-                    res['appointment_resource_ids'] = [Command.set([resource.id])]
+            if not appointment_type and appt_resources:
+                possible_types = self.env['appointment.type'].search([('schedule_based_on', '=', 'resources')])
+                valid_appointment_types = self.env['appointment.type']
+                for apt_type_rec in possible_types:
+                    if all(ar_id in apt_type_rec.resource_ids.ids for ar_id in appt_resources.ids):
+                        valid_appointment_types |= apt_type_rec
+                if len(valid_appointment_types) == 1:
+                    res['appointment_type_id'] = valid_appointment_types.id
+                    appointment_type = valid_appointment_types
+                    _logger.info(
+                        f"CALENDAR_EVENT DG: Inferred appointment_type_id from context resources: {valid_appointment_types.name}")
 
-                # Set appointment type if not already set and resource has one
-                if not res.get('appointment_type_id') and resource.appointment_type_ids:
-                    apt_types = resource.appointment_type_ids
-                    if len(apt_types) == 1:
-                        res['appointment_type_id'] = apt_types[0].id
-                        _logger.info(
-                            f"CALENDAR_EVENT DG: Inferred appointment_type_id from resource: {apt_types[0].name}")
-
-        # Set default status for medical appointments
-        if res.get('appointment_type_id') and 'appointment_status' in fields_list and not res.get('appointment_status'):
-            res['appointment_status'] = 'scheduled'
+        if 'appointment_resource_ids' in fields_list and final_selected_ar_ids_for_m2m:
+            res['appointment_resource_ids'] = [Command.set(list(set(final_selected_ar_ids_for_m2m)))]
+            _logger.info(
+                f"CALENDAR_EVENT DG: Defaulting standard appointment_resource_ids to: {final_selected_ar_ids_for_m2m}")
 
         _logger.info(f"CALENDAR_EVENT DG: Final default_get res: {res}")
         return res
@@ -242,36 +170,17 @@ class CalendarEvent(models.Model):
 
     @api.onchange('ths_practitioner_ar_id', 'ths_location_ar_id')
     def _onchange_selected_appointment_resources(self):
-        """Sync the specific AR fields to appointment_resource_ids"""
         selected_ar_ids = []
         if self.ths_practitioner_ar_id:
             selected_ar_ids.append(self.ths_practitioner_ar_id.id)
         if self.ths_location_ar_id:
             selected_ar_ids.append(self.ths_location_ar_id.id)
 
-        # This ensures the standard M2M field is updated whenever our specific AR selectors change, Sync to standard appointment_resource_ids field
+        # This ensures the standard M2M field is updated whenever our specific AR selectors change
         if 'appointment_resource_ids' in self._fields:
             self.appointment_resource_ids = [Command.set(list(set(selected_ar_ids)))]
         _logger.info(
             f"CALENDAR_EVENT OnChange ARs: Event {self.id or self.display_name or 'New'} updated standard appointment_resource_ids to {selected_ar_ids}")
-
-    @api.onchange('appointment_resource_ids')
-    def _onchange_appointment_resource_ids_to_ar(self):
-        """Sync appointment_resource_ids back to specific AR fields"""
-        if not self.appointment_resource_ids:
-            self.ths_practitioner_ar_id = False
-            self.ths_location_ar_id = False
-            return
-
-        # Find practitioner and location from appointment_resource_ids
-        practitioner = self.appointment_resource_ids.filtered(lambda r: r.ths_resource_category == 'practitioner')
-        location = self.appointment_resource_ids.filtered(lambda r: r.ths_resource_category == 'location')
-
-        # Only update if not already set (avoid infinite loops)
-        if practitioner and not self.ths_practitioner_ar_id:
-            self.ths_practitioner_ar_id = practitioner[0]
-        if location and not self.ths_location_ar_id:
-            self.ths_location_ar_id = location[0]
 
     @api.onchange('appointment_type_id')
     def _onchange_appointment_type_id(self):
@@ -281,6 +190,12 @@ class CalendarEvent(models.Model):
         practitioner_ar_domain = [('id', '=', False)]
         location_ar_domain = [('id', '=', False)]
 
+        # Store current AR values (potentially from default_get or user input)
+        # Use self._origin to get the value before this onchange started, if it's an existing record
+        origin_practitioner_ar_id = self._origin.ths_practitioner_ar_id if self._origin else self.env[
+            'appointment.resource']
+        origin_location_ar_id = self._origin.ths_location_ar_id if self._origin else self.env['appointment.resource']
+
         # If appointment_type_id is cleared, or changed to non-resource based, clear AR fields
         if not self.appointment_type_id or self.appointment_type_id.schedule_based_on != 'resources':
             self.ths_practitioner_ar_id = False
@@ -288,24 +203,35 @@ class CalendarEvent(models.Model):
             _logger.info("CALENDAR_EVENT OnChange AptType: Not resource-based or type cleared. Cleared ARs.")
         else:  # appointment_type_id is set and is resource-based
             _logger.info(f"CALENDAR_EVENT OnChange AptType: '{self.appointment_type_id.name}' is resource-based.")
+            all_available_ars_for_type = self.appointment_type_id.resource_ids
 
-            available_resources = self.appointment_type_id.resource_ids
-            practitioners = available_resources.filtered(lambda r: r.ths_resource_category == 'practitioner')
-            locations = available_resources.filtered(lambda r: r.ths_resource_category == 'location')
+            practitioner_ars = all_available_ars_for_type.filtered(lambda r: r.ths_resource_category == 'practitioner')
+            location_ars = all_available_ars_for_type.filtered(lambda r: r.ths_resource_category == 'location')
 
-            if practitioners:
-                practitioner_ar_domain = [('id', 'in', practitioners.ids)]
-                # Auto-select if only one and not set by default_get
-                if len(practitioners) == 1 and not self.ths_practitioner_ar_id:
-                    self.ths_practitioner_ar_id = practitioners[0]
+            if practitioner_ars:
+                practitioner_ar_domain = [('id', 'in', practitioner_ars.ids)]
+            if location_ars:
+                location_ar_domain = [('id', 'in', location_ars.ids)]
 
-            if locations:
-                location_ar_domain = [('id', 'in', locations.ids)]
-                # Auto-select if only one and not set by default_get
-                if len(locations) == 1 and not self.ths_location_ar_id:
-                    self.ths_location_ar_id = locations[0]
+            # Preserve default_get / user-set value if it's still valid for the new type
+            if self.ths_practitioner_ar_id:  # If it was set by default_get or user
+                if self.ths_practitioner_ar_id not in practitioner_ars:
+                    self.ths_practitioner_ar_id = False  # Clear if no longer valid
+            elif len(practitioner_ars) == 1:  # Auto-select if only one option and not set by default_get
+                self.ths_practitioner_ar_id = practitioner_ars[0]
 
-        # Trigger sync to appointment_resource_ids
+            if self.ths_location_ar_id:  # If it was set by default_get or user
+                if self.ths_location_ar_id not in location_ars:
+                    self.ths_location_ar_id = False  # Clear if no longer valid
+            elif len(location_ars) == 1:  # Auto-select if only one option
+                self.ths_location_ar_id = location_ars[0]
+
+            _logger.info(
+                f"CALENDAR_EVENT OnChange AptType: Practitioner AR Domain: {practitioner_ar_domain}, Selected: {self.ths_practitioner_ar_id.name if self.ths_practitioner_ar_id else 'None'}")
+            _logger.info(
+                f"CALENDAR_EVENT OnChange AptType: Location AR Domain: {location_ar_domain}, Selected: {self.ths_location_ar_id.name if self.ths_location_ar_id else 'None'}")
+
+        # Always call the dependent onchange to sync appointment_resource_ids M2M
         self._onchange_selected_appointment_resources()
 
         return {'domain': {
@@ -313,65 +239,56 @@ class CalendarEvent(models.Model):
             'ths_location_ar_id': location_ar_domain,
         }}
 
-    @api.onchange('partner_id')
-    def _onchange_partner_id_to_patient(self):
-        """Auto-populate ths_patient_id when partner_id is set to a patient"""
-        if self.partner_id and hasattr(self.partner_id, 'ths_partner_type_id'):
-            if self.partner_id.ths_partner_type_id and self.partner_id.ths_partner_type_id.is_patient:
-                if not self.ths_patient_id or self.ths_patient_id != self.partner_id:
-                    self.ths_patient_id = self.partner_id
-                    _logger.info(f"CALENDAR_EVENT: Auto-set patient from partner: {self.partner_id.name}")
+    @api.onchange('ths_practitioner_ar_id', 'ths_location_ar_id')
+    def _onchange_selected_appointment_resources(self):
+        """
+        When a practitioner or location (as appointment.resource) is selected,
+        update the standard calendar.event.appointment_resource_ids (M2M) field.
+        This also triggers the recompute of ths_practitioner_id and ths_room_id.
+        """
+        selected_ar_ids = []
+        if self.ths_practitioner_ar_id:
+            selected_ar_ids.append(self.ths_practitioner_ar_id.id)
+        if self.ths_location_ar_id:
+            selected_ar_ids.append(self.ths_location_ar_id.id)
 
-    # @api.onchange('ths_practitioner_ar_id', 'ths_location_ar_id')
-    # def _onchange_selected_appointment_resources(self):
-    #     """
-    #     When a practitioner or location (as appointment.resource) is selected,
-    #     update the standard calendar.event.appointment_resource_ids (M2M) field.
-    #     This also triggers the recompute of ths_practitioner_id and ths_room_id.
-    #     """
-    #     selected_ar_ids = []
-    #     if self.ths_practitioner_ar_id:
-    #         selected_ar_ids.append(self.ths_practitioner_ar_id.id)
-    #     if self.ths_location_ar_id:
-    #         selected_ar_ids.append(self.ths_location_ar_id.id)
-    #
-    #     if 'resource_ids' in self._fields:
-    #         self.resource_ids = [Command.set(list(set(selected_ar_ids)))]
-    #     _logger.info(
-    #         f"CALENDAR_EVENT OnChange ARs: Event {self.id or 'New'} updated standard resource_ids to {selected_ar_ids}")
-    #
-    # @api.depends('ths_practitioner_ar_id', 'ths_location_ar_id')
-    # def _compute_default_resources(self):
-    #     for rec in self:
-    #         if not rec.resource_ids:
-    #             selected = []
-    #             if rec.ths_practitioner_ar_id:
-    #                 selected.append(rec.ths_practitioner_ar_id.id)
-    #             if rec.ths_location_ar_id:
-    #                 selected.append(rec.ths_location_ar_id.id)
-    #             rec.resource_ids = [Command.set(list(set(selected)))]
-    #
-    # @api.onchange('resource_ids')
-    # def _onchange_resource_ids_to_ar(self):
-    #     if not self.resource_ids:
-    #         return
-    #
-    #     practitioner = None
-    #     location = None
-    #     for res in self.resource_ids:
-    #         if res.ths_resource_category == 'practitioner' and not practitioner:
-    #             practitioner = res
-    #         elif res.ths_resource_category == 'location' and not location:
-    #             location = res
-    #
-    #     # Only autofill if not already set by the user
-    #     if not self.ths_practitioner_ar_id:
-    #         self.ths_practitioner_ar_id = practitioner
-    #     if not self.ths_location_ar_id:
-    #         self.ths_location_ar_id = location
-    #
-    #     _logger.info(
-    #         f"[ONCHANGE] resource_ids updated: AR fields auto-selected: practitioner={practitioner}, location={location}")
+        if 'resource_ids' in self._fields:
+            self.resource_ids = [Command.set(list(set(selected_ar_ids)))]
+        _logger.info(
+            f"CALENDAR_EVENT OnChange ARs: Event {self.id or 'New'} updated standard resource_ids to {selected_ar_ids}")
+
+    @api.depends('ths_practitioner_ar_id', 'ths_location_ar_id')
+    def _compute_default_resources(self):
+        for rec in self:
+            if not rec.resource_ids:
+                selected = []
+                if rec.ths_practitioner_ar_id:
+                    selected.append(rec.ths_practitioner_ar_id.id)
+                if rec.ths_location_ar_id:
+                    selected.append(rec.ths_location_ar_id.id)
+                rec.resource_ids = [Command.set(list(set(selected)))]
+
+    @api.onchange('resource_ids')
+    def _onchange_resource_ids_to_ar(self):
+        if not self.resource_ids:
+            return
+
+        practitioner = None
+        location = None
+        for res in self.resource_ids:
+            if res.ths_resource_category == 'practitioner' and not practitioner:
+                practitioner = res
+            elif res.ths_resource_category == 'location' and not location:
+                location = res
+
+        # Only autofill if not already set by the user
+        if not self.ths_practitioner_ar_id:
+            self.ths_practitioner_ar_id = practitioner
+        if not self.ths_location_ar_id:
+            self.ths_location_ar_id = location
+
+        _logger.info(
+            f"[ONCHANGE] resource_ids updated: AR fields auto-selected: practitioner={practitioner}, location={location}")
 
     # --- Walk-in Partner Handling ---
     def _get_walkin_partner_type(self):
@@ -430,59 +347,17 @@ class CalendarEvent(models.Model):
         return vals
 
     # --- Create Override ---
-    # @api.model_create_multi
-    # def create(self, vals_list):
-    #     """ Override create to handle walk-in partner creation """
-    #     processed_vals_list = []
-    #     for vals in vals_list:
-    #         vals = self._handle_walkin_partner(vals.copy())
-    #
-    #         apt_type = self.env['appointment.type'].browse(vals.get('appointment_type_id')).exists() if vals.get(
-    #             'appointment_type_id') else None
-    #
-    #         if apt_type:
-    #             if not vals.get('ths_practitioner_ar_id'):
-    #                 practitioners = apt_type.resource_ids.filtered(lambda r: r.ths_resource_category == 'practitioner')
-    #                 if practitioners:
-    #                     vals['ths_practitioner_ar_id'] = practitioners[0].id
-    #
-    #             if not vals.get('ths_location_ar_id'):
-    #                 rooms = apt_type.resource_ids.filtered(lambda r: r.ths_resource_category == 'location')
-    #                 if rooms:
-    #                     vals['ths_location_ar_id'] = rooms[0].id
-    #
-    #         res_ids = list(filter(None, [
-    #             vals.get('ths_practitioner_ar_id'),
-    #             vals.get('ths_location_ar_id')
-    #         ]))
-    #
-    #         if res_ids and not vals.get('appointment_booking_line_ids'):
-    #             lines = []
-    #             for res_id in res_ids:
-    #                 resource = self.env['appointment.resource'].browse(res_id).exists()
-    #                 if resource:
-    #                     lines.append((0, 0, {
-    #                         'appointment_resource_id': resource.id,
-    #                         'capacity_reserved': resource.capacity or 1
-    #                     }))
-    #             vals['appointment_booking_line_ids'] = lines
-    #         vals['name'] = self.env['ir.sequence'].next_by_code('medical.appointment')
-    #         processed_vals_list.append(vals)
-    #
-    #     return super().create(processed_vals_list)
-
-    # --- Create Override ---
     @api.model_create_multi
     def create(self, vals_list):
+        """ Override create to handle walk-in partner creation """
         processed_vals_list = []
         for vals in vals_list:
-            # Handle walk-in partner creation
             vals = self._handle_walkin_partner(vals.copy())
 
-            # Auto-populate resources if appointment type is set but resources aren't
             apt_type = self.env['appointment.type'].browse(vals.get('appointment_type_id')).exists() if vals.get(
                 'appointment_type_id') else None
-            if apt_type and apt_type.schedule_based_on == 'resources':
+
+            if apt_type:
                 if not vals.get('ths_practitioner_ar_id'):
                     practitioners = apt_type.resource_ids.filtered(lambda r: r.ths_resource_category == 'practitioner')
                     if practitioners:
@@ -493,22 +368,22 @@ class CalendarEvent(models.Model):
                     if rooms:
                         vals['ths_location_ar_id'] = rooms[0].id
 
-            # Ensure appointment_resource_ids is synced
             res_ids = list(filter(None, [
                 vals.get('ths_practitioner_ar_id'),
                 vals.get('ths_location_ar_id')
             ]))
-            if res_ids:
-                vals['appointment_resource_ids'] = [Command.set(res_ids)]
 
-            # Generate sequence name
-            if not vals.get('name') or vals.get('name') == 'Draft':
-                vals['name'] = self.env['ir.sequence'].next_by_code('medical.appointment')
-
-            # Set default status for medical appointments
-            if vals.get('appointment_type_id') and not vals.get('appointment_status'):
-                vals['appointment_status'] = 'scheduled'
-
+            if res_ids and not vals.get('appointment_booking_line_ids'):
+                lines = []
+                for res_id in res_ids:
+                    resource = self.env['appointment.resource'].browse(res_id).exists()
+                    if resource:
+                        lines.append((0, 0, {
+                            'appointment_resource_id': resource.id,
+                            'capacity_reserved': resource.capacity or 1
+                        }))
+                vals['appointment_booking_line_ids'] = lines
+            vals['name'] = self.env['ir.sequence'].next_by_code('medical.appointment')
             processed_vals_list.append(vals)
 
         return super().create(processed_vals_list)
@@ -517,47 +392,30 @@ class CalendarEvent(models.Model):
     # Consider if walk-in logic needs adjustment on write (e.g., if walk-in flag toggled)
     # For now, let's assume walk-in partner is only created at the initial creation step.
     # Adding logic here can become complex (e.g., what if user sets walk-in=True and removes patient?)
-    # def write(self, vals):
-    #     # Handle walk-in before super to ensure partner_id is set if needed by other logic
-    #     if vals.get('ths_is_walk_in') and not vals.get('ths_patient_id') and not self.ths_patient_id:
-    #         vals = self._handle_walkin_partner(vals.copy())
-    #
-    #     update_lines = 'ths_practitioner_ar_id' in vals or 'ths_location_ar_id' in vals
-    #
-    #     if update_lines:
-    #         practitioner_id = vals.get('ths_practitioner_ar_id',
-    #                                    self.ths_practitioner_ar_id.id if self.ths_practitioner_ar_id else None)
-    #         location_id = vals.get('ths_location_ar_id',
-    #                                self.ths_location_ar_id.id if self.ths_location_ar_id else None)
-    #
-    #         res_ids = list(filter(None, [practitioner_id, location_id]))
-    #         lines = []
-    #         for res_id in res_ids:
-    #             resource = self.env['appointment.resource'].browse(res_id).exists()
-    #             if resource:
-    #                 lines.append((0, 0, {
-    #                     'appointment_resource_id': resource.id,
-    #                     'capacity_reserved': resource.capacity or 1
-    #                 }))
-    #
-    #         vals['appointment_booking_line_ids'] = [(5, 0, 0)] + lines
-    #         vals['appointment_resource_ids'] = [Command.set(res_ids)]
-    #
-    #     return super().write(vals)
-
-    # --- Write Override ---
     def write(self, vals):
-        # Handle walk-in partner creation if toggled
+        # Handle walk-in before super to ensure partner_id is set if needed by other logic
         if vals.get('ths_is_walk_in') and not vals.get('ths_patient_id') and not self.ths_patient_id:
             vals = self._handle_walkin_partner(vals.copy())
 
-        # Sync appointment_resource_ids if AR fields change
-        if 'ths_practitioner_ar_id' in vals or 'ths_location_ar_id' in vals:
+        update_lines = 'ths_practitioner_ar_id' in vals or 'ths_location_ar_id' in vals
+
+        if update_lines:
             practitioner_id = vals.get('ths_practitioner_ar_id',
                                        self.ths_practitioner_ar_id.id if self.ths_practitioner_ar_id else None)
             location_id = vals.get('ths_location_ar_id',
                                    self.ths_location_ar_id.id if self.ths_location_ar_id else None)
+
             res_ids = list(filter(None, [practitioner_id, location_id]))
+            lines = []
+            for res_id in res_ids:
+                resource = self.env['appointment.resource'].browse(res_id).exists()
+                if resource:
+                    lines.append((0, 0, {
+                        'appointment_resource_id': resource.id,
+                        'capacity_reserved': resource.capacity or 1
+                    }))
+
+            vals['appointment_booking_line_ids'] = [(5, 0, 0)] + lines
             vals['appointment_resource_ids'] = [Command.set(res_ids)]
 
         return super().write(vals)
@@ -593,36 +451,37 @@ class CalendarEvent(models.Model):
         """ Set status to Checked In and record time. Trigger encounter creation. """
         now = fields.Datetime.now()
         for event in self:
-            if event.appointment_status not in ('scheduled', 'confirmed', 'booked'):
-                raise UserError(_("Appointment must be Scheduled, Confirmed, or Booked to Check In."))
+            if event.ths_status not in ('scheduled', 'confirmed'):
+                raise UserError(_("Appointment must be Scheduled or Confirmed to Check In."))
+            # Ensure patient/partner is set before check-in
             if not event.ths_patient_id or not event.partner_id:
                 raise UserError(_("Cannot check in appointment without a Patient and Customer assigned."))
+                # Ensure practitioner is selected if medical appointment
             if event.appointment_type_id and event.appointment_type_id.schedule_based_on == 'resources' and not event.ths_practitioner_ar_id:
                 raise UserError(
                     _("Cannot check in: A Service Provider must be selected for this medical appointment type."))
-
             event.write({
-                'appointment_status': 'checked_in',
+                'ths_status': 'checked_in',
                 'ths_check_in_time': now
             })
-            event._create_medical_encounter()
+            event._create_medical_encounter()  # Trigger encounter creation
         return True
 
     def action_start_consultation(self):
         """ Set status to In Progress. """
         for event in self:
-            if event.appointment_status != 'checked_in':
+            if event.ths_status != 'checked_in':
                 raise UserError(_("Patient must be Checked In before starting the consultation."))
             if not event.ths_encounter_id:
                 event._create_medical_encounter()
             if not event.ths_encounter_id:
                 raise UserError(_("Cannot start consultation: Medical Encounter is missing."))
 
-            event.write({'appointment_status': 'in_progress'})
+            event.write({'ths_status': 'in_progress'})
             if event.ths_encounter_id.state == 'draft':
                 if hasattr(event.ths_encounter_id, 'action_in_progress'):
                     event.ths_encounter_id.action_in_progress()
-                else:
+                else:  # Fallback if action doesn't exist
                     event.ths_encounter_id.write({'state': 'in_progress'})
         return True
 
@@ -630,19 +489,21 @@ class CalendarEvent(models.Model):
         """ Mark appointment and encounter as completed/ready for billing. """
         now = fields.Datetime.now()
         for event in self:
-            if event.appointment_status not in ('checked_in', 'in_progress'):
+            if event.ths_status not in ('checked_in', 'in_progress'):
                 raise UserError(_("Appointment must be Checked In or In Progress to mark as Completed."))
             if not event.ths_encounter_id:
                 raise UserError(_("Cannot complete appointment: Corresponding Medical Encounter not found."))
 
             event.write({
-                'appointment_status': 'completed',
+                'ths_status': 'completed',
                 'ths_check_out_time': now
             })
-            if event.ths_encounter_id.state != 'billed':
+            # Trigger encounter's action_ready_for_billing
+            if event.ths_encounter_id.state != 'billed':  # Avoid re-triggering
                 try:
                     event.ths_encounter_id.action_ready_for_billing()
                 except UserError as ue:
+                    # Catch specific user errors (like missing lines) and show them
                     raise ue
                 except Exception as e:
                     _logger.error("Error calling action_ready_for_billing from appointment %s: %s", event.id, e)
@@ -656,7 +517,7 @@ class CalendarEvent(models.Model):
         # Determine blame based on simple logic or default
         blame_reason = self.env['ths.medical.cancellation.reason'].search([('blame', '=', 'clinic')], limit=1)
         vals_to_write = {
-            'appointment_status': 'cancelled_by_clinic',
+            'ths_status': 'cancelled_by_clinic',
             'ths_cancellation_reason_id': blame_reason.id if blame_reason else False
         }
 
@@ -671,7 +532,8 @@ class CalendarEvent(models.Model):
 
     def action_mark_no_show(self):
         """ Mark as No Show. """
-        self.write({'appointment_status': 'no_show'})
+        self.write({'ths_status': 'no_show'})
+        # Cancel related encounter
         for event_rec in self:
             if event_rec.ths_encounter_id and event_rec.ths_encounter_id.state not in ('billed', 'cancelled'):
                 if hasattr(event_rec.ths_encounter_id, 'action_cancel'):
@@ -750,7 +612,7 @@ class CalendarEvent(models.Model):
         appointments = self.search([
             ('start', '>=', tomorrow_start),
             ('start', '<=', tomorrow_end),
-            ('appointment_status', 'in', ['scheduled', 'confirmed']),
+            ('ths_status', 'in', ['scheduled', 'confirmed']),
             ('ths_patient_id', '!=', False),
         ])
 
