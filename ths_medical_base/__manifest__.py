@@ -62,6 +62,25 @@
         'views/partner_type.xml',
         'views/calendar_event.xml',  # Inherited Calendar Event view
     ],
+    'assets': {
+        # FIXED: Move gantt extension to lazy bundle where gantt renderer lives
+        'web.assets_backend_lazy': [
+            'appointment/static/src/views/gantt/**',
+            # Add our medical gantt extension AFTER appointment gantt files
+            'ths_medical_base/static/src/views/gantt/gantt_renderer_medical.js',
+        ],
+        'web.assets_backend': [
+            'appointment/static/src/scss/appointment_type_views.scss',
+            'appointment/static/src/scss/web_calendar.scss',
+            'appointment/static/src/views/**/*',
+            # Remove gantt from main bundle since it's in lazy bundle
+            ('remove', 'appointment/static/src/views/gantt/**'),
+            'appointment/static/src/components/**/*',
+            'appointment/static/src/js/appointment_insert_link_form_controller.js',
+            'appointment/static/src/appointment_plugin.js',
+        ],
+    },
+
     'installable': True,
     'application': True,
     'auto_install': False,
