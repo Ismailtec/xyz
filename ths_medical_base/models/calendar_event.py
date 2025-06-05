@@ -182,12 +182,14 @@ class CalendarEvent(models.Model):
     # New default_get test
     @api.model
     def default_get(self, fields_list):
+        """ Override default_get to handle resource selection from Gantt view. """
         res = super().default_get(fields_list)
         _logger.info(f"CALENDAR_EVENT DG: Initial res: {res}, context: {self.env.context}")
 
         # Handle gantt context - when user clicks on a resource in gantt view
         ctx_appointment_type_id = self.env.context.get('default_appointment_type_id')
         ctx_resource_ids = self.env.context.get('default_resource_ids', [])
+        ctx_appointment_resource_ids = self.env.context.get('default_appointment_resource_ids')
 
         # Set appointment type if provided in context
         if ctx_appointment_type_id and 'appointment_type_id' in fields_list:
@@ -213,7 +215,11 @@ class CalendarEvent(models.Model):
 
                 # Always sync to appointment_resource_ids
                 if 'appointment_resource_ids' in fields_list:
-                    res['appointment_resource_ids'] = [Command.set([resource.id])]
+                    capacity_to_reserve = sum(resource.mapped('capacity'))
+                    res['appointment_booking_line_ids'] = [(0, 0, {
+                        'appointment_resource_id': resource.id,
+                        'capacity_reserved': min(resource.capacity, capacity_to_reserve)
+                    })]
 
                 # Set appointment type if not already set and resource has one
                 if not res.get('appointment_type_id') and resource.appointment_type_ids:
@@ -501,6 +507,20 @@ class CalendarEvent(models.Model):
             if res_ids:
                 vals['appointment_resource_ids'] = [Command.set(res_ids)]
 
+               # Always set appointment_booking_line_ids for each selected resource if not already provided
+                if not vals.get('appointment_booking_line_ids'):
+                    lines = []
+                    for res_id in res_ids:
+                        resource = self.env['appointment.resource'].browse(res_id).exists()
+                        if resource:
+                            # Set capacity_reserved to resource.capacity or 1 if not set
+                            lines.append((0, 0, {
+                                'appointment_resource_id': resource.id,
+                                'capacity_reserved': resource.capacity or 1
+                            }))
+                    vals['appointment_booking_line_ids'] = lines
+                    # TODO: If future logic requires more fields on booking line, update here 
+
             # Generate sequence name
             if not vals.get('name') or vals.get('name') == 'Draft':
                 vals['name'] = self.env['ir.sequence'].next_by_code('medical.appointment')
@@ -558,6 +578,18 @@ class CalendarEvent(models.Model):
             location_id = vals.get('ths_location_ar_id',
                                    self.ths_location_ar_id.id if self.ths_location_ar_id else None)
             res_ids = list(filter(None, [practitioner_id, location_id]))
+            
+            vals['appointment_booking_line_ids'] = [(5, 0, 0)]
+
+            # Then create new ones with proper capacity_reserved
+            for res_id in res_ids:
+                resource = self.env['appointment.resource'].browse(res_id).exists()
+                if resource:
+                    vals['appointment_booking_line_ids'].append((0, 0, {
+                        'appointment_resource_id': resource.id,
+                        'capacity_reserved': resource.capacity or 1
+                    }))
+
             vals['appointment_resource_ids'] = [Command.set(res_ids)]
 
         return super().write(vals)
