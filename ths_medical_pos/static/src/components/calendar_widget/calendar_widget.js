@@ -53,7 +53,7 @@ export class MedicalCalendarWidget extends Component {
         const events = await this.env.services.orm.searchRead(
             'calendar.event',
             domain,
-            ['name', 'start', 'stop', 'ths_patient_id', 'ths_status'],
+            ['name', 'start', 'stop', 'ths_patient_id', 'appointment_status'],
             { limit: 100 }
         );
 
@@ -62,10 +62,10 @@ export class MedicalCalendarWidget extends Component {
             title: event.name,
             start: event.start,
             end: event.stop,
-            color: this.getStatusColor(event.ths_status),
+            color: this.getStatusColor(event.appointment_status),
             extendedProps: {
                 patient: event.ths_patient_id,
-                status: event.ths_status
+                status: event.appointment_status
             }
         }));
     }

@@ -47,7 +47,7 @@ class ThsMedicalEncounter(models.Model):
     patient_id = fields.Many2one(
         'res.partner', string='Patient',
         # Ensure this gets populated correctly, e.g., from appointment or manually
-        store=True, index=True, readonly=True,  # Consider if readonly is always appropriate
+        store=True, index=True, readonly=True,
         help="The patient (human or animal) receiving treatment."
     )
     patient_ref = fields.Char(string="Patient File", related='patient_id.ref', store=False, readonly=True)
@@ -56,7 +56,12 @@ class ThsMedicalEncounter(models.Model):
     practitioner_id = fields.Many2one(
         'hr.employee', string='Practitioner',
         related='appointment_id.ths_practitioner_id',  # Primary link via appointment
-        store=True, index=True, readonly=True  # Consider if readonly is always appropriate
+        store=True, index=True, readonly=True
+    )
+    room_id = fields.Many2one(
+        'ths.treatment.room', string='Room (Treatment Room)',
+        related='appointment_id.ths_room_id',
+        store=True, index=True, readonly=True
     )
     date_start = fields.Datetime(
         string='Start Time',
@@ -68,6 +73,14 @@ class ThsMedicalEncounter(models.Model):
         related='appointment_id.stop',
         store=True, readonly=True
     )
+    appointment_status = fields.Selection(
+        related='appointment_id.appointment_status',
+        string='Appointment Status',
+        store=True,
+        readonly=True,
+        help="Status of the related appointment"
+    )
+
     state = fields.Selection([
         ('draft', 'Draft'),
         ('in_progress', 'In Progress'),
@@ -82,13 +95,9 @@ class ThsMedicalEncounter(models.Model):
         'ths.medical.encounter.service',
         'encounter_id',
         string='Services & Products Used',
-        copy=True  # Allow copying lines if encounter is duplicated
+        copy=True
     )
 
-    # company_id = fields.Many2one(
-    #     'res.company', string='Company',
-    #     compute='_compute_company_id',
-    #     store=True, index=True, readonly=True)
     notes = fields.Text(string="Internal Notes")  # Keep internal notes field
 
     # === EMR Fields (Base Text Fields) ===
@@ -112,22 +121,9 @@ class ThsMedicalEncounter(models.Model):
                                             help="Summary of radiology exams ordered.")
 
 
-    # @api.depends('practitioner_id.company_id', 'appointment_id.user_id.company_id')
-    # def _compute_company_id(self):
-    #     """Compute company primarily from the practitioner, fallback to appointment user or env company."""
-    #     for encounter in self:
-    #         if encounter.practitioner_id and encounter.practitioner_id.company_id:
-    #             encounter.company_id = encounter.practitioner_id.company_id
-    #         elif encounter.appointment_id and encounter.appointment_id.user_id:
-    #             # Fallback to appointment creator's company if no practitioner company
-    #             encounter.company_id = encounter.appointment_id.user_id.company_id
-    #         else:
-    #             # Final fallback to current environment company
-    #             encounter.company_id = self.env.company
-
     # --- Compute Methods ---
     @api.depends('appointment_id', 'appointment_id.partner_id')
-    def _compute_partner_patient_practitioner(self):
+    def _compute_all_fields(self):
         """Compute partner, patient, and practitioner from the appointment."""
         for encounter in self:
             appointment = encounter.appointment_id
@@ -141,6 +137,9 @@ class ThsMedicalEncounter(models.Model):
             encounter.practitioner_id = appointment.ths_practitioner_id if appointment and hasattr(appointment,
                                                                                                    'ths_practitioner_id') else False
 
+            # Get Room from custom field on appointment (ensure field name is correct)
+            encounter.room_id = appointment.ths_room_id if appointment and hasattr(appointment, 'ths_room_id') else False
+
     @api.depends('date_start')
     def _compute_daily_id(self):
         """ Find or create the daily encounter record for the encounter's date. """
@@ -152,18 +151,14 @@ class ThsMedicalEncounter(models.Model):
                 encounter.daily_id = False
                 continue
 
-            # Fallback to env.company since company_id was removed
-            company = self.env.company
             daily_rec = DailyEncounter.sudo().search([
                 ('date', '=', target_date),
-                #('company_id', '=', company.id)
             ], limit=1)
 
             if not daily_rec:
                 try:
                     daily_rec = DailyEncounter.sudo().create([{
                         'date': target_date,
-                        #'company_id': company.id
                     }])
                     _logger.info(f"Created Daily Encounter record for date {target_date}")
                 except Exception as e:
@@ -177,13 +172,20 @@ class ThsMedicalEncounter(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         """ Assign sequence on creation. """
-        # (Keep existing logic as provided previously)
         for vals in vals_list:
             if vals.get('name', _('New')) == _('New'):
                 vals['name'] = self.env['ir.sequence'].sudo().next_by_code('medical.encounter') or _('New')
         return super(ThsMedicalEncounter, self).create(vals_list)
 
     # --- Actions ---
+    def action_in_progress(self):
+        """Mark encounter as in progress - usually triggered by appointment check-in"""
+        for encounter in self:
+            if encounter.state == 'draft':
+                encounter.write({'state': 'in_progress'})
+                encounter.message_post(body=_("Encounter started - patient consultation in progress."))
+        return True
+
     def action_ready_for_billing(self):
         """ Mark encounter as ready for billing and create pending POS items from service lines. """
         PendingItem = self.env['ths.pending.pos.item']
@@ -236,6 +238,7 @@ class ThsMedicalEncounter(models.Model):
                     'price_unit': line.price_unit,
                     'discount': line.discount,
                     'practitioner_id': practitioner.id,
+                    'room_id': encounter.room_id.id if encounter.room_id else False,
                     'commission_pct': line.commission_pct,
                     'state': 'pending',  # Initial state
                     'notes': line.notes,  # Copy line notes
@@ -309,3 +312,38 @@ class ThsMedicalEncounter(models.Model):
 
         self.write({'state': 'draft'})
         return True
+
+    # --- Method to sync encounter state with appointment status ---
+    def _sync_with_appointment_status(self):
+        """Sync encounter state based on appointment status changes"""
+        for encounter in self:
+            if not encounter.appointment_id:
+                continue
+
+            apt_status = encounter.appointment_id.appointment_status
+
+            # Auto-progress encounter state based on appointment status
+            if apt_status == 'checked_in' and encounter.state == 'draft':
+                encounter.action_in_progress()
+            elif apt_status in ('completed', 'billed') and encounter.state == 'in_progress':
+                # Only auto-advance if there are service lines
+                if encounter.service_line_ids:
+                    encounter.action_ready_for_billing()
+            elif apt_status in ('cancelled_by_patient', 'cancelled_by_clinic', 'no_show') and encounter.state not in (
+                    'billed', 'cancelled'):
+                encounter.action_cancel()
+
+    @api.model
+    def _cron_sync_encounter_states(self):
+        """Cron job to sync encounter states with appointment statuses"""
+        # Find encounters that might need state updates
+        encounters_to_check = self.search([
+            ('state', 'in', ('draft', 'in_progress')),
+            ('appointment_id', '!=', False),
+        ])
+
+        for encounter in encounters_to_check:
+            try:
+                encounter._sync_with_appointment_status()
+            except Exception as e:
+                _logger.error(f"Failed to sync encounter {encounter.id} with appointment status: {e}")

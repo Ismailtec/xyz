@@ -47,11 +47,11 @@ class MedicalAPI(http.Controller):
             ]
 
             if practitioner_id:
-                domain.append(('ths_practitioner_ar_id.employee_id', '=', practitioner_id))
+                domain.append(('ths_practitioner_id.employee_id', '=', practitioner_id))
 
             slots = request.env['calendar.event'].sudo().search_read(
                 domain,
-                ['start', 'stop', 'ths_practitioner_ar_id', 'ths_location_ar_id'],
+                ['start', 'stop', 'ths_practitioner_id', 'ths_room_id'],
                 limit=100
             )
 
@@ -60,8 +60,8 @@ class MedicalAPI(http.Controller):
                 'slots': [{
                     'start': slot['start'].isoformat(),
                     'stop': slot['stop'].isoformat(),
-                    'practitioner': slot['ths_practitioner_ar_id'][1] if slot['ths_practitioner_ar_id'] else None,
-                    'location': slot['ths_location_ar_id'][1] if slot['ths_location_ar_id'] else None,
+                    'practitioner': slot['ths_practitioner_id'][1] if slot['ths_practitioner_id'] else None,
+                    'location': slot['ths_room_id'][1] if slot['ths_room_id'] else None,
                 } for slot in slots]
             }
 
@@ -101,10 +101,10 @@ class MedicalAPI(http.Controller):
                 'stop': (datetime.fromisoformat(data['start']) + timedelta(hours=0.5)).isoformat(),
                 'ths_patient_id': pet.id,
                 'partner_id': pet.ths_pet_owner_id.id,
-                'ths_practitioner_ar_id': data['practitioner_ar_id'],
-                'ths_location_ar_id': data.get('location_ar_id'),
+                'ths_practitioner_id': data['practitioner_ar_id'],
+                'ths_room_id': data.get('location_ar_id'),
                 'ths_reason_for_visit': data.get('reason', ''),
-                'ths_status': 'scheduled',
+                'appointment_status': 'scheduled',
             }
 
             appointment = request.env['calendar.event'].sudo().create(appointment_vals)
@@ -113,7 +113,7 @@ class MedicalAPI(http.Controller):
                 'success': True,
                 'appointment_id': appointment.id,
                 'name': appointment.name,
-                'status': appointment.ths_status
+                'status': appointment.appointment_status
             }
 
         except Exception as e:

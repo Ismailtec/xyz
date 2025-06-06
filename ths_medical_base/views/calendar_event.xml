@@ -5,34 +5,29 @@
         <field name="model">calendar.event</field>
         <field name="inherit_id" ref="appointment.calendar_event_view_form_gantt_booking"/>
         <field name="arch" type="xml">
-            <xpath expr="//field[@name='appointment_status']" position="after">
-                <field name="ths_status"/>
-            </xpath>
-            <!--            <xpath expr="//field[@name='appointment_status']" position="attributes">-->
-            <!--                <attribute name="invisible">1</attribute>-->
-            <!--            </xpath>-->
+
             <xpath expr="//field[@name='appointment_type_id']" position="after">
                 <xpath expr="//field[@name='resource_ids']" position="move"/>
                 <xpath expr="//field[@name='partner_ids']" position="move"/>
             </xpath>
+
             <xpath expr="//field[@name='resource_ids']" position="attributes">
                 <attribute name="string">Doctor/Room</attribute>
             </xpath>
+
             <xpath expr="//label[@for='duration']" position="before">
                 <xpath expr="//label[@for='start']" position="move"/>
                 <xpath expr="//div[hasclass('o_row')]" position="move"/>
             </xpath>
+
             <xpath expr="//field[@name='appointment_resource_ids']" position="attributes">
                 <attribute name="invisible">0</attribute>
             </xpath>
 
-            <!--            <field name="ths_patient_id" widget="many2one_avatar_user" string="Patient"/>-->
-            <!--            <field name="ths_practitioner_ar_id" widget="many2one_avatar_user" string="Doctor"/>-->
-            <!--            <field name="ths_location_ar_id" widget="many2one_avatar_user" string="Room"/>-->
-
             <xpath expr="//field[@name='appointment_type_id']" position="attributes">
                 <attribute name="invisible">0</attribute>
             </xpath>
+
             <xpath expr="//field[@name='partner_ids']" position="attributes">
                 <attribute name="invisible">0</attribute>
                 <attribute name="string">Patients</attribute>
@@ -42,6 +37,7 @@
                 <attribute name="placeholder">Patients...</attribute>
                 <attribute name="domain">[('ths_partner_type_id.is_patient', '=', True)]</attribute>
             </xpath>
+
             <xpath expr="//field[@name='name']" position="attributes">
                 <attribute name="readonly">1</attribute>
             </xpath>
@@ -62,28 +58,27 @@
         <field name="arch" type="xml">
             <xpath expr="//sheet" position="before">
                 <header>
-                    <field name="ths_status" widget="statusbar" options="{'clickable': '1'}"
-                           statusbar_visible="scheduled,confirmed,checked_in,in_progress,completed,billed"/>
+                    <!-- CLEANED UP STATUS BAR - Only show our medical statuses -->
+                    <field name="appointment_status" widget="statusbar" options="{'clickable': '1'}"
+                           statusbar_visible="draft,confirmed,checked_in,in_progress,completed,billed"
+                           invisible="not appointment_type_id"/>
                     <button name="action_check_in" string="Check In" type="object"
-                            class="oe_highlight" invisible="ths_status not in ('scheduled', 'confirmed')"/>
+                            class="oe_highlight"
+                            invisible="appointment_status not in ('draft', 'confirmed')"/>
                     <button name="action_start_consultation" string="Start Consultation" type="object"
-                            class="oe_highlight" invisible="ths_status != 'checked_in'"/>
+                            class="oe_highlight" invisible="appointment_status != 'checked_in'"/>
                     <button name="action_complete_and_bill" string="Complete &amp; Ready for Billing" type="object"
-                            class="oe_highlight" invisible="ths_status not in ('checked_in', 'in_progress')"/>
+                            class="oe_highlight" invisible="appointment_status not in ('checked_in', 'in_progress')"/>
                     <button name="action_mark_no_show" string="Mark No Show" type="object"
-                            invisible="ths_status not in ('scheduled', 'confirmed')"/>
+                            invisible="appointment_status not in ('draft', 'confirmed')"/>
                     <button name="action_cancel_appointment" string="Cancel Appointment" type="object"
-                            invisible="ths_status in ('completed', 'billed', 'cancelled_by_patient', 'cancelled_by_clinic', 'no_show')"/>
+                            invisible="appointment_status in ('completed', 'billed', 'cancelled_by_patient', 'cancelled_by_clinic', 'no_show')"/>
                 </header>
             </xpath>
 
             <xpath expr="//field[@name='state']" position="attributes">
                 <attribute name="invisible">1</attribute>
             </xpath>
-            <!--            <xpath expr="//field[@name='state']" position="after">-->
-            <!--                <field name="ths_status" widget="statusbar" options="{'clickable': '1'}"-->
-            <!--                       statusbar_visible="scheduled,confirmed,checked_in,in_progress,completed,billed"/>-->
-            <!--            </xpath>-->
 
             <xpath expr="//div[@name='button_box']" position="inside">
                 <button name="action_view_encounter" type="object" icon="fa-stethoscope"
@@ -106,14 +101,16 @@
                                    context="{'default_schedule_based_on': 'resources'}"/>
                         </group>
                         <group name="medical_col_2">
-                            <field name="ths_practitioner_ar_id"
+                            <field name="ths_practitioner_id"
                                    string="Service Provider"
                                    invisible="not is_resource_based_type"
+                                   domain="ths_practitioner_id_domain"
                                    required="is_resource_based_type"
                                    options="{'no_create': True, 'no_quick_create': True}"/>
-                            <field name="ths_location_ar_id"
+                            <field name="ths_room_id"
                                    string="Room"
                                    invisible="not is_resource_based_type"
+                                   domain="ths_room_id_domain"
                                    options="{'no_create': True, 'no_create_edit': True}"/>
                             <field name="is_resource_based_type" readonly="1"/>
                         </group>
@@ -122,28 +119,18 @@
                         <group>
                             <field name="ths_reason_for_visit"
                                    placeholder="e.g., Annual Checkup, Consultation for fever..."/>
-                            <field name="ths_practitioner_id" readonly="1" string="Practitioner (Ref)"/>
-                            <field name="ths_room_id" readonly="1" string="Room (Ref)"/>
                         </group>
                         <group>
                             <field name="ths_check_in_time" readonly="1"/>
                             <field name="ths_check_out_time" readonly="1"/>
                             <field name="ths_cancellation_reason_id"
-                                   invisible="[('ths_status', 'not in', ['cancelled_by_patient', 'cancelled_by_clinic'])]"
+                                   invisible="[('appointment_status', 'not in', ['cancelled_by_patient', 'cancelled_by_clinic'])]"
                                    options="{'no_create': True, 'no_quick_create': True}"/>
                         </group>
                     </group>
                     <field name="ths_encounter_id" readonly="1" invisible="1"/>
                 </page>
             </xpath>
-
-            <!--            <xpath expr="//field[@name='partner_ids']" position="attributes">-->
-            <!--                <attribute name="invisible">1</attribute>-->
-            <!--            </xpath>-->
-            <!--            <xpath expr="//label[@for='partner_ids']" position="attributes">-->
-            <!--                <attribute name="invisible">1</attribute>-->
-            <!--            </xpath>-->
-
         </field>
     </record>
 
@@ -157,7 +144,11 @@
                 <field name="ths_practitioner_id" optional="show"/>
                 <field name="ths_room_id" optional="show"/>
                 <field name="appointment_type_id" optional="hide"/>
-                <field name="ths_status" optional="show" widget="badge"/>
+                <field name="appointment_status" optional="show" widget="badge"
+                       decoration-success="appointment_status == 'billed'"
+                       decoration-info="appointment_status in ('draft', 'confirmed', 'checked_in')"
+                       decoration-warning="appointment_status in ('in_progress', 'completed')"
+                       decoration-danger="appointment_status in ('cancelled_by_patient', 'cancelled_by_clinic', 'no_show')"/>
                 <field name="ths_is_walk_in" optional="show"/>
             </xpath>
         </field>
@@ -169,20 +160,13 @@
         <field name="inherit_id" ref="calendar.view_calendar_event_calendar"/>
         <field name="arch" type="xml">
             <xpath expr="//calendar" position="attributes">
-                <attribute name="color">ths_status</attribute>
-                <!--                <attribute name="mapping">{'room': 'ths_room_id', 'status': 'ths_status'}</attribute>-->
-                <!--                <attribute name="quick_add_fields">name,ths_practitioner_id,ths_room_id</attribute>-->
-                <!--                <attribute name="decoration-muted">ths_status in ('cancelled_by_patient', 'cancelled_by_clinic',-->
-                <!--                                                                  'no_show')</attribute>-->
-                <!--                <attribute name="decoration-success">ths_status == 'billed'</attribute>-->
-                <!--                <attribute name="decoration-warning">ths_status == 'completed'</attribute>-->
-                <!--                <attribute name="decoration-info">ths_status == 'checked_in'</attribute>-->
+                <attribute name="color">appointment_status</attribute>
             </xpath>
             <xpath expr="//field[@name='partner_id']" position="after">
                 <field name="ths_patient_id"/>
                 <field name="ths_practitioner_id"/>
                 <field name="ths_room_id"/>
-                <field name="ths_status"/>
+                <field name="appointment_status"/>
                 <field name="ths_is_walk_in"/>
             </xpath>
         </field>
@@ -203,7 +187,18 @@
             <xpath expr="//filter[@name='mymeetings']" position="after">
                 <filter string="Walk-ins" name="filter_walkin" domain="[('ths_is_walk_in', '=', True)]"/>
                 <separator/>
-                <filter string="Medical Status" name="groupby_ths_status" context="{'group_by': 'ths_status'}"/>
+                <!-- FILTERS -->
+                <filter string="Draft" name="filter_draft" domain="[('appointment_status', '=', 'draft')]"/>
+                <filter string="Confirmed" name="filter_confirmed" domain="[('appointment_status', '=', 'confirmed')]"/>
+                <filter string="Checked In" name="filter_checked_in"
+                        domain="[('appointment_status', '=', 'checked_in')]"/>
+                <filter string="In Progress" name="filter_in_progress"
+                        domain="[('appointment_status', '=', 'in_progress')]"/>
+                <filter string="Completed" name="filter_completed" domain="[('appointment_status', '=', 'completed')]"/>
+                <filter string="Billed" name="filter_billed" domain="[('appointment_status', '=', 'billed')]"/>
+                <separator/>
+                <filter string="Appointment Status" name="groupby_appointment_status"
+                        context="{'group_by': 'appointment_status'}"/>
                 <filter string="Practitioner" name="groupby_practitioner"
                         context="{'group_by': 'ths_practitioner_id'}"/>
                 <filter string="Room" name="groupby_room" context="{'group_by': 'ths_room_id'}"/>
@@ -221,39 +216,82 @@
             <xpath expr="//gantt" position="inside">
                 <field name="ths_practitioner_id"/>
                 <field name="ths_room_id"/>
-                <field name="name"/>
-                <field name="start"/>
-                <field name="stop"/>
-                <field name="ths_practitioner_id"/>
-                <field name="ths_room_id"/>
                 <field name="ths_patient_id"/>
-                <field name="ths_status"/>
-                <field name="duration" invisible="1"/>
-                <field name="resource_ids" widget="many2many_tags"/>
-                <field name="appointment_type_id"/>
+                <field name="appointment_status"/>
             </xpath>
+
             <xpath expr="//field[@name='appointment_resource_ids']" position="attributes">
                 <attribute name="string">Doctor/Room</attribute>
                 <attribute name="invisible">0</attribute>
             </xpath>
 
-            <!-- Template for popover -->
-            <xpath expr="//gantt//templates//div//ul/li[@t-if='appointment_type_id']" position="before">
-                <!-- Empty line before medical information section -->
-                <li class="mt-2"></li>
-                <li><strong>Doctor: </strong><t t-out="ths_practitioner_id[1]"/></li>
-                <li t-if="ths_room_id[1]"><strong>Room: </strong><t t-out="ths_room_id[1]"/></li>
-                <li><strong>Patient: </strong><t t-out="ths_patient_id[1]"/></li>
-                <!-- Empty line after patient information -->
-                <li class="mb-2"></li>
-                <!--                    <li class="mt-2">-->
-                <!--                        <strong>Status: </strong>-->
-                <!--                        <span t-attf-class="badge badge-#{ths_status}">-->
-                <!--                            <t t-out="ths_status"/>-->
-                <!--                        </span>-->
-                <!--                    </li>-->
+            <!-- Update gantt decoration to use appointment_status -->
+            <xpath expr="//gantt" position="attributes">
+                <attribute name="decoration-info">appointment_status == 'draft'</attribute>
             </xpath>
 
+            <!-- Template for popover -->
+            <xpath expr="//gantt//templates//div//ul/li[@t-if='appointment_type_id']" position="before">
+                <li class="mt-2"></li>
+                <li t-if="ths_practitioner_id"><strong>Doctor: </strong><t t-out="ths_practitioner_id[1]"/></li>
+                <li t-if="ths_room_id"><strong>Room: </strong><t t-out="ths_room_id[1]"/></li>
+                <li t-if="ths_patient_id"><strong>Patient: </strong><t t-out="ths_patient_id[1]"/></li>
+                <li class="mb-2"></li>
+            </xpath>
+
+            <!-- CLEANED UP status display in popover -->
+            <xpath expr="//li[@t-if='appointment_status']//select[@class='o_appointment_booking_status o_input']"
+                   position="replace">
+                <select t-if="can_edit" class="o_appointment_booking_status o_input">
+                    <option value="draft" t-att-selected="appointment_status === 'draft'">Draft</option>
+                    <option value="confirmed" t-att-selected="appointment_status === 'confirmed'">Confirmed</option>
+                    <option value="checked_in" t-att-selected="appointment_status === 'checked_in'">Checked In</option>
+                    <option value="in_progress" t-att-selected="appointment_status === 'in_progress'">In
+                        Progress</option>
+                    <option value="completed" t-att-selected="appointment_status === 'completed'">Completed</option>
+                    <option value="billed" t-att-selected="appointment_status === 'billed'">Billed</option>
+                    <option value="cancelled_by_patient" t-att-selected="appointment_status === 'cancelled_by_patient'">
+                        Cancelled (Patient)</option>
+                    <option value="cancelled_by_clinic" t-att-selected="appointment_status === 'cancelled_by_clinic'">
+                        Cancelled (Clinic)</option>
+                    <option value="no_show" t-att-selected="appointment_status === 'no_show'">No Show</option>
+                </select>
+            </xpath>
+
+            <!-- Update status display text in popover -->
+            <xpath expr="//li[@t-if='appointment_status']" position="replace">
+                <li t-if="appointment_status" class="o_field_selection d-flex align-items-center gap-2 mt-2">
+                    <strong>Status: </strong>
+                    <select t-if="can_edit" class="o_appointment_booking_status o_input">
+                        <option value="draft" t-att-selected="appointment_status === 'draft'">Draft</option>
+                        <option value="confirmed" t-att-selected="appointment_status === 'confirmed'">Confirmed</option>
+                        <option value="checked_in" t-att-selected="appointment_status === 'checked_in'">Checked
+                            In</option>
+                        <option value="in_progress" t-att-selected="appointment_status === 'in_progress'">In
+                            Progress</option>
+                        <option value="completed" t-att-selected="appointment_status === 'completed'">Completed</option>
+                        <option value="billed" t-att-selected="appointment_status === 'billed'">Billed</option>
+                        <option value="cancelled_by_patient"
+                                t-att-selected="appointment_status === 'cancelled_by_patient'">Cancelled
+                            (Patient)</option>
+                        <option value="cancelled_by_clinic"
+                                t-att-selected="appointment_status === 'cancelled_by_clinic'">Cancelled
+                            (Clinic)</option>
+                        <option value="no_show" t-att-selected="appointment_status === 'no_show'">No Show</option>
+                    </select>
+                    <t t-else="">
+                        <t t-if="appointment_status === 'draft'">Draft</t>
+                        <t t-elif="appointment_status === 'confirmed'">Confirmed</t>
+                        <t t-elif="appointment_status === 'checked_in'">Checked In</t>
+                        <t t-elif="appointment_status === 'in_progress'">In Progress</t>
+                        <t t-elif="appointment_status === 'completed'">Completed</t>
+                        <t t-elif="appointment_status === 'billed'">Billed</t>
+                        <t t-elif="appointment_status === 'cancelled_by_patient'">Cancelled (Patient)</t>
+                        <t t-elif="appointment_status === 'cancelled_by_clinic'">Cancelled (Clinic)</t>
+                        <t t-elif="appointment_status === 'no_show'">No Show</t>
+                    </t>
+                </li>
+            </xpath>
 
         </field>
     </record>
@@ -266,7 +304,7 @@
         <field name="domain">[('ths_practitioner_id', '!=', False)]</field>
         <field name="context">{
             'default_schedule_based_on': 'resources',
-            'default_ths_status': 'scheduled'
+            'default_appointment_status': 'draft'
         }</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">

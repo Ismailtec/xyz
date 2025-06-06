@@ -4,16 +4,15 @@
     'version': '18.0.1.0.0',
     'category': 'Hidden',
     'summary': 'Adds base medical-related flags to HR models.',
-    'description': """
-                   Adds base models and logic for medical workflows:
-                   - Medical flags for Employee Types and Employees.
-                   - Product Sub Type classification system.
-                   - Treatment Room management with resource linking.
-                   - Daily Encounter grouping.
-                   - Medical Encounter tracking linked to appointments.
-                   - Pending POS Item model for billing bridge.
-                   - Extends Calendar Event for medical context.
-                       """,
+    'description': """Adds base models and logic for medical workflows:
+                      - Medical flags for Employee Types and Employees.
+                      - Product Sub Type classification system.
+                      - Treatment Room management with resource linking.
+                      - Daily Encounter grouping.
+                      - Medical Encounter tracking linked to appointments.
+                      - Pending POS Item model for billing bridge.
+                      - Extends Calendar Event for medical context.
+                    """,
     'author': 'Techouse Solutions / Ismail Abdelkhalik',
     'website': 'https://www.techouse.ae',
     'depends': [
@@ -32,7 +31,6 @@
         'appointment',
         'calendar',
         'resource',
-        'web_gantt_extension',
         'point_of_sale',
     ],
     'data': [
@@ -62,6 +60,24 @@
         'views/partner_type.xml',
         'views/calendar_event.xml',  # Inherited Calendar Event view
     ],
+    'assets': {
+        # FIXED: Move gantt extension to lazy bundle where gantt renderer lives
+        'web.assets_backend_lazy': [
+            'appointment/static/src/views/gantt/**',
+            # Add our medical gantt extension AFTER appointment gantt files
+            'ths_medical_base/static/src/views/gantt/gantt_renderer_medical.js',
+        ],
+        'web.assets_backend': [
+            'appointment/static/src/scss/appointment_type_views.scss',
+            'appointment/static/src/scss/web_calendar.scss',
+            'appointment/static/src/views/**/*',
+            # Remove gantt from main bundle since it's in lazy bundle
+            ('remove', 'appointment/static/src/views/gantt/**'),
+            'appointment/static/src/components/**/*',
+            'appointment/static/src/js/appointment_insert_link_form_controller.js',
+            'appointment/static/src/appointment_plugin.js',
+        ],
+    },
     'installable': True,
     'application': True,
     'auto_install': False,

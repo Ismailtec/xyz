@@ -46,11 +46,7 @@ class ThsMedicalEncounterService(models.Model):
         required=True,
         digits='Product Price'
     )
-    # currency_id = fields.Many2one(
-    #     related='company.currency_id',
-    #     string='Currency',
-    #     readonly=True
-    # )
+
     # Discount Handling
     discount = fields.Float(
         string='Discount (%)',
@@ -66,6 +62,12 @@ class ThsMedicalEncounterService(models.Model):
         help="The medical staff member who provided this specific service/item.",
         # Default practitioner from encounter can be set via context in the view
     )
+    room_id = fields.Many2one(
+        'ths.treatment.room',
+        string='Treatment Room',
+        index=True,
+        help="The room where provided this specific service/item.",
+    )
     commission_pct = fields.Float(
         string='Commission %',
         digits='Discount',  # Use discount precision for percentage
@@ -75,7 +77,6 @@ class ThsMedicalEncounterService(models.Model):
     appointment_id = fields.Many2one(related='encounter_id.appointment_id', store=False)
     partner_id = fields.Many2one(related='encounter_id.partner_id', store=False, string="Customer/Owner")
     patient_id = fields.Many2one(related='encounter_id.patient_id', store=False, string="Patient")
-    #company_id = fields.Many2one(related='encounter_id.company_id', store=True, index=True)
     notes = fields.Text(string='Line Notes')
 
     # --- Compute Methods ---

@@ -25,7 +25,7 @@ class CalendarEvent(models.Model):
                 'appointment_booking_gantt_show_all_resources': True,
                 'active_model': 'appointment.type',
                 'default_partner_ids': [],
-                'default_ths_status': 'scheduled',
+                'default_appointment_status': 'scheduled',
                 'default_schedule_based_on': 'resources',
             },
             'domain': [('ths_practitioner_id', '!=', False)],  # Only show medical appointments
