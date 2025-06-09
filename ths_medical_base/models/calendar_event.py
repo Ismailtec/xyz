@@ -41,11 +41,12 @@ class CalendarEvent(models.Model):
     ths_room_id_domain = fields.Char(compute='_compute_ar_domains')
 
     # Patient receiving the service
-    ths_patient_id = fields.Many2one(
+    ths_patient_ids = fields.Many2many(
         'res.partner', string='Patients', index=True, tracking=True, store=True,
-        compute='_compute_patient_from_partner_ids',
+        compute='_compute_ths_patient_ids',
+        inverse='_inverse_ths_patient_ids',
         domain="['|', ('ths_partner_type_id.is_patient', '=', True), ('ths_partner_type_id.name', '=', 'Walk-in')]",
-        help="The patient this appointment is for."
+        help="Patients linked to this appointment."
     )
 
     ths_reason_for_visit = fields.Text(string='Reason for Visit')
@@ -93,12 +94,7 @@ class CalendarEvent(models.Model):
         compute='_compute_is_resource_based_type', store=False
     )
 
-    # appointment_booking_line_ids = fields.One2many(
-    #     'appointment.booking.line',
-    #     'calendar_event_id',
-    #     string="Medical Booking Lines"
-    # )
-
+    # --- Compute & Depends Methods ---
     @api.depends('appointment_type_id.schedule_based_on')
     def _compute_is_resource_based_type(self):
         for rec in self:
@@ -133,18 +129,20 @@ class CalendarEvent(models.Model):
             rec.ths_room_id = location
 
     @api.depends('partner_ids')
-    def _compute_patient_from_partner_ids(self):
-        for event in self:
-            if event.partner_ids:
-                first = event.partner_ids[0]
-                if getattr(first, 'ths_partner_type_id', False) and (
-                        first.ths_partner_type_id.is_patient or first.ths_partner_type_id.name == 'Walk-in'
-                ):
-                    event.ths_patient_id = first
-                else:
-                    event.ths_patient_id = False
-            else:
-                event.ths_patient_id = False
+    def _compute_ths_patient_ids(self):
+        for rec in self:
+            rec.ths_patient_ids = rec.partner_ids
+
+    def _inverse_ths_patient_ids(self):
+        for rec in self:
+            rec.partner_ids = rec.ths_patient_ids
+
+    # @api.depends('partner_ids')
+    # def _compute_patient_from_partner_ids(self):
+    #     if self.partner_ids:
+    #             self.ths_patient_ids = [Command.set([p.id for p in self.partner_ids])]
+    #         else:
+    #             self.ths_patient_ids = [Command.clear()]
 
     @api.model
     def default_get(self, fields_list):
@@ -181,21 +179,11 @@ class CalendarEvent(models.Model):
             res['appointment_status'] = 'draft'
 
         partner_ids = self.env.context.get('default_partner_ids') or []
-        if partner_ids and 'ths_patient_id' in fields_list:
-            res['ths_patient_id'] = partner_ids[0]
+        if partner_ids and 'ths_patient_ids' in fields_list:
+            res['ths_patient_ids'] = partner_ids[:1]
 
         # _logger.info(f"CALENDAR_EVENT DG: Final res: {res}")
         return res
-
-    # --- Compute and Onchange Methods ---
-    # @api.depends('ths_practitioner_id', 'ths_practitioner_id.employee_id',
-    #              'ths_room_id', 'ths_room_id.ths_treatment_room_id')
-    # def _compute_derived_medical_entities(self):
-    #     """Populate ths_practitioner_id (Employee) and ths_room_id (TreatmentRoom)
-    #        from the selected appointment.resource records."""
-    #     for event in self:
-    #         event.ths_practitioner_id = event.ths_practitioner_id.employee_id if event.ths_practitioner_id else False
-    #         event.ths_room_id = event.ths_room_id.ths_treatment_room_id if event.ths_room_id else False
 
     @api.onchange('ths_practitioner_id', 'ths_room_id')
     def _onchange_practitioner_or_room(self):
@@ -212,37 +200,12 @@ class CalendarEvent(models.Model):
         # _logger.info(
         #     f"CALENDAR_EVENT OnChange ARs: Event {self.id or self.display_name or 'New'} updated standard appointment_resource_ids to {selected_ar_ids}")
 
-    @api.onchange('partner_ids')
-    def _onchange_partner_ids_to_patient(self):
-        """Auto-populate ths_patient_id when partner_id is set to a patient"""
-        if self.partner_ids:
-            first = self.partner_ids[0]
-            if hasattr(first, 'ths_partner_type_id') and (
-                    first.ths_partner_type_id.is_patient or first.ths_partner_type_id.name == 'Walk-in'):
-                self.ths_patient_id = first
-            else:
-                self.ths_patient_id = False
-        else:
-            self.ths_patient_id = False
-            # _logger.info(f"CALENDAR_EVENT: Auto-set patient from partner: {self.partner_id.name}")
-
-    @api.onchange('ths_patient_id')
+    @api.onchange('ths_patient_ids')
     def _onchange_patient_attendees(self):
-        if self.ths_patient_id:
-            self.partner_ids = [Command.set([self.ths_patient_id.id])]
+        if self.ths_patient_ids:
+            self.partner_ids = [Command.set([p.id for p in self.ths_patient_ids])]
         else:
             self.partner_ids = [Command.clear()]
-
-    # @api.depends('ths_practitioner_id', 'ths_room_id')
-    # def _compute_default_resources(self):
-    #     for rec in self:
-    #         if not rec.resource_ids:
-    #             selected = []
-    #             if rec.ths_practitioner_id:
-    #                 selected.append(rec.ths_practitioner_id.id)
-    #             if rec.ths_room_id:
-    #                 selected.append(rec.ths_room_id.id)
-    #             rec.resource_ids = [Command.set(list(set(selected)))]
 
     # --- Walk-in Partner Handling ---
     def _get_walkin_partner_type(self):
@@ -282,7 +245,7 @@ class CalendarEvent(models.Model):
             return vals  # Return original vals
 
         # Check conditions: walk-in flag is true, and no patient/partner is provided
-        if vals.get('ths_is_walk_in') and not vals.get('ths_patient_id') and not vals.get('partner_id'):
+        if vals.get('ths_is_walk_in') and not vals.get('ths_patient_ids') and not vals.get('partner_ids'):
             # _logger.info("Creating a new Walk-in partner for walk-in appointment.")
             partner_vals = self._prepare_walkin_partner_vals(walkin_type.id)
             try:
@@ -290,8 +253,8 @@ class CalendarEvent(models.Model):
                 walkin_partner = self.env['res.partner'].sudo().create(partner_vals)
                 # _logger.info(f"Created Walk-in partner: {walkin_partner.name} (ID: {walkin_partner.id})")
                 # Assign the new partner to both patient and partner fields of the appointment
-                vals['ths_patient_id'] = walkin_partner.id
-                vals['partner_id'] = walkin_partner.id
+                vals['ths_patient_ids'] = walkin_partner.id
+                vals['partner_ids'] = walkin_partner.id
                 # Add attendees automatically if needed
                 vals['partner_ids'] = vals.get('partner_ids', []) + [(4, walkin_partner.id)]
             except Exception as e:
@@ -304,38 +267,38 @@ class CalendarEvent(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         """ Override create to handle walk-in partner creation and set ARs and patient from context """
-        processed_vals_list = []
+        vals_list = []
         for vals in vals_list:
             vals = self._handle_walkin_partner(vals.copy())
 
-            # Populate ths_patient_id from partner_id
-            # if vals.get("partner_id") and not vals.get("ths_patient_id"):
-            #     vals["ths_patient_id"] = vals["partner_id"]
+            # Populate ths_patient_ids from partner_ids
+            if vals.get('partner_ids') and not vals.get('ths_patient_ids'):
+                vals['ths_patient_ids'] = [Command.set(vals['partner_ids'])]
 
             vals["name"] = self.env["ir.sequence"].next_by_code("medical.appointment")
-            processed_vals_list.append(vals)
+            vals_list.append(vals)
 
-        return super().create(processed_vals_list)
+        return super().create(vals_list)
 
     # --- Write Override ---
     def write(self, vals):
-        # Handle walk-in before super to ensure partner_id is set if needed
-        if vals.get("ths_is_walk_in") and not vals.get("ths_patient_id") and not self.ths_patient_id:
+        # Handle walk-in before super to ensure partner_ids is set if needed
+        if vals.get("ths_is_walk_in") and not vals.get("ths_patient_ids") and not self.ths_patient_ids:
             vals = self._handle_walkin_partner(vals.copy())
 
-        # Update ths_patient_id if partner_id is updated
-        # if "partner_id" in vals and not vals.get("ths_patient_id"):
-        #     vals["ths_patient_id"] = vals["partner_id"]
+        # Update ths_patient_ids if partner_ids is updated
+        if 'partner_ids' in vals and 'ths_patient_ids' not in vals:
+            vals['ths_patient_ids'] = [Command.set(vals['partner_ids'])]
 
         return super().write(vals)
 
-    # @api.constrains('ths_is_walk_in', 'ths_patient_id', 'partner_id')
+    # @api.constrains('ths_is_walk_in', 'ths_patient_ids', 'partner_ids')
     # def _check_walkin_partner(self):
     #     """ Ensure walk-in appointments have a partner/patient eventually """
     #     for event in self:
     #         # This check might be too strict during initial creation before partner is assigned.
     #         # Let's comment it out for now, relying on the create logic.
-    #         # if event.ths_is_walk_in and not event.ths_patient_id and not event.partner_id:
+    #         # if event.ths_is_walk_in and not event.ths_patient_ids and not event.partner_ids:
     #         #     raise ValidationError(_("Walk-in appointments must have a Patient/Partner assigned."))
     #         pass  # Keep constraint simple for now
 
@@ -356,7 +319,7 @@ class CalendarEvent(models.Model):
             if event.appointment_status in ('completed', 'billed', 'cancelled_by_clinic', 'no_show'):
                 raise UserError(_('You cannot check-in a completed or cancelled appointment.'))
             # Ensure patient/partner is set before check-in
-            if not event.ths_patient_id or not event.partner_id:
+            if not event.ths_patient_ids or not event.partner_ids:
                 raise UserError(_("Cannot check in appointment without a Patient and Customer assigned."))
                 # Ensure practitioner is selected if medical appointment
             if event.appointment_type_id and event.appointment_type_id.schedule_based_on == 'resources' and not event.ths_practitioner_id:
@@ -449,8 +412,8 @@ class CalendarEvent(models.Model):
         """ Prepare values for creating a ths.medical.base.encounter record. """
         self.ensure_one()
         # Patient and Partner should be validated before calling this (e.g., in action_check_in)
-        patient_partner = self.ths_patient_id
-        owner_partner = self.ths_patient_id
+        patient_partner = self.ths_patient_ids
+        owner_partner = self.ths_patient_ids[1]
         practitioner_employee = self.ths_practitioner_id  # This is now computed from ths_practitioner_id
         if not patient_partner or not owner_partner:
             raise UserError(_("Cannot create encounter: Patient and Customer/Owner must be set on the appointment."))
@@ -459,8 +422,8 @@ class CalendarEvent(models.Model):
 
         return {
             'appointment_id': self.id,
-            'state': 'draft',  # Start encounter in draft
-            'patient_id': patient_partner.id,
+            'state': 'draft',
+            'patient_ids': patient_partner.id,
             'practitioner_id': practitioner_employee.id,
             'partner_id': owner_partner.id,
             # EMR fields like chief complaint could potentially be copied from appointment reason
@@ -515,7 +478,7 @@ class CalendarEvent(models.Model):
             ('start', '>=', tomorrow_start),
             ('start', '<=', tomorrow_end),
             ('appointment_status', 'in', ['draft', 'confirmed']),
-            ('ths_patient_id', '!=', False),
+            ('ths_patient_ids', '!=', False),
         ])
 
         template = self.env.ref('ths_medical_base.email_template_appointment_reminder', False)
@@ -527,7 +490,7 @@ class CalendarEvent(models.Model):
             try:
                 template.send_mail(appointment.id, force_send=True)
                 appointment.message_post(
-                    body=_("Reminder sent to %s") % appointment.partner_id.name,
+                    body=_("Reminder sent to %s") % appointment.partner_ids.name,
                     message_type='notification'
                 )
             except Exception as e:

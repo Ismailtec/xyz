@@ -76,7 +76,7 @@ class ThsMedicalEncounterService(models.Model):
     # Related Fields for Context (mostly invisible in direct line view)
     appointment_id = fields.Many2one(related='encounter_id.appointment_id', store=False)
     partner_id = fields.Many2one(related='encounter_id.partner_id', store=False, string="Customer/Owner")
-    patient_id = fields.Many2one(related='encounter_id.patient_id', store=False, string="Patient")
+    patient_id = fields.Many2many(related='encounter_id.patient_ids', store=False, string="Patient")
     notes = fields.Text(string='Line Notes')
 
     # --- Compute Methods ---

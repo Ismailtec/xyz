@@ -92,7 +92,7 @@
                     <group name="medical_top">
                         <group name="medical_col_1">
                             <field name="ths_is_walk_in" widget="boolean_toggle"/>
-                            <field name="ths_patient_id" string="Patient"
+                            <field name="ths_patient_ids" string="Patient" widget="many2many_tags"
                                    options="{'no_create': True, 'no_quick_create': True}"
                                    context="{'default_is_patient': True, 'default_ths_partner_type_code': 'PAT'}"
                                    groups="base.group_user"/>
@@ -140,7 +140,7 @@
         <field name="inherit_id" ref="calendar.view_calendar_event_tree"/>
         <field name="arch" type="xml">
             <xpath expr="//field[@name='partner_ids']" position="after">
-                <field name="ths_patient_id" optional="show"/>
+                <field name="ths_patient_ids" optional="show" widget="many2many_tags"/>
                 <field name="ths_practitioner_id" optional="show"/>
                 <field name="ths_room_id" optional="show"/>
                 <field name="appointment_type_id" optional="hide"/>
@@ -163,7 +163,7 @@
                 <attribute name="color">appointment_status</attribute>
             </xpath>
             <xpath expr="//field[@name='partner_id']" position="after">
-                <field name="ths_patient_id"/>
+                <field name="ths_patient_ids"/>
                 <field name="ths_practitioner_id"/>
                 <field name="ths_room_id"/>
                 <field name="appointment_status"/>
@@ -178,7 +178,7 @@
         <field name="inherit_id" ref="calendar.view_calendar_event_search"/>
         <field name="arch" type="xml">
             <xpath expr="//field[@name='partner_ids']" position="after">
-                <field name="ths_patient_id"/>
+                <field name="ths_patient_ids"/>
                 <field name="ths_practitioner_id"/>
                 <field name="ths_room_id"/>
                 <field name="appointment_type_id"/>
@@ -216,7 +216,7 @@
             <xpath expr="//gantt" position="inside">
                 <field name="ths_practitioner_id"/>
                 <field name="ths_room_id"/>
-                <field name="ths_patient_id"/>
+                <field name="ths_patient_ids"/>
                 <field name="appointment_status"/>
             </xpath>
 
@@ -235,7 +235,8 @@
                 <li class="mt-2"></li>
                 <li t-if="ths_practitioner_id"><strong>Doctor: </strong><t t-out="ths_practitioner_id[1]"/></li>
                 <li t-if="ths_room_id"><strong>Room: </strong><t t-out="ths_room_id[1]"/></li>
-                <li t-if="ths_patient_id"><strong>Patient: </strong><t t-out="ths_patient_id[1]"/></li>
+                <li t-if="ths_patient_ids"><strong>Patients: </strong><t t-foreach="ths_patient_ids" t-as="p"><t
+                        t-out="p[1]"/><t t-if="!loop.last">,</t></t></li>
                 <li class="mb-2"></li>
             </xpath>
 

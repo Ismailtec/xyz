@@ -40,18 +40,19 @@ class ThsMedicalEncounter(models.Model):
         index=True
     )
     partner_id = fields.Many2one(
-        'res.partner', string='Customer/Owner',
+        'res.partner', string='Customer',
         related='appointment_id.partner_id',
-        store=True, index=True, readonly=True
-    )
-    patient_id = fields.Many2one(
-        'res.partner', string='Patient',
-        # Ensure this gets populated correctly, e.g., from appointment or manually
         store=True, index=True, readonly=True,
-        help="The patient (human or animal) receiving treatment."
+        help = "Customer responsible for billing."
     )
-    patient_ref = fields.Char(string="Patient File", related='patient_id.ref', store=False, readonly=True)
-    patient_mobile = fields.Char(string="Patient Mobile", related='patient_id.mobile', store=False, readonly=True)
+    patient_ids = fields.Many2many(
+        'res.partner', string='Patients',
+        domain="[('ths_partner_type_id.is_patient', '=', True)]",
+        store=True, index=True, readonly=True,
+        help="Patients participating in this encounter.")
+
+    patient_ref = fields.Char(string="Patient File", related='patient_ids.ref', store=False, readonly=True)
+    patient_mobile = fields.Char(string="Patient Mobile", related='patient_ids.mobile', store=False, readonly=True)
 
     practitioner_id = fields.Many2one(
         'hr.employee', string='Practitioner',
@@ -90,7 +91,7 @@ class ThsMedicalEncounter(models.Model):
     ], string='Status', default='draft', index=True, tracking=True, copy=False)
 
     # Lines representing services/items used in the encounter
-    # REPLACE encounter_line_ids with service_line_ids
+    # REPLACED encounter_line_ids with service_line_ids
     service_line_ids = fields.One2many(
         'ths.medical.encounter.service',
         'encounter_id',
@@ -120,15 +121,14 @@ class ThsMedicalEncounter(models.Model):
     ths_radiology_orders_text = fields.Text(string="Radiology Orders Summary",
                                             help="Summary of radiology exams ordered.")
 
-
     # --- Compute Methods ---
-    @api.depends('appointment_id', 'appointment_id.partner_id')
+    @api.depends('appointment_id', 'appointment_id.partner_ids')
     def _compute_all_fields(self):
         """Compute partner, patient, and practitioner from the appointment."""
         for encounter in self:
             appointment = encounter.appointment_id
             # Get Partner (Customer/Owner) directly from appointment
-            encounter.partner_id = appointment.partner_id if appointment else False
+            encounter.partner_ids = appointment.partner_ids if appointment else False
             # Get Patient from custom field on appointment (ensure field name is correct)
             # Use hasattr for safety if ths_patient_id might not always exist (e.g. different modules)
             encounter.patient_id = appointment.ths_patient_id if appointment and hasattr(appointment,
@@ -138,7 +138,8 @@ class ThsMedicalEncounter(models.Model):
                                                                                                    'ths_practitioner_id') else False
 
             # Get Room from custom field on appointment (ensure field name is correct)
-            encounter.room_id = appointment.ths_room_id if appointment and hasattr(appointment, 'ths_room_id') else False
+            encounter.room_id = appointment.ths_room_id if appointment and hasattr(appointment,
+                                                                                   'ths_room_id') else False
 
     @api.depends('date_start')
     def _compute_daily_id(self):
@@ -219,7 +220,7 @@ class ThsMedicalEncounter(models.Model):
                         _("Provider is not set on service line for product '%s' and no default practitioner on encounter '%s'.",
                           line.product_id.name, encounter.name))
                 # Ensure patient is set
-                patient = encounter.patient_id  # Assume patient is always from encounter header
+                patient = encounter.patient_ids  # Assume patient is always from encounter header
                 if not patient:
                     raise UserError(_("Patient is not set on encounter '%s'.", encounter.name))
                 # Ensure customer is set
@@ -242,7 +243,7 @@ class ThsMedicalEncounter(models.Model):
                     'commission_pct': line.commission_pct,
                     'state': 'pending',  # Initial state
                     'notes': line.notes,  # Copy line notes
-                    #'company_id': self.env.company.id,
+                    # 'company_id': self.env.company.id,
                     # Link back to the source service line? Optional, but useful for traceability
                     # 'source_service_line_id': line.id, # Need to add this field to pending.pos.item model if desired
                 }
