@@ -7,88 +7,166 @@
         <field name="inherit_id" ref="ths_medical_base.view_calendar_event_form_inherit_ths_medical"/>
         <field name="arch" type="xml">
 
-            <!-- Update to use Many2many field ths_patient_ids instead of ths_patient_id -->
-            <xpath expr="//field[@name='ths_patient_ids']" position="attributes">
-                <attribute name="string">Pets</attribute>
-                <attribute name="domain">[('ths_partner_type_id.name', '=', 'Pet')]</attribute>
-                <attribute name="context">{'default_ths_partner_type_id':
-                    %(ths_medical_vet.partner_type_pet)d}</attribute>
-                <attribute name="widget">many2many_tags</attribute>
-                <attribute name="options">{'no_create': True, 'no_quick_create': True}</attribute>
-                <attribute name="placeholder">Select pets...</attribute>
-            </xpath>
-
-            <!-- Add Pet Owner field before the pets field -->
-            <xpath expr="//field[@name='ths_patient_ids']" position="before">
-                <field name="ths_pet_owner_id" string="Pet Owner"
-                       options="{'no_create': True, 'no_quick_create': True}"
-                       placeholder="Select owner..."
-                       domain="[('ths_partner_type_id.name', '=', 'Pet Owner')]"/>
-            </xpath>
-
-            <!-- Add invisible domain field for dynamic filtering -->
-            <xpath expr="//field[@name='ths_pet_owner_id']" position="after">
-                <field name="ths_patient_ids_domain" invisible="1"/>
-            </xpath>
-
-        </field>
-    </record>
-
-    <!-- Additional view for better pet selection workflow -->
-    <record id="view_calendar_event_form_inherit_ths_vet_workflow" model="ir.ui.view">
-        <field name="name">calendar.event.form.inherit.ths.vet.workflow</field>
-        <field name="model">calendar.event</field>
-        <field name="inherit_id" ref="view_calendar_event_form_inherit_ths_vet"/>
-        <field name="arch" type="xml">
-
-            <!-- Reorganize medical details for better vet workflow -->
-            <xpath expr="//group[@name='medical_col_1']" position="replace">
-                <group name="medical_col_1">
+            <!-- Replace the medical details section with vet-specific workflow -->
+            <xpath expr="//group[@name='medical_col_1']" position="inside">
+                <group name="vet_col_1">
                     <field name="ths_is_walk_in" widget="boolean_toggle"/>
                     <field name="appointment_type_id"
                            options="{'no_create': True, 'no_quick_create': True}"
                            context="{'default_schedule_based_on': 'resources'}"/>
-                    <!-- Pet Owner first for better workflow -->
+
+                    <!-- VET WORKFLOW: Pet Owner FIRST -->
                     <field name="ths_pet_owner_id" string="Pet Owner"
                            options="{'no_create': True, 'no_quick_create': True}"
-                           placeholder="Select owner first..."
-                           domain="[('ths_partner_type_id.name', '=', 'Pet Owner')]"/>
-                    <!-- Pets field with dynamic domain based on owner -->
+                           placeholder="Select pet owner first..."
+                           domain="[('ths_partner_type_id.name', '=', 'Pet Owner')]"
+                           help="Pet owner responsible for billing. Select this first to filter available pets."/>
+
+                    <!-- PETS field with dynamic domain based on owner -->
                     <field name="ths_patient_ids" string="Pets"
                            widget="many2many_tags"
                            options="{'no_create': True, 'no_quick_create': True}"
                            context="{'default_ths_partner_type_id': %(ths_medical_vet.partner_type_pet)d}"
                            domain="ths_patient_ids_domain"
-                           placeholder="Select pets..."/>
+                           placeholder="Select pets..."
+                           help="Pets receiving veterinary care. These will be filtered based on the selected owner."/>
+
+                    <!-- Hidden domain field for dynamic filtering -->
                     <field name="ths_patient_ids_domain" invisible="1"/>
                 </group>
+            </xpath>
+
+            <!-- Update partner_ids field to show Pet Owner label -->
+            <xpath expr="//field[@name='partner_ids']" position="attributes">
+                <attribute name="string">Pet Owner + Pets</attribute>
+                <attribute name="help">All attendees including pet owner and pets. This is automatically
+                    populated.</attribute>
+                <attribute name="readonly">0</attribute>
             </xpath>
 
         </field>
     </record>
 
+    <!-- Inherit the gantt booking form for vet workflow -->
     <record id="calendar_event_form_inherit_gantt_booking_ths_medical_vet" model="ir.ui.view">
         <field name="name">calendar.event.form.inherit.gantt.booking.ths.medical.vet</field>
         <field name="model">calendar.event</field>
         <field name="inherit_id" ref="ths_medical_base.calendar_event_form_inherit_gantt_booking_ths_medical"/>
         <field name="arch" type="xml">
 
-            <xpath expr="//field[@name='partner_ids']" position="attributes">
-                <attribute name="string">Pets</attribute>
-                <attribute name="domain">[('ths_partner_type_id.name', '=', 'Pet')]</attribute>
-                <attribute name="context">{'default_ths_partner_type_id':
-                    %(ths_medical_vet.partner_type_pet)d}</attribute>
-                <attribute name="domain">ths_patient_ids_domain</attribute>
-                <attribute name="widget">many2many_tags</attribute>
-                <attribute name="options">{'no_create': True, 'no_quick_create': True}</attribute>
-                <attribute name="placeholder">Select pets...</attribute>
-            </xpath>
-            <xpath expr="//field[@name='partner_ids']" position="before">
+            <!-- Update partner_ids field for vet context -->
+            <xpath expr="//field[@name='partner_ids']" position="replace">
+                <!-- VET WORKFLOW: Pet Owner field first -->
                 <field name="ths_pet_owner_id"
                        string="Pet Owner"
                        options="{'no_create': True, 'no_quick_create': True}"
-                       domain="[('ths_partner_type_id.name', '=', 'Pet Owner')]"/>
+                       domain="[('ths_partner_type_id.name', '=', 'Pet Owner')]"
+                       placeholder="Select pet owner first..."
+                       help="Pet owner responsible for billing"/>
+
+                <!-- Pets field with dynamic domain -->
+                <field name="ths_patient_ids" string="Pets"
+                       widget="many2many_tags"
+                       options="{'no_create': True, 'no_quick_create': True}"
+                       context="{'default_ths_partner_type_id': %(ths_medical_vet.partner_type_pet)d}"
+                       domain="ths_patient_ids_domain"
+                       placeholder="Select pets..."
+                       help="Pets receiving veterinary care"/>
+
+                <field name="ths_patient_ids_domain" invisible="1"/>
             </xpath>
+
+<!--            <xpath expr="//field[@name='partner_id']" position="attributes">-->
+<!--                <attribute name="invisible">0</attribute>-->
+<!--            </xpath>-->
+
+        </field>
+    </record>
+
+    <!-- Update list view to show vet-specific information -->
+    <record id="view_calendar_event_list_inherit_ths_vet" model="ir.ui.view">
+        <field name="name">calendar.event.list.inherit.ths.vet</field>
+        <field name="model">calendar.event</field>
+        <field name="inherit_id" ref="ths_medical_base.view_calendar_event_list_inherit_ths_medical"/>
+        <field name="arch" type="xml">
+            <!-- Update field labels for vet context -->
+            <xpath expr="//field[@name='ths_patient_ids']" position="attributes">
+                <attribute name="string">Pets</attribute>
+            </xpath>
+
+            <!-- Add pet owner field -->
+            <xpath expr="//field[@name='ths_patient_ids']" position="after">
+                <field name="ths_pet_owner_id" optional="show" string="Pet Owner"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Update search view for vet context -->
+    <record id="view_calendar_event_search_inherit_ths_vet" model="ir.ui.view">
+        <field name="name">calendar.event.search.inherit.ths.vet</field>
+        <field name="model">calendar.event</field>
+        <field name="inherit_id" ref="ths_medical_base.view_calendar_event_search_inherit_ths_medical"/>
+        <field name="arch" type="xml">
+            <!-- Update field labels and add pet owner search -->
+            <xpath expr="//field[@name='ths_patient_ids']" position="attributes">
+                <attribute name="string">Pets</attribute>
+            </xpath>
+
+            <xpath expr="//field[@name='ths_patient_ids']" position="after">
+                <field name="ths_pet_owner_id" string="Pet Owner"/>
+            </xpath>
+
+            <!-- Add vet-specific filters -->
+            <xpath expr="//filter[@name='groupby_app_type']" position="after">
+                <filter string="Pet Owner" name="groupby_pet_owner"
+                        context="{'group_by': 'ths_pet_owner_id'}"/>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Update gantt view template for vet information -->
+    <record id="calendar_event_medical_resource_gantt_ths_medical_vet" model="ir.ui.view">
+        <field name="name">calendar.event.medical.resource.gantt.ths.medical.vet</field>
+        <field name="model">calendar.event</field>
+        <field name="inherit_id" ref="ths_medical_base.calendar_event_medical_resource_gantt_ths_medical"/>
+        <field name="arch" type="xml">
+
+            <!-- Add vet-specific fields to gantt -->
+            <xpath expr="//field[@name='ths_patient_ids']" position="after">
+                <field name="ths_pet_owner_id"/>
+            </xpath>
+
+            <!-- Update popover template for vet information -->
+            <xpath expr="//li[@t-if='ths_patient_ids']" position="replace">
+                <li t-if="ths_pet_owner_id"><strong>Pet Owner: </strong><t t-out="ths_pet_owner_id[1]"/></li>
+                <li t-if="ths_patient_ids"><strong>Pets: </strong>
+                    <t t-foreach="ths_patient_ids" t-as="p">
+                        <t t-out="p[1]"/><t t-if="!loop.last">, </t>
+                    </t>
+                </li>
+            </xpath>
+
+        </field>
+    </record>
+
+    <!-- Create vet-specific appointment action -->
+    <record id="action_calendar_event_vet_gantt" model="ir.actions.act_window">
+        <field name="name">Veterinary Schedule</field>
+        <field name="res_model">calendar.event</field>
+        <field name="view_mode">gantt,calendar,tree,form</field>
+        <field name="view_id" ref="calendar_event_medical_resource_gantt_ths_medical_vet"/>
+        <field name="domain">[('ths_practitioner_id', '!=', False)]</field>
+        <field name="context">{
+            'default_schedule_based_on': 'resources',
+            'default_appointment_status': 'draft'
+        }</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No veterinary appointments found
+            </p>
+            <p>
+                Schedule your first veterinary appointment
+            </p>
         </field>
     </record>
 

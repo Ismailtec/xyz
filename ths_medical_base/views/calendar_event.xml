@@ -36,6 +36,8 @@
                 <attribute name="options">{"no_create": True, "no_quick_create": True}</attribute>
                 <attribute name="placeholder">Patients...</attribute>
                 <attribute name="domain">[('ths_partner_type_id.is_patient', '=', True)]</attribute>
+                <attribute name="help">Patients receiving medical treatment. In human medical practice, these are both
+                    the service recipients and billing customers.</attribute>
             </xpath>
 
             <xpath expr="//field[@name='name']" position="attributes">
@@ -95,6 +97,9 @@
                             <field name="ths_patient_ids" string="Patients" widget="many2many_tags"
                                    options="{'no_create': True, 'no_quick_create': True}"
                                    context="{'default_is_patient': True, 'default_ths_partner_type_code': 'PAT'}"
+                                   domain="[('ths_partner_type_id.is_patient', '=', True)]"
+                                   placeholder="Select patients..."
+                                   help="Patients receiving medical treatment. In human medical practice, these are both the service recipients and billing customers."
                                    groups="base.group_user"/>
                             <field name="appointment_type_id"
                                    options="{'no_create': True, 'no_quick_create': True}"
@@ -140,7 +145,7 @@
         <field name="inherit_id" ref="calendar.view_calendar_event_tree"/>
         <field name="arch" type="xml">
             <xpath expr="//field[@name='partner_ids']" position="after">
-                <field name="ths_patient_ids" optional="show" widget="many2many_tags"/>
+                <field name="ths_patient_ids" optional="show" widget="many2many_tags" string="Patients"/>
                 <field name="ths_practitioner_id" optional="show"/>
                 <field name="ths_room_id" optional="show"/>
                 <field name="appointment_type_id" optional="hide"/>
@@ -178,7 +183,7 @@
         <field name="inherit_id" ref="calendar.view_calendar_event_search"/>
         <field name="arch" type="xml">
             <xpath expr="//field[@name='partner_ids']" position="after">
-                <field name="ths_patient_ids"/>
+                <field name="ths_patient_ids" string="Patients"/>
                 <field name="ths_practitioner_id"/>
                 <field name="ths_room_id"/>
                 <field name="appointment_type_id"/>

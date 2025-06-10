@@ -40,7 +40,7 @@ class CalendarEvent(models.Model):
     ths_practitioner_id_domain = fields.Char(compute='_compute_ar_domains')
     ths_room_id_domain = fields.Char(compute='_compute_ar_domains')
 
-    # Patient receiving the service
+    # Patient receiving the service (in base module: human patient who is also the customer)
     ths_patient_ids = fields.Many2many(
         'res.partner',
         'calendar_event_patient_rel',
@@ -53,7 +53,7 @@ class CalendarEvent(models.Model):
         compute='_compute_ths_patient_ids',
         inverse='_inverse_ths_patient_ids',
         domain="['|', ('ths_partner_type_id.is_patient', '=', True), ('ths_partner_type_id.name', '=', 'Walk-in')]",
-        help="Patients linked to this appointment."
+        help="Patients linked to this appointment. In human medical practice, these are the people receiving treatment and responsible for payment."
     )
 
     ths_reason_for_visit = fields.Text(string='Reason for Visit')
@@ -127,9 +127,9 @@ class CalendarEvent(models.Model):
             practitioner = None
             location = None
             for res in rec.resource_ids:
-                if res.ths_resource_category == 'practitioner'and not practitioner:
+                if res.ths_resource_category == 'practitioner' and not practitioner:
                     practitioner = res
-                elif res.ths_resource_category == 'location'and not location:
+                elif res.ths_resource_category == 'location' and not location:
                     location = res
 
             rec.ths_practitioner_id = practitioner
@@ -137,25 +137,28 @@ class CalendarEvent(models.Model):
 
     @api.depends('partner_ids')
     def _compute_ths_patient_ids(self):
+        """
+        For base human medical: partner_ids = ths_patient_ids (same people)
+        Patients are both the recipients of care AND the customers who pay
+        """
         for rec in self:
             if rec.partner_ids:
+                # In human medical, all partners are patients
                 rec.ths_patient_ids = [Command.set(rec.partner_ids.ids)]
             else:
                 rec.ths_patient_ids = [Command.clear()]
 
     def _inverse_ths_patient_ids(self):
+        """
+        For base human medical: ths_patient_ids = partner_ids (same people)
+        When patient selection changes, update partner_ids accordingly
+        """
         for rec in self:
             if rec.ths_patient_ids:
+                # In human medical, patients are also the partners/customers
                 rec.partner_ids = [Command.set(rec.ths_patient_ids.ids)]
             else:
                 rec.partner_ids = [Command.clear()]
-
-    # @api.depends('partner_ids')
-    # def _compute_patient_from_partner_ids(self):
-    #     if self.partner_ids:
-    #             self.ths_patient_ids = [Command.set([p.id for p in self.partner_ids])]
-    #         else:
-    #             self.ths_patient_ids = [Command.clear()]
 
     @api.model
     def default_get(self, fields_list):
@@ -163,7 +166,6 @@ class CalendarEvent(models.Model):
         Handles gantt context properly and let inverse methods do the work
         """
         res = super().default_get(fields_list)
-        # _logger.info(f"CALENDAR_EVENT DG: Context (After super 1st): {self.env.context}")
 
         # Get appointment type from context
         ctx_appointment_type_id = self.env.context.get('default_appointment_type_id')
@@ -176,7 +178,6 @@ class CalendarEvent(models.Model):
         if ctx_resource_ids and 'resource_ids' in fields_list:
             # Set resource_ids - this will trigger inverse method automatically
             res['resource_ids'] = [Command.set(ctx_resource_ids)]
-            # _logger.info(f"CALENDAR_EVENT DG: Set resource_ids from gantt context (2nd): {ctx_resource_ids}")
 
             # The onchange will populate our custom fields from resource_ids
             if len(ctx_resource_ids) == 1:
@@ -191,11 +192,11 @@ class CalendarEvent(models.Model):
         if res.get('appointment_type_id') and 'appointment_status' in fields_list and not res.get('appointment_status'):
             res['appointment_status'] = 'draft'
 
+        # For human medical: partner_ids = patients
         partner_ids = self.env.context.get('default_partner_ids') or []
         if partner_ids and 'ths_patient_ids' in fields_list:
             res['ths_patient_ids'] = [Command.set(partner_ids)]
 
-        # _logger.info(f"CALENDAR_EVENT DG: Final res: {res}")
         return res
 
     @api.onchange('ths_practitioner_id', 'ths_room_id')
@@ -210,12 +211,14 @@ class CalendarEvent(models.Model):
         # This ensures the standard M2M field is updated whenever our specific AR selectors change
         if 'appointment_resource_ids' in self._fields:
             self.appointment_resource_ids = [Command.set(list(set(selected_ids)))]
-        # _logger.info(
-        #     f"CALENDAR_EVENT OnChange ARs: Event {self.id or self.display_name or 'New'} updated standard appointment_resource_ids to {selected_ar_ids}")
 
     @api.onchange('ths_patient_ids')
     def _onchange_patient_attendees(self):
+        """
+        For base human medical: when patients change, update partner_ids
+        """
         if self.ths_patient_ids:
+            # In human medical, patients are the partners/customers
             self.partner_ids = [Command.set([p.id for p in self.ths_patient_ids])]
         else:
             self.partner_ids = [Command.clear()]
@@ -223,12 +226,10 @@ class CalendarEvent(models.Model):
     # --- Walk-in Partner Handling ---
     def _get_walkin_partner_type(self):
         """ Helper to safely get the Walk-in partner type """
-        # Use sudo() for potential cross-company or restricted access to ref
         return self.env.ref('ths_medical_base.partner_type_walkin', raise_if_not_found=False).sudo()
 
     def _prepare_walkin_partner_vals(self, walkin_type_id):
         """ Prepare values for creating a walk-in partner """
-        # Generate sequence value first to use in name
         walkin_sequence = self.env.ref('ths_medical_base.seq_partner_ref_walkin', raise_if_not_found=False)
         sequence_val = "WALK-IN"  # Fallback name
         if walkin_sequence:
@@ -236,16 +237,10 @@ class CalendarEvent(models.Model):
                 sequence_val = walkin_sequence.sudo().next_by_id()
             except Exception as e:
                 _logger.error(f"Failed to get next walk-in sequence value: {e}")
-                # Proceed with fallback name
-        else:
-            _logger.warning("Walk-in sequence 'seq_partner_ref_walkin' not found.")
 
         return {
-            'name': f"Walk-in Patient ({sequence_val})",  # Placeholder name
+            'name': f"Walk-in Patient ({sequence_val})",
             'ths_partner_type_id': walkin_type_id,
-            # company_type will be set automatically based on partner type by ths_base
-            # Add company_id if applicable/needed
-            # 'company_id': self.env.company.id,
         }
 
     def _handle_walkin_partner(self, vals):
@@ -253,26 +248,17 @@ class CalendarEvent(models.Model):
         walkin_type = self._get_walkin_partner_type()
         if not walkin_type:
             _logger.error("Walk-in Partner Type not found. Cannot create walk-in partner.")
-            # Optionally raise UserError or just log and skip
-            # raise UserError(_("Configuration Error: Walk-in Partner Type is missing."))
-            return vals  # Return original vals
+            return vals
 
         # Check conditions: walk-in flag is true, and no patient/partner is provided
         if vals.get('ths_is_walk_in') and not vals.get('ths_patient_ids') and not vals.get('partner_ids'):
-            # _logger.info("Creating a new Walk-in partner for walk-in appointment.")
             partner_vals = self._prepare_walkin_partner_vals(walkin_type.id)
             try:
-                # Use sudo for partner creation
                 walkin_partner = self.env['res.partner'].sudo().create(partner_vals)
-                # _logger.info(f"Created Walk-in partner: {walkin_partner.name} (ID: {walkin_partner.id})")
-                # Assign the new partner to both patient and partner fields of the appointment
+                # For human medical: patient = partner (same person)
                 vals['ths_patient_ids'] = [Command.set([walkin_partner.id])]
                 vals['partner_ids'] = [Command.set([walkin_partner.id])]
-                # Add attendees automatically if needed
-                vals['partner_ids'] = vals.get('partner_ids', []) + [(4, walkin_partner.id)]
             except Exception as e:
-                # _logger.error(f"Failed to create walk-in partner: {e}")
-                # Raise error to prevent appointment creation without partner?
                 raise UserError(_("Failed to create walk-in partner record: %s", e))
         return vals
 
@@ -280,16 +266,15 @@ class CalendarEvent(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         """ Override create to handle walk-in partner creation and set ARs and patient from context """
-        vals_list = []
+        processed_vals_list = []
         for vals in vals_list:
             vals = self._handle_walkin_partner(vals.copy())
 
-            # Populate ths_patient_ids from partner_ids if not set
+            # For human medical: ensure consistency between partner_ids and ths_patient_ids
             if vals.get('partner_ids') and not vals.get('ths_patient_ids'):
-                # Handle different formats of partner_ids
+                # Extract IDs from Command operations
                 partner_ids_val = vals['partner_ids']
                 if isinstance(partner_ids_val, list) and partner_ids_val:
-                    # Extract IDs from Command operations
                     ids = []
                     for cmd in partner_ids_val:
                         if isinstance(cmd, (list, tuple)) and len(cmd) >= 2:
@@ -301,9 +286,9 @@ class CalendarEvent(models.Model):
                         vals['ths_patient_ids'] = [Command.set(ids)]
 
             vals["name"] = self.env["ir.sequence"].next_by_code("medical.appointment")
-            vals_list.append(vals)
+            processed_vals_list.append(vals)
 
-        return super().create(vals_list)
+        return super().create(processed_vals_list)
 
     # --- Write Override ---
     def write(self, vals):
@@ -311,11 +296,10 @@ class CalendarEvent(models.Model):
         if vals.get("ths_is_walk_in") and not vals.get("ths_patient_ids") and not self.ths_patient_ids:
             vals = self._handle_walkin_partner(vals.copy())
 
-        # Update ths_patient_ids if partner_ids is updated
+        # For human medical: maintain consistency between partner_ids and ths_patient_ids
         if 'partner_ids' in vals and 'ths_patient_ids' not in vals:
             partner_ids_val = vals['partner_ids']
             if isinstance(partner_ids_val, list):
-                # Extract IDs from Command operations
                 ids = []
                 for cmd in partner_ids_val:
                     if isinstance(cmd, (list, tuple)) and len(cmd) >= 2:
@@ -328,20 +312,9 @@ class CalendarEvent(models.Model):
 
         return super().write(vals)
 
-    # @api.constrains('ths_is_walk_in', 'ths_patient_ids', 'partner_ids')
-    # def _check_walkin_partner(self):
-    #     """ Ensure walk-in appointments have a partner/patient eventually """
-    #     for event in self:
-    #         # This check might be too strict during initial creation before partner is assigned.
-    #         # Let's comment it out for now, relying on the create logic.
-    #         # if event.ths_is_walk_in and not event.ths_patient_ids and not event.partner_ids:
-    #         #     raise ValidationError(_("Walk-in appointments must have a Patient/Partner assigned."))
-    #         pass  # Keep constraint simple for now
-
     # --- Encounter Count & Actions
     @api.depends('ths_encounter_id')
     def _compute_ths_encounter_count(self):
-
         for event in self:
             event.ths_encounter_count = 1 if event.ths_encounter_id else 0
 
@@ -354,18 +327,21 @@ class CalendarEvent(models.Model):
                 raise UserError(_("Appointment must be Draft or Confirmed to Check In."))
             if event.appointment_status in ('completed', 'billed', 'cancelled_by_clinic', 'no_show'):
                 raise UserError(_('You cannot check-in a completed or cancelled appointment.'))
+
             # Ensure patient/partner is set before check-in
             if not event.ths_patient_ids or not event.partner_ids:
-                raise UserError(_("Cannot check in appointment without a Patient and Customer assigned."))
-                # Ensure practitioner is selected if medical appointment
+                raise UserError(_("Cannot check in appointment without a Patient assigned."))
+
+            # Ensure practitioner is selected if medical appointment
             if event.appointment_type_id and event.appointment_type_id.schedule_based_on == 'resources' and not event.ths_practitioner_id:
                 raise UserError(
                     _("Cannot check in: A Service Provider must be selected for this medical appointment type."))
+
             event.write({
                 'appointment_status': 'checked_in',
                 'ths_check_in_time': now
             })
-            event._create_medical_encounter()  # Trigger encounter creation
+            event._create_medical_encounter()
         return True
 
     def action_start_consultation(self):
@@ -382,7 +358,7 @@ class CalendarEvent(models.Model):
             if event.ths_encounter_id.state == 'draft':
                 if hasattr(event.ths_encounter_id, 'action_in_progress'):
                     event.ths_encounter_id.action_in_progress()
-                else:  # Fallback if action doesn't exist
+                else:
                     event.ths_encounter_id.write({'state': 'in_progress'})
         return True
 
@@ -399,23 +375,20 @@ class CalendarEvent(models.Model):
                 'appointment_status': 'completed',
                 'ths_check_out_time': now
             })
+
             # Trigger encounter's action_ready_for_billing
-            if event.ths_encounter_id.state != 'billed':  # Avoid re-triggering
+            if event.ths_encounter_id.state != 'billed':
                 try:
                     event.ths_encounter_id.action_ready_for_billing()
                 except UserError as ue:
-                    # Catch specific user errors (like missing lines) and show them
                     raise ue
                 except Exception as e:
-                    # _logger.error("Error calling action_ready_for_billing from appointment %s: %s", event.id, e)
                     raise UserError(_("An error occurred while preparing items for billing: %s", e))
         return True
 
     def action_cancel_appointment(self):
         """ Open wizard to select cancellation reason and set status. """
         # TODO: Implement wizard for reason selection. Needs a transient model.
-        # For now, simple cancel:
-        # Determine blame based on simple logic or default
         blame_reason = self.env['ths.medical.cancellation.reason'].search([('blame', '=', 'clinic')], limit=1)
         vals_to_write = {
             'appointment_status': 'cancelled_by_clinic',
@@ -434,7 +407,6 @@ class CalendarEvent(models.Model):
     def action_mark_no_show(self):
         """ Mark as No Show. """
         self.write({'appointment_status': 'no_show'})
-        # Cancel related encounter
         for event_rec in self:
             if event_rec.ths_encounter_id and event_rec.ths_encounter_id.state not in ('billed', 'cancelled'):
                 if hasattr(event_rec.ths_encounter_id, 'action_cancel'):
@@ -445,30 +417,32 @@ class CalendarEvent(models.Model):
 
     # --- Encounter Creation Logic ---
     def _prepare_encounter_vals(self):
-        """ Prepare values for creating a ths.medical.base.encounter record. """
+        """
+        Prepare values for creating a ths.medical.base.encounter record.
+        For human medical: patient = partner (same person)
+        """
         self.ensure_one()
-        # Patient and Partner should be validated for Many2many field
-        patient_partners = self.ths_patient_ids
+
+        # In human medical: patients are the partners/customers
+        patients = self.ths_patient_ids
         # TODO: Handle multiple patients scenario - for now take first patient's data
-        owner_partner = patient_partners[0] if patient_partners else False
+        primary_patient = patients[0] if patients else False
         practitioner_employee = self.ths_practitioner_id
 
-        if not patient_partners:
+        if not patients:
             raise UserError(_("Cannot create encounter: Patients must be set on the appointment."))
-        if not owner_partner:
-            raise UserError(_("Cannot create encounter: Customer/Owner must be set."))
+        if not primary_patient:
+            raise UserError(_("Cannot create encounter: Primary patient could not be determined."))
         if not practitioner_employee:
             raise UserError(_("Cannot create encounter: Practitioner is not set."))
 
         return {
             'appointment_id': self.id,
             'state': 'draft',
-            'patient_ids': [Command.set(patient_partners.ids)],
+            'patient_ids': [Command.set(patients.ids)],  # Patients receiving care
             'practitioner_id': practitioner_employee.id,
-            'partner_id': owner_partner.id,
-            # EMR fields like chief complaint could potentially be copied from appointment reason
+            'partner_id': primary_patient.id,  # Same as primary patient in human medical
             'chief_complaint': self.ths_reason_for_visit,
-            # date_start, date_end, company_id are related or computed
         }
 
     def _create_medical_encounter(self):
@@ -480,21 +454,15 @@ class CalendarEvent(models.Model):
             existing = Encounter.sudo().search([('appointment_id', '=', self.id)], limit=1)
             if existing:
                 self.sudo().write({'ths_encounter_id': existing.id})
-                # _logger.info(f"Appointment {self.id}: Linked existing encounter {existing.name}.")
             else:
                 try:
                     encounter_vals = self._prepare_encounter_vals()
-                    # Use sudo for encounter creation
                     new_encounter = Encounter.sudo().create(encounter_vals)
-                    # Use sudo to write back link
                     self.sudo().write({'ths_encounter_id': new_encounter.id})
-                    # _logger.info(f"Appointment {self.id}: Created new encounter {new_encounter.name}.")
                     self.message_post(body=_("Medical Encounter %s created.", new_encounter._get_html_link()),
                                       message_type='comment', subtype_xmlid='mail.mt_note')
                 except Exception as e:
-                    # _logger.error(f"Failed to create encounter for appointment {self.id}: {e}")
                     self.message_post(body=_("Failed to create medical encounter: %s", e))
-                # Consider if check-in should be reverted or an error raised more prominently
 
     # --- Action to View Encounter ---
     def action_view_encounter(self):

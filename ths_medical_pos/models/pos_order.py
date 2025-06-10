@@ -56,7 +56,10 @@ class PosOrder(models.Model):
 
     @api.model
     def _process_order(self, order, draft, existing_order=None):
-        """ Override to link pending items and update encounter state. """
+        """
+        Override to link pending items but DON'T mark them as processed yet.
+        Items are only marked as processed when order is finalized/paid.
+        """
         ui_order_lines_data = {line[2]['uuid']: line[2] for line in order.get('lines', []) if
                                len(line) > 2 and 'uuid' in line[2]}
         _logger.debug(f"UI Order Lines Data Keys (UUIDs): {list(ui_order_lines_data.keys())}")
@@ -69,21 +72,17 @@ class PosOrder(models.Model):
             _logger.error(f"Failed to browse POS Order {order_id} after creation.")
             return order_id
 
-        pending_items_to_update = {}
         lines_to_update_vals = {}
-        encounter_ids_to_check = set()
+        pending_items_to_link = {}  # Changed: only link, don't mark as processed yet
 
         if not ui_order_lines_data and order.get('lines'):
             _logger.warning(
                 f"POS Order {pos_order.name}: Could not extract UUID mapping from UI order lines. Cannot process medical data reliably for new order.")
-            # If it's an existing order being modified maybe UUID isn't relevant? Need careful check.
         elif order.get('lines'):
             for line in pos_order.lines:
-                # Use the correct uuid field from the line
-                line_uuid = line.uuid  # Standard Odoo pos.order.line uuid field
+                line_uuid = line.uuid
 
                 ui_line_data = ui_order_lines_data.get(line_uuid)
-
                 if not ui_line_data:
                     _logger.warning(
                         f"POS Order {pos_order.name}, Line {line.id}: Could not find corresponding UI data using UUID '{line_uuid}'. Skipping medical data processing for this line.")
@@ -100,21 +99,26 @@ class PosOrder(models.Model):
 
                 line_update_vals = {}
                 pending_item_id = line_extras.get('ths_pending_item_id')
-                patient_id = line_extras.get('ths_patient_id')  # Note: This is still Many2one for POS lines
+                patient_id = line_extras.get('ths_patient_id')  # For human medical: same as partner
                 provider_id = line_extras.get('ths_provider_id')
                 commission_pct = line_extras.get('ths_commission_pct')
 
                 if pending_item_id:
                     line_update_vals['ths_pending_item_id'] = pending_item_id
-                    pending_items_to_update[pending_item_id] = {'line_id': line.id}
+                    # CHANGED: Only link the pending item, don't mark as processed yet
+                    pending_items_to_link[pending_item_id] = {'line_id': line.id}
 
-                if patient_id: line_update_vals['ths_patient_id'] = patient_id
-                if provider_id: line_update_vals['ths_provider_id'] = provider_id
-                if commission_pct is not None: line_update_vals['ths_commission_pct'] = commission_pct
+                if patient_id:
+                    line_update_vals['ths_patient_id'] = patient_id
+                if provider_id:
+                    line_update_vals['ths_provider_id'] = provider_id
+                if commission_pct is not None:
+                    line_update_vals['ths_commission_pct'] = commission_pct
 
-                if line_update_vals: lines_to_update_vals[line.id] = line_update_vals
+                if line_update_vals:
+                    lines_to_update_vals[line.id] = line_update_vals
 
-            # --- Batch Update Lines ---
+        # --- Batch Update Lines ---
         if lines_to_update_vals:
             _logger.info(
                 f"POS Order {pos_order.name}: Batch updating {len(lines_to_update_vals)} lines with medical data.")
@@ -126,73 +130,107 @@ class PosOrder(models.Model):
                     _logger.error(f"Failed to write medical data to POS Order Line {line_id}: {e}")
                     pos_order.note = (pos_order.note or '') + f"\nError updating line {line_id} medical data: {e}"
 
-            # --- Batch Update Pending Items ---
-        if pending_items_to_update:
-            pending_item_ids = list(pending_items_to_update.keys())
+        # --- CHANGED: Only link pending items, don't mark as processed yet ---
+        if pending_items_to_link:
+            pending_item_ids = list(pending_items_to_link.keys())
             _logger.info(
-                f"POS Order {pos_order.name}: Processing {len(pending_item_ids)} linked pending items: {pending_item_ids}")
+                f"POS Order {pos_order.name}: Linking {len(pending_item_ids)} pending items (not marking as processed yet): {pending_item_ids}")
             PendingItem = self.env['ths.pending.pos.item']
             pending_items = PendingItem.sudo().search([('id', 'in', pending_item_ids)])
 
             for item in pending_items:
                 if item.state == 'pending':
                     try:
+                        # CHANGED: Only link the POS line, keep state as 'pending'
                         item.write({
-                            'pos_order_line_id': pending_items_to_update[item.id]['line_id'],
-                            'state': 'processed'
+                            'pos_order_line_id': pending_items_to_link[item.id]['line_id'],
+                            # DON'T change state to 'processed' yet - wait for order finalization
                         })
-                        if item.encounter_id:
-                            encounter_ids_to_check.add(item.encounter_id.id)
+                        _logger.info(
+                            f"Linked pending item {item.id} to POS line {pending_items_to_link[item.id]['line_id']} (keeping as pending)")
                     except Exception as e:
-                        _logger.error(f"Failed to update Pending Item {item.id} from POS Order {pos_order.name}: {e}")
-                        pos_order.note = (pos_order.note or '') + f"\nError updating pending item {item.id}: {e}"
-                elif item.state == 'processed' and item.pos_order_line_id.id == pending_items_to_update[item.id][
-                    'line_id']:
-                    _logger.warning(
-                        f"Pending Item {item.id} already processed and linked to correct line {item.pos_order_line_id.id}. Skipping update.")
-                    if item.encounter_id: encounter_ids_to_check.add(
-                        item.encounter_id.id)  # Still check encounter state
+                        _logger.error(f"Failed to link Pending Item {item.id} to POS Order {pos_order.name}: {e}")
+                        pos_order.note = (pos_order.note or '') + f"\nError linking pending item {item.id}: {e}"
                 else:
                     _logger.warning(
-                        f"Pending Item {item.id} was expected to be linked but state is '{item.state}' or linked line mismatch. Skipping update.")
-
-            # --- Batch Update Encounters ---
-        if encounter_ids_to_check:
-            _logger.info(
-                f"POS Order {pos_order.name}: Checking encounters {list(encounter_ids_to_check)} for update to 'billed' state.")
-            Encounter = self.env['ths.medical.base.encounter']
-            PendingItem = self.env['ths.pending.pos.item']
-            encounters = Encounter.sudo().browse(list(encounter_ids_to_check))
-            for encounter in encounters:
-                # Check if *any* pending item for this encounter is still in 'pending' state
-                remaining_pending = PendingItem.sudo().search_count([
-                    ('encounter_id', '=', encounter.id),
-                    ('state', '=', 'pending')
-                ])
-                if remaining_pending == 0:
-                    if encounter.state != 'billed':
-                        _logger.info(f"Updating Encounter {encounter.name} state to 'billed'.")
-                        try:
-                            encounter.write({'state': 'billed'})  # Already sudo'd
-                        except Exception as e:
-                            _logger.error(f"Failed to update Encounter {encounter.name} state: {e}")
-                            pos_order.note = (
-                                                     pos_order.note or '') + f"\nError updating encounter {encounter.name}: {e}"
-                # else: # No need to log if still pending
+                        f"Pending Item {item.id} state is '{item.state}', expected 'pending'. Skipping linking.")
 
         return order_id
 
-    # --- ADD REFUND PROCESSING ---
+    # --- NEW: Override action_pos_order_paid to mark pending items as processed ---
+    def action_pos_order_paid(self):
+        """
+        Override to mark linked pending items as 'processed' only when order is paid/finalized.
+        This fixes the traceability issue where items were marked as processed before payment.
+        """
+        res = super(PosOrder, self).action_pos_order_paid()
+
+        for order in self:
+            # Find pending items linked to this order's lines
+            pending_items = self.env['ths.pending.pos.item'].sudo().search([
+                ('pos_order_line_id', 'in', order.lines.ids),
+                ('state', '=', 'pending')  # Only process items still marked as pending
+            ])
+
+            if pending_items:
+                encounter_ids_to_check = set()
+
+                try:
+                    # NOW mark them as processed since order is paid
+                    pending_items.write({'state': 'processed'})
+                    _logger.info(
+                        f"POS Order {order.name}: Marked {len(pending_items)} pending items as 'processed' after payment.")
+
+                    # Update the traceability link
+                    order.write({'ths_processed_pending_item_ids': [(4, item.id) for item in pending_items]})
+
+                    # Collect encounters to check for billing state update
+                    for item in pending_items:
+                        if item.encounter_id:
+                            encounter_ids_to_check.add(item.encounter_id.id)
+
+                    # Post message on order
+                    order.message_post(body=_("Processed %d medical pending items.", len(pending_items)))
+
+                except Exception as e:
+                    _logger.error(f"Failed to mark pending items as processed for order {order.name}: {e}")
+                    order.note = (order.note or '') + f"\nError processing pending items: {e}"
+
+                # --- Check encounters for billing state update ---
+                if encounter_ids_to_check:
+                    _logger.info(
+                        f"POS Order {order.name}: Checking encounters {list(encounter_ids_to_check)} for update to 'billed' state.")
+                    Encounter = self.env['ths.medical.base.encounter']
+                    PendingItem = self.env['ths.pending.pos.item']
+                    encounters = Encounter.sudo().browse(list(encounter_ids_to_check))
+
+                    for encounter in encounters:
+                        # Check if ALL pending items for this encounter are now processed
+                        remaining_pending = PendingItem.sudo().search_count([
+                            ('encounter_id', '=', encounter.id),
+                            ('state', '=', 'pending')
+                        ])
+                        if remaining_pending == 0:
+                            if encounter.state != 'billed':
+                                _logger.info(f"Updating Encounter {encounter.name} state to 'billed'.")
+                                try:
+                                    encounter.write({'state': 'billed'})
+                                except Exception as e:
+                                    _logger.error(f"Failed to update Encounter {encounter.name} state: {e}")
+                                    order.note = (
+                                                         order.note or '') + f"\nError updating encounter {encounter.name}: {e}"
+
+        return res
+
+    # --- IMPROVED: Refund processing ---
     @api.model
     def _process_refund(self, order, refund_order, original_order):
         """
         Override to handle resetting related medical data on refund.
-        This method is called by the standard refund action.
-        `order`: The original UI order data for the refund.
-        `refund_order`: The newly created backend pos.order record for the refund.
-        `original_order`: The original backend pos.order record being refunded.
+        This resets pending items back to 'pending' state when refunded.
         """
         _logger.info(f"Processing refund order {refund_order.name} for original order {original_order.name}")
+
         # Call super first to let Odoo process the standard refund logic
         res = super(PosOrder, self)._process_refund(order, refund_order, original_order)
 
@@ -216,8 +254,6 @@ class PosOrder(models.Model):
                 items_to_reset |= original_pending_item
                 if original_pending_item.encounter_id:
                     encounters_to_check.add(original_pending_item.encounter_id.id)
-            # else: # Optional log
-            #    _logger.debug(f"Original line {original_line.id} was not linked to a pending medical item.")
 
         # Reset the state of the identified pending items
         if items_to_reset:
@@ -225,6 +261,10 @@ class PosOrder(models.Model):
                 f"Attempting to reset state for pending items: {items_to_reset.ids} due to refund order {refund_order.name}")
             try:
                 items_to_reset.sudo().action_reset_to_pending_from_pos()
+                refund_order.message_post(
+                    body=_("Reset %d medical pending items back to 'pending' state.", len(items_to_reset)))
+                original_order.message_post(
+                    body=_("Reset %d pending items due to refund %s.", len(items_to_reset), refund_order.name))
             except Exception as e:
                 _logger.error(f"Failed to reset pending items {items_to_reset.ids}: {e}")
                 refund_order.note = (refund_order.note or '') + f"\nError resetting related pending items: {e}"
@@ -253,12 +293,41 @@ class PosOrder(models.Model):
                             refund_order.note = (
                                                         refund_order.note or '') + f"\nError resetting encounter {encounter.name} state: {e}"
 
-        # --- Trigger Commission Reversal ---
-        # This part needs to be handled by the ths_medical_commission module
-        # Ideally, ths_medical_commission overrides _process_refund, calls super(),
-        # then finds and cancels its own commission lines linked to the refunded order lines.
-        _logger.info(f"TODO: Trigger commission cancellation logic for refunded lines in order {refund_order.name}.")
-        # Example placeholder call (actual implementation in ths_medical_commission):
-        # self.env['ths.medical.commission.line'].sudo().cancel_for_refunded_pos_lines(refund_order.lines.mapped('refunded_orderline_id'))
-
         return res
+
+    # --- NEW: Helper method to check order payment status ---
+    def _is_order_finalized(self):
+        """
+        Check if the order is finalized (paid, invoiced, or done).
+        Used to determine when to mark pending items as processed.
+        """
+        self.ensure_one()
+        return self.state in ('paid', 'done', 'invoiced')
+
+    # --- NEW: Method to manually sync pending items (for data recovery) ---
+    def action_sync_pending_items_state(self):
+        """
+        Manual action to sync pending items state based on order status.
+        Useful for data recovery or fixing inconsistent states.
+        """
+        for order in self:
+            pending_items = self.env['ths.pending.pos.item'].sudo().search([
+                ('pos_order_line_id', 'in', order.lines.ids)
+            ])
+
+            if order._is_order_finalized():
+                # Order is finalized, pending items should be 'processed'
+                items_to_process = pending_items.filtered(lambda i: i.state == 'pending')
+                if items_to_process:
+                    items_to_process.write({'state': 'processed'})
+                    _logger.info(
+                        f"Manually marked {len(items_to_process)} items as processed for finalized order {order.name}")
+            else:
+                # Order is not finalized, pending items should be 'pending'
+                items_to_reset = pending_items.filtered(lambda i: i.state == 'processed')
+                if items_to_reset:
+                    items_to_reset.write({'state': 'pending'})
+                    _logger.info(
+                        f"Manually reset {len(items_to_reset)} items to pending for non-finalized order {order.name}")
+
+        return True

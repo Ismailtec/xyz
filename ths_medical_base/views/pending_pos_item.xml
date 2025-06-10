@@ -9,8 +9,8 @@
                   decoration-success="state=='processed'" decoration-info="state=='pending'">
                 <field name="encounter_id" optional="show"/>
                 <field name="appointment_id" optional="show"/>
-                <field name="partner_id"/>
-                <field name="patient_id"/>
+                <field name="partner_id" string="Patient (Customer)"/>
+                <field name="patient_id" string="Patient (Recipient)"/>
                 <field name="product_id"/>
                 <field name="qty"/>
                 <field name="price_unit"/>
@@ -44,8 +44,10 @@
                         <group>
                             <field name="encounter_id" readonly="1"/>
                             <field name="appointment_id" readonly="1"/>
-                            <field name="partner_id" readonly="1"/>
-                            <field name="patient_id" readonly="1"/>
+                            <field name="partner_id" readonly="1" string="Patient (Customer)"
+                                   help="Patient receiving treatment and responsible for payment"/>
+                            <field name="patient_id" readonly="1" string="Patient (Recipient)"
+                                   help="Patient who received the service (same as customer in human medical)"/>
                         </group>
                         <group>
                             <field name="product_id" readonly="1"/>
@@ -75,8 +77,8 @@
             <search string="Search Pending POS Items">
                 <field name="encounter_id"/>
                 <field name="appointment_id"/>
-                <field name="partner_id"/>
-                <field name="patient_id"/>
+                <field name="partner_id" string="Patient (Customer)"/>
+                <field name="patient_id" string="Patient (Recipient)"/>
                 <field name="product_id"/>
                 <field name="practitioner_id"/>
                 <filter string="Pending" name="filter_pending" domain="[('state', '=', 'pending')]"/>
@@ -86,8 +88,8 @@
                 <field name="company_id" groups="base.group_multi_company"/>
                 <group expand="0" string="Group By">
                     <filter string="Status" name="groupby_state" context="{'group_by': 'state'}"/>
-                    <filter string="Customer/Owner" name="groupby_partner" context="{'group_by': 'partner_id'}"/>
-                    <filter string="Patient" name="groupby_patient" context="{'group_by': 'patient_id'}"/>
+                    <filter string="Patient (Customer)" name="groupby_partner" context="{'group_by': 'partner_id'}"/>
+                    <filter string="Patient (Recipient)" name="groupby_patient" context="{'group_by': 'patient_id'}"/>
                     <filter string="Practitioner" name="groupby_practitioner"
                             context="{'group_by': 'practitioner_id'}"/>
                     <filter string="Product/Service" name="groupby_product" context="{'group_by': 'product_id'}"/>

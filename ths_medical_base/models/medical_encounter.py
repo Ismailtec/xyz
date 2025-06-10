@@ -39,45 +39,63 @@ class ThsMedicalEncounter(models.Model):
         copy=False,
         index=True
     )
+
+    # For human medical: partner_id = patient (same person receiving care and paying)
     partner_id = fields.Many2one(
-        'res.partner', string='Customer',
+        'res.partner',
+        string='Patient',  # In human medical, patient is the customer
         related='appointment_id.partner_id',
-        store=True, index=True, readonly=True,
-        help = "Customer responsible for billing."
+        store=True,
+        index=True,
+        readonly=True,
+        help="Patient receiving treatment. In human medical practice, this is both the recipient of care and the billing customer."
     )
+
+    # For human medical: patient_ids = [patient] (same as partner_id, but Many2many for consistency)
     patient_ids = fields.Many2many(
         'res.partner',
-        'medical_encounter_patient_rel',  # Custom relation table
+        'medical_encounter_patient_rel',
         'encounter_id',
         'patient_id',
         string='Patients',
         domain="[('ths_partner_type_id.is_patient', '=', True)]",
-        store=True, index=True, readonly=True,
-        help="Patients participating in this encounter.")
+        store=True,
+        index=True,
+        readonly=True,
+        help="Patients participating in this encounter. In human medical practice, these are the same people as in partner_id."
+    )
 
     # TODO: Add computed fields for primary patient info for backward compatibility
     patient_ref = fields.Char(string="Patient File", related='patient_ids.ref', store=False, readonly=True)
     patient_mobile = fields.Char(string="Patient Mobile", related='patient_ids.mobile', store=False, readonly=True)
 
     practitioner_id = fields.Many2one(
-        'hr.employee', string='Practitioner',
-        related='appointment_id.ths_practitioner_id',  # Primary link via appointment
-        store=True, index=True, readonly=True
+        'hr.employee',
+        string='Practitioner',
+        related='appointment_id.ths_practitioner_id',
+        store=True,
+        index=True,
+        readonly=True
     )
     room_id = fields.Many2one(
-        'ths.treatment.room', string='Room (Treatment Room)',
+        'ths.treatment.room',
+        string='Room (Treatment Room)',
         related='appointment_id.ths_room_id',
-        store=True, index=True, readonly=True
+        store=True,
+        index=True,
+        readonly=True
     )
     date_start = fields.Datetime(
         string='Start Time',
         related='appointment_id.start',
-        store=True, readonly=True
+        store=True,
+        readonly=True
     )
     date_end = fields.Datetime(
         string='End Time',
         related='appointment_id.stop',
-        store=True, readonly=True
+        store=True,
+        readonly=True
     )
     appointment_status = fields.Selection(
         related='appointment_id.appointment_status',
@@ -91,12 +109,11 @@ class ThsMedicalEncounter(models.Model):
         ('draft', 'Draft'),
         ('in_progress', 'In Progress'),
         ('ready_for_billing', 'Ready For Billing'),
-        ('billed', 'Billed'),  # State indicating POS processing completed
+        ('billed', 'Billed'),
         ('cancelled', 'Cancelled')
     ], string='Status', default='draft', index=True, tracking=True, copy=False)
 
     # Lines representing services/items used in the encounter
-    # REPLACED encounter_line_ids with service_line_ids
     service_line_ids = fields.One2many(
         'ths.medical.encounter.service',
         'encounter_id',
@@ -104,7 +121,7 @@ class ThsMedicalEncounter(models.Model):
         copy=True
     )
 
-    notes = fields.Text(string="Internal Notes")  # Keep internal notes field
+    notes = fields.Text(string="Internal Notes")
 
     # === EMR Fields (Base Text Fields) ===
     chief_complaint = fields.Text(string="Chief Complaint")
@@ -129,24 +146,31 @@ class ThsMedicalEncounter(models.Model):
     # --- Compute Methods ---
     @api.depends('appointment_id', 'appointment_id.partner_ids')
     def _compute_all_fields(self):
-        """Compute partner, patient, and practitioner from the appointment."""
+        """
+        Compute partner, patient, and practitioner from the appointment.
+        For human medical: partner_id = primary patient, patient_ids = all patients (same people)
+        """
         for encounter in self:
             appointment = encounter.appointment_id
-            # Get Partner (Customer/Owner) directly from appointment
+
+            # For human medical: partner_id is the primary patient (billing customer)
             encounter.partner_id = appointment.partner_id if appointment else False
-            # Get Patients from Many2many field on appointment
-            # Use hasattr for safety if ths_patient_ids might not always exist (e.g. different modules)
+
+            # For human medical: patient_ids = partner_ids (same people)
             if appointment and hasattr(appointment, 'ths_patient_ids'):
                 encounter.patient_ids = appointment.ths_patient_ids
             else:
                 encounter.patient_ids = False
-            # Get Practitioner from custom field on appointment (ensure field name is correct)
-            encounter.practitioner_id = appointment.ths_practitioner_id if appointment and hasattr(appointment,
-                                                                                                   'ths_practitioner_id') else False
 
-            # Get Room from custom field on appointment (ensure field name is correct)
-            encounter.room_id = appointment.ths_room_id if appointment and hasattr(appointment,
-                                                                                   'ths_room_id') else False
+            # Get Practitioner from appointment
+            encounter.practitioner_id = (appointment.ths_practitioner_id
+                                         if appointment and hasattr(appointment, 'ths_practitioner_id')
+                                         else False)
+
+            # Get Room from appointment
+            encounter.room_id = (appointment.ths_room_id
+                                 if appointment and hasattr(appointment, 'ths_room_id')
+                                 else False)
 
     @api.depends('date_start')
     def _compute_daily_id(self):
@@ -207,11 +231,9 @@ class ThsMedicalEncounter(models.Model):
             if not encounter.service_line_ids:
                 _logger.warning(
                     f"Encounter {encounter.name} has no service lines defined. Cannot mark as Ready for Billing without items.")
-                # Optional: Raise UserError instead if you want to force users to add lines
-                # raise UserError(_("Encounter '%s' has no service/product lines. Please add items before marking as ready for billing.", encounter.name))
-                continue  # Skip this encounter if no lines
+                continue
 
-            # Use a list to collect vals for batch creation if possible
+            # Use a list to collect vals for batch creation
             pending_item_vals_list = []
             for line in encounter.service_line_ids:
                 # --- Validation Checks ---
@@ -220,75 +242,72 @@ class ThsMedicalEncounter(models.Model):
                 if line.quantity <= 0:
                     raise UserError(
                         _("Service line for product '%s' has zero or negative quantity.", line.product_id.name))
+
                 # Ensure provider is set (crucial for commissions)
                 practitioner = line.practitioner_id or encounter.practitioner_id
                 if not practitioner:
                     raise UserError(
                         _("Provider is not set on service line for product '%s' and no default practitioner on encounter '%s'.",
                           line.product_id.name, encounter.name))
+
                 # Ensure patient is set - handle Many2many field
                 patients = encounter.patient_ids
                 if not patients:
                     raise UserError(_("Patients not set on encounter '%s'.", encounter.name))
+
                 # TODO: Handle multiple patients scenario - for now use first patient
                 primary_patient = patients[0]
-                # Ensure customer is set
-                customer = encounter.partner_id or primary_patient  # Fallback to patient if no owner
+
+                # For human medical: customer = patient (same person)
+                customer = primary_patient  # In human medical, patient is the customer
                 if not customer:
-                    raise UserError(_("Customer/Owner is not set on encounter '%s'.", encounter.name))
+                    raise UserError(_("Customer/Patient is not set on encounter '%s'.", encounter.name))
                 # --- End Validation Checks ---
 
                 item_vals = {
                     'encounter_id': encounter.id,
-                    'partner_id': customer.id,
-                    'patient_id': primary_patient.id,  # Use primary patient
+                    'partner_id': customer.id,  # In human medical: patient is the customer
+                    'patient_id': primary_patient.id,  # Same as partner_id in human medical
                     'product_id': line.product_id.id,
-                    'description': line.description,  # Use line description
+                    'description': line.description,
                     'qty': line.quantity,
                     'price_unit': line.price_unit,
                     'discount': line.discount,
                     'practitioner_id': practitioner.id,
                     'room_id': encounter.room_id.id if encounter.room_id else False,
                     'commission_pct': line.commission_pct,
-                    'state': 'pending',  # Initial state
-                    'notes': line.notes,  # Copy line notes
-                    # Link back to the source service line? Optional, but useful for traceability
-                    # 'source_service_line_id': line.id, # Need to add this field to pending.pos.item model if desired
+                    'state': 'pending',
+                    'notes': line.notes,
                 }
                 pending_item_vals_list.append(item_vals)
 
             if pending_item_vals_list:
                 try:
-                    # Create pending items - use sudo if permissions require it
                     created_items = PendingItem.sudo().create(pending_item_vals_list)
                     items_created_count += len(created_items)
                     _logger.info(f"Created {len(created_items)} pending POS items for encounter {encounter.name}.")
-                    # Post chatter message?
                     encounter.message_post(body=_("%d items marked as pending for POS billing.", len(created_items)))
                 except Exception as e:
                     _logger.error(f"Failed to create pending POS items for encounter {encounter.name}: {e}")
-                    # Raise error to prevent state change if item creation fails?
                     raise UserError(_("Failed to create pending POS items for encounter %s: %s", encounter.name, e))
 
-            # Update encounter state only if items were successfully processed (or if no items needed creating but state should still change)
+            # Update encounter state
             encounter.write({'state': 'ready_for_billing'})
 
-        # Optional: Return notification? Could be done via JS in client action if needed
         if items_created_count > 0:
             _logger.info(
                 f"Successfully processed {len(encounters_to_process)} encounters, created {items_created_count} total pending POS items.")
         return True
 
     def action_cancel(self):
-        """ Cancel the encounter and any *associated* pending billing items. """
-        # Find pending items LINKED TO THESE ENCOUNTERS specifically
-        # Use search instead of mapped for potentially better performance if many encounters
+        """ Cancel the encounter and any associated pending billing items. """
+        # Find pending items linked to these encounters
         pending_items = self.env['ths.pending.pos.item'].search([
             ('encounter_id', 'in', self.ids),
             ('state', '=', 'pending')
         ])
         if pending_items:
-            pending_items.sudo().action_cancel()  # Use the action on pending item if exists
+            pending_items.sudo().action_cancel()
             self.message_post(body=_("Associated pending billing items were cancelled."))
 
         # Set encounter state to cancelled
@@ -303,21 +322,11 @@ class ThsMedicalEncounter(models.Model):
         # Find associated pending items and cancel them if resetting from 'ready_for_billing'
         pending_items = self.env['ths.pending.pos.item'].search([
             ('encounter_id', 'in', self.ids),
-            ('state', '=', 'pending')  # Only cancel pending ones
+            ('state', '=', 'pending')
         ])
         if pending_items:
-            pending_items.sudo().action_cancel()  # Use the action on pending item
+            pending_items.sudo().action_cancel()
             self.message_post(body=_("Associated pending billing items were cancelled."))
-
-        # Cancel any cancelled pending items linked to this encounter (to allow re-billing if needed)
-        # This might be too aggressive depending on workflow, maybe only allow reset from cancelled?
-        # cancelled_pending_items = self.env['ths.pending.pos.item'].search([
-        #     ('encounter_id', 'in', self.ids),
-        #     ('state', '=', 'cancelled')
-        # ])
-        # if cancelled_pending_items:
-        #     cancelled_pending_items.sudo().action_reset_to_pending() # Or maybe delete them? Needs care.
-        #     self.message_post(body=_("Previously cancelled billing items were reset to pending."))
 
         self.write({'state': 'draft'})
         return True

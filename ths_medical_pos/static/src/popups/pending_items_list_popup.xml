@@ -15,7 +15,7 @@
                     <thead>
                         <tr>
                             <th>Patient</th>
-                            <th>Product</th>
+                            <th>Product/Service</th>
                             <th>Qty</th>
                             <th>Unit Price</th>
                             <th>Provider</th>
@@ -33,7 +33,7 @@
                         <!-- Render all pending items with full medical information -->
                         <t t-foreach="itemsToShow" t-as="item" t-key="item.id">
                             <tr>
-                                <!-- Patient/Pet information -->
+                                <!-- Patient information (same as billing customer in medical) -->
                                 <td><t t-esc="item.patient_id ? item.patient_id[1] : 'N/A'"/></td>
                                 <!-- Product/Service information -->
                                 <td><t t-esc="item.product_id ? item.product_id[1] : 'N/A'"/></td>
@@ -57,6 +57,16 @@
                         </t>
                     </tbody>
                 </table>
+
+                <!-- Add note about new traceability behavior -->
+                <div class="alert alert-info mt-3" t-if="itemsToShow.length > 0">
+                    <small>
+                        <i class="fa fa-info-circle me-1"/>
+                        <strong>Note:</strong> Items will be marked as "processed" only when the order is completed and
+                        paid.
+                        You can add items to multiple draft orders until payment is finalized.
+                    </small>
+                </div>
             </div>
 
             <!-- Proper footer slot usage for Odoo 18 Dialog component -->

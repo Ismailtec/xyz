@@ -9,7 +9,7 @@
                   decoration-success="state=='billed'" decoration-warning="state=='ready_for_billing'">
                 <field name="name"/>
                 <field name="appointment_id" optional="show"/>
-                <field name="patient_ids"/>
+                <field name="patient_ids" string="Patients" widget="many2many_tags"/>
                 <field name="practitioner_id" optional="show"/>
                 <field name="room_id" optional="show"/>
                 <field name="date_start" widget="datetime" optional="show"/>
@@ -71,8 +71,11 @@
                     <group>
                         <group>
                             <field name="appointment_id" readonly="1" options="{'no_open': True}"/>
-                            <field name="partner_id" string="Customer/Owner" readonly="1" options="{'no_open': True}"/>
-                            <field name="patient_ids" string="Patient" readonly="1" options="{'no_open': True}"/>
+                            <field name="partner_id" string="Patient" readonly="1" options="{'no_open': True}"
+                                   help="Patient receiving treatment and responsible for payment"/>
+                            <field name="patient_ids" string="Patients" readonly="1" options="{'no_open': True}"
+                                   widget="many2many_tags"
+                                   help="Patients receiving treatment (same as above in human medical practice)"/>
                         </group>
                         <group>
                             <field name="practitioner_id" readonly="1" options="{'no_open': True}"
@@ -179,43 +182,45 @@
         <field name="model">ths.medical.base.encounter</field>
         <field name="arch" type="xml">
             <search string="Search Medical Encounters">
-                <field name="name" string="Encounter ID"/>
-                <field name="appointment_id"/>
-                <field name="partner_id"
-                       filter_domain="['|', ('partner_id', 'ilike', self), ('patient_ids', 'ilike', self)]"
-                       string="Customer/Patient"/>
-                <field name="patient_ids" string="Patient"/>
-                <field name="practitioner_id"/>
-                <field name="date_start"/>
-                <field name="daily_id"/>
-                <filter string="Draft" name="filter_draft" domain="[('state', '=', 'draft')]"/>
-                <filter string="In Progress" name="filter_in_progress" domain="[('state', '=', 'in_progress')]"/>
-                <filter string="Ready for Billing" name="filter_ready_billing"
-                        domain="[('state', '=', 'ready_for_billing')]"/>
-                <filter string="Billed" name="filter_billed" domain="[('state', '=', 'billed')]"/>
-                <filter string="Cancelled" name="filter_cancelled" domain="[('state', '=', 'cancelled')]"/>
-                <separator/>
-                <filter string="Scheduled Appointments" name="filter_apt_scheduled"
-                        domain="[('appointment_status', 'in', ['draft', 'confirmed'])]"/>
-                <filter string="Checked In Appointments" name="filter_apt_checked_in"
-                        domain="[('appointment_status', '=', 'checked_in')]"/>
-                <filter string="In Progress Appointments" name="filter_apt_in_progress"
-                        domain="[('appointment_status', '=', 'in_progress')]"/>
-                <filter string="Completed Appointments" name="filter_apt_completed"
-                        domain="[('appointment_status', '=', 'completed')]"/>
-                <filter string="Cancelled Appointments" name="filter_apt_cancelled"
-                        domain="[('appointment_status', 'in', ['cancelled_by_patient', 'cancelled_by_clinic', 'no_show'])]"/>
-                <separator/>
-                <filter string="Today" name="filter_today"
-                        domain="[('date_start', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('date_start', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
-                <filter string="My Encounters" name="filter_my_encounters"
-                        domain="[('practitioner_id.user_id', '=', uid)]"/>
-                <!-- Status mismatch filter for troubleshooting -->
-                <filter string="Status Sync Issues" name="filter_sync_issues"
-                        domain="['|',
+                <group expand="0" string="Search">
+                    <field name="name" string="Encounter ID"/>
+                    <field name="appointment_id"/>
+                    <field name="partner_id"
+                           filter_domain="['|', ('partner_id', 'ilike', self), ('patient_ids', 'ilike', self)]"
+                           string="Patient"/>
+                    <field name="patient_ids" string="Patients"/>
+                    <field name="practitioner_id"/>
+                    <field name="date_start"/>
+                    <field name="daily_id"/>
+                    <filter string="Draft" name="filter_draft" domain="[('state', '=', 'draft')]"/>
+                    <filter string="In Progress" name="filter_in_progress" domain="[('state', '=', 'in_progress')]"/>
+                    <filter string="Ready for Billing" name="filter_ready_billing"
+                            domain="[('state', '=', 'ready_for_billing')]"/>
+                    <filter string="Billed" name="filter_billed" domain="[('state', '=', 'billed')]"/>
+                    <filter string="Cancelled" name="filter_cancelled" domain="[('state', '=', 'cancelled')]"/>
+                    <separator/>
+                    <filter string="Scheduled Appointments" name="filter_apt_scheduled"
+                            domain="[('appointment_status', 'in', ['draft', 'confirmed'])]"/>
+                    <filter string="Checked In Appointments" name="filter_apt_checked_in"
+                            domain="[('appointment_status', '=', 'checked_in')]"/>
+                    <filter string="In Progress Appointments" name="filter_apt_in_progress"
+                            domain="[('appointment_status', '=', 'in_progress')]"/>
+                    <filter string="Completed Appointments" name="filter_apt_completed"
+                            domain="[('appointment_status', '=', 'completed')]"/>
+                    <filter string="Cancelled Appointments" name="filter_apt_cancelled"
+                            domain="[('appointment_status', 'in', ['cancelled_by_patient', 'cancelled_by_clinic', 'no_show'])]"/>
+                    <separator/>
+                    <filter string="Today" name="filter_today"
+                            domain="[('date_start', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('date_start', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
+                    <filter string="My Encounters" name="filter_my_encounters"
+                            domain="[('practitioner_id.user_id', '=', uid)]"/>
+                    <!-- Status mismatch filter for troubleshooting -->
+                    <filter string="Status Sync Issues" name="filter_sync_issues"
+                            domain="['|',
                                  '&amp;', ('appointment_status', '=', 'checked_in'), ('state', '=', 'draft'),
                                  '&amp;', ('appointment_status', 'in', ['cancelled_by_patient', 'cancelled_by_clinic']), ('state', '!=', 'cancelled')]"/>
 
+                </group>
                 <group expand="0" string="Group By">
                     <filter string="Encounter Status" name="groupby_state" context="{'group_by': 'state'}"/>
                     <filter string="Appointment Status" name="groupby_appointment_status"
@@ -224,7 +229,7 @@
                             context="{'group_by': 'practitioner_id'}"/>
                     <filter string="Room" name="groupby_room"
                             context="{'group_by': 'room_id'}"/>
-                    <filter string="Patient" name="groupby_patient" context="{'group_by': 'patient_ids'}"/>
+                    <filter string="Patients" name="groupby_patient" context="{'group_by': 'patient_ids'}"/>
                     <filter string="Status" name="groupby_state" context="{'group_by': 'state'}"/>
                     <filter string="Daily Record" name="groupby_daily" context="{'group_by': 'daily_id'}"/>
                     <filter string="Appointment Date" name="groupby_date" context="{'group_by': 'date_start:day'}"/>
@@ -260,7 +265,7 @@
                                 </span>
                             </div>
                             <div class="o_kanban_record_body">
-                                <field name="patient_ids"/>
+                                <field name="patient_ids" string="Patients"/>
                                 <br/>
                                 <field name="practitioner_id"/>
                                 <br/>

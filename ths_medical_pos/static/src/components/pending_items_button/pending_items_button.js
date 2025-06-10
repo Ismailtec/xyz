@@ -80,7 +80,7 @@ export class PendingItemsButton extends Component {
                 'id', 'display_name', 'encounter_id', 'appointment_id',
                 'partner_id', 'patient_id', 'product_id', 'description',
                 'qty', 'price_unit', 'discount', 'practitioner_id',
-                'commission_pct', 'state',
+                'commission_pct', 'state', 'notes',
             ];
 
             console.log("Making RPC call with domain:", domain);

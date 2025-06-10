@@ -1,7 +1,6 @@
 /** @odoo-module */
 
 /*
- * ERROR-FREE FINAL SOLUTION
  *
  * ANALYSIS OF USER LOGS:
  * ✅ OrderLineModel.create() works perfectly (2→3 lines, no duplication)
@@ -172,10 +171,12 @@ export class PendingItemsListPopup extends Component {
     }
 
     /**
-     * Add pending medical item to POS order - ERROR-FREE VERSION
+     * Add pending medical item to POS order - FIXED TRACEABILITY VERSION
+     * Now properly handles the new traceability logic where items are only marked
+     * as 'processed' when the order is finalized, not when added to cart
      */
     async addItemToOrder(item) {
-        console.log("=== ADDING MEDICAL ITEM TO ORDER (ERROR-FREE VERSION) ===");
+        console.log("=== ADDING MEDICAL ITEM TO ORDER (FIXED TRACEABILITY VERSION) ===");
         console.log("Item:", item);
 
         const order = this.pos.get_order();
@@ -211,7 +212,7 @@ export class PendingItemsListPopup extends Component {
                 discount: item.discount || 0,
                 extras: {
                     ths_pending_item_id: item.id,
-                    ths_patient_ids: item.patient_id?.[0], // TESTING, return back to ths_patient_id if it didn't work
+                    ths_patient_id: item.patient_id?.[0],
                     ths_provider_id: item.practitioner_id?.[0],
                     ths_commission_pct: item.commission_pct || 0,
                     encounter_id: item.encounter_id?.[0],
@@ -229,7 +230,10 @@ export class PendingItemsListPopup extends Component {
             await this.setOrderlineNoteSafely(orderline, item.description);
 
             // Update backend status ONLY AFTER successful addition
-            await this.orm.write("ths.pending.pos.item", [item.id], { state: "processed" });
+            // CHANGED: Do NOT update backend status immediately
+            // Items will be marked as 'processed' only when order is finalized/paid
+            console.log("⚠️ NOTE: Item will be marked as 'processed' only when order is paid/finalized");
+            //await this.orm.write("ths.pending.pos.item", [item.id], { state: "processed" });
             this.notification.add(_t("Item added successfully to order"), { type: "success" });
 
             // Remove from popup
