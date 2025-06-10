@@ -17,10 +17,10 @@ import { PendingItemsListPopup } from "@ths_medical_pos/popups/pending_items_lis
  */
 patch(PendingItemsButton.prototype, {
     /**
-     * FIXED: Override onClick method to add veterinary-specific behavior
+     * Override onClick method to add veterinary-specific behavior
      * Enhanced to work with the updated base medical functionality
      * Adds Pet/Owner context for veterinary practices
-     * FIXED: Removed dynamic import that was causing module resolution errors
+     * Removed dynamic import that was causing module resolution errors
      */
     async onClick() {
         console.log("Vet POS: Pending Items Button Clicked - Enhanced for Veterinary");
@@ -74,7 +74,7 @@ patch(PendingItemsButton.prototype, {
             if (pendingItems && pendingItems.length > 0) {
                 console.log('Vet POS: Attempting to open PendingItemsListPopup with veterinary adaptations');
 
-                // FIXED: Use statically imported makeAwaitable and PendingItemsListPopup
+                // Use statically imported makeAwaitable and PendingItemsListPopup
                 // Removed dynamic import that was causing module resolution errors
                 const payload = await makeAwaitable(this.dialog, PendingItemsListPopup, {
                     title: popupTitle, // Veterinary-specific title
@@ -101,7 +101,7 @@ patch(PendingItemsButton.prototype, {
         } catch (error) {
             console.error("Vet POS: Error fetching or showing pending medical items:", error);
 
-            // FIXED: Enhanced error handling with veterinary context
+            // Enhanced error handling with veterinary context
             let errorMessage;
             if (error.message && error.message.includes('timeout')) {
                 errorMessage = _t('Request timeout. Please check your connection and try again.');
@@ -123,4 +123,4 @@ patch(PendingItemsButton.prototype, {
 // TODO: Add support for filtering by pet species or breed if needed
 // TODO: Consider adding pet health status indicators in the pending items display
 
-console.log("Loaded FIXED vet button patch - compatible with updated base module:", "pending_items_button.js");
+console.log("Loaded vet button patch - compatible with updated base module:", "pending_items_button.js");

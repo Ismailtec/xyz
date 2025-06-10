@@ -7,15 +7,88 @@
         <field name="inherit_id" ref="ths_medical_base.view_calendar_event_form_inherit_ths_medical"/>
         <field name="arch" type="xml">
 
-            <xpath expr="//field[@name='ths_patient_id']" position="attributes">
-                <attribute name="string">Pet</attribute>
-                <attribute name="domain">[('ths_partner_type_id', '=', %(ths_medical_vet.partner_type_pet)d)]</attribute>
+            <!-- Update to use Many2many field ths_patient_ids instead of ths_patient_id -->
+            <xpath expr="//field[@name='ths_patient_ids']" position="attributes">
+                <attribute name="string">Pets</attribute>
+                <attribute name="domain">[('ths_partner_type_id.name', '=', 'Pet')]</attribute>
+                <attribute name="context">{'default_ths_partner_type_id':
+                    %(ths_medical_vet.partner_type_pet)d}</attribute>
+                <attribute name="widget">many2many_tags</attribute>
+                <attribute name="options">{'no_create': True, 'no_quick_create': True}</attribute>
+                <attribute name="placeholder">Select pets...</attribute>
             </xpath>
 
-            <xpath expr="//field[@name='ths_patient_id']" position="after">
-                <field name="ths_pet_owner_id" string="Owner" options="{'no_open': True}"/>
+            <!-- Add Pet Owner field before the pets field -->
+            <xpath expr="//field[@name='ths_patient_ids']" position="before">
+                <field name="ths_pet_owner_id" string="Pet Owner"
+                       options="{'no_create': True, 'no_quick_create': True}"
+                       placeholder="Select owner..."
+                       domain="[('ths_partner_type_id.name', '=', 'Pet Owner')]"/>
             </xpath>
 
+            <!-- Add invisible domain field for dynamic filtering -->
+            <xpath expr="//field[@name='ths_pet_owner_id']" position="after">
+                <field name="ths_patient_ids_domain" invisible="1"/>
+            </xpath>
+
+        </field>
+    </record>
+
+    <!-- Additional view for better pet selection workflow -->
+    <record id="view_calendar_event_form_inherit_ths_vet_workflow" model="ir.ui.view">
+        <field name="name">calendar.event.form.inherit.ths.vet.workflow</field>
+        <field name="model">calendar.event</field>
+        <field name="inherit_id" ref="view_calendar_event_form_inherit_ths_vet"/>
+        <field name="arch" type="xml">
+
+            <!-- Reorganize medical details for better vet workflow -->
+            <xpath expr="//group[@name='medical_col_1']" position="replace">
+                <group name="medical_col_1">
+                    <field name="ths_is_walk_in" widget="boolean_toggle"/>
+                    <field name="appointment_type_id"
+                           options="{'no_create': True, 'no_quick_create': True}"
+                           context="{'default_schedule_based_on': 'resources'}"/>
+                    <!-- Pet Owner first for better workflow -->
+                    <field name="ths_pet_owner_id" string="Pet Owner"
+                           options="{'no_create': True, 'no_quick_create': True}"
+                           placeholder="Select owner first..."
+                           domain="[('ths_partner_type_id.name', '=', 'Pet Owner')]"/>
+                    <!-- Pets field with dynamic domain based on owner -->
+                    <field name="ths_patient_ids" string="Pets"
+                           widget="many2many_tags"
+                           options="{'no_create': True, 'no_quick_create': True}"
+                           context="{'default_ths_partner_type_id': %(ths_medical_vet.partner_type_pet)d}"
+                           domain="ths_patient_ids_domain"
+                           placeholder="Select pets..."/>
+                    <field name="ths_patient_ids_domain" invisible="1"/>
+                </group>
+            </xpath>
+
+        </field>
+    </record>
+
+    <record id="calendar_event_form_inherit_gantt_booking_ths_medical_vet" model="ir.ui.view">
+        <field name="name">calendar.event.form.inherit.gantt.booking.ths.medical.vet</field>
+        <field name="model">calendar.event</field>
+        <field name="inherit_id" ref="ths_medical_base.calendar_event_form_inherit_gantt_booking_ths_medical"/>
+        <field name="arch" type="xml">
+
+            <xpath expr="//field[@name='partner_ids']" position="attributes">
+                <attribute name="string">Pets</attribute>
+                <attribute name="domain">[('ths_partner_type_id.name', '=', 'Pet')]</attribute>
+                <attribute name="context">{'default_ths_partner_type_id':
+                    %(ths_medical_vet.partner_type_pet)d}</attribute>
+                <attribute name="domain">ths_patient_ids_domain</attribute>
+                <attribute name="widget">many2many_tags</attribute>
+                <attribute name="options">{'no_create': True, 'no_quick_create': True}</attribute>
+                <attribute name="placeholder">Select pets...</attribute>
+            </xpath>
+            <xpath expr="//field[@name='partner_ids']" position="before">
+                <field name="ths_pet_owner_id"
+                       string="Pet Owner"
+                       options="{'no_create': True, 'no_quick_create': True}"
+                       domain="[('ths_partner_type_id.name', '=', 'Pet Owner')]"/>
+            </xpath>
         </field>
     </record>
 

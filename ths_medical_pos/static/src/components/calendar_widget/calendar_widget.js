@@ -1,5 +1,5 @@
 /** @odoo-module */
-console.log("Loading: ths_medical_pos/static/src/screens/appointment_screen/appointment_screen.js");
+console.log("Loading: ths_medical_pos/static/src/components/calendar_widget/calendar_widget.js");
 
 import { Component, onMounted, useRef } from "@odoo/owl";
 import { registry } from "@web/core/registry";
@@ -47,13 +47,13 @@ export class MedicalCalendarWidget extends Component {
         const domain = [
             ['start', '>=', start.toISOString()],
             ['stop', '<=', end.toISOString()],
-            ['ths_patient_id', '!=', false]
+            ['ths_patient_ids', '!=', false]  // Changed from ths_patient_id to ths_patient_ids
         ];
 
         const events = await this.env.services.orm.searchRead(
             'calendar.event',
             domain,
-            ['name', 'start', 'stop', 'ths_patient_id', 'appointment_status'],
+            ['name', 'start', 'stop', 'ths_patient_ids', 'appointment_status'],  // Updated field name
             { limit: 100 }
         );
 
@@ -64,7 +64,7 @@ export class MedicalCalendarWidget extends Component {
             end: event.stop,
             color: this.getStatusColor(event.appointment_status),
             extendedProps: {
-                patient: event.ths_patient_id,
+                patients: event.ths_patient_ids,  // Now returns array of patient records
                 status: event.appointment_status
             }
         }));
@@ -72,20 +72,23 @@ export class MedicalCalendarWidget extends Component {
 
     getStatusColor(status) {
         const colors = {
-            'scheduled': '#007bff',
-            'confirmed': '#28a745',
-            'checked_in': '#ffc107',
-            'in_progress': '#fd7e14',
-            'completed': '#6c757d',
-            'cancelled': '#dc3545',
-            'no_show': '#6c757d'
+            'draft': '#6c757d',        // gray
+            'confirmed': '#007bff',    // blue
+            'checked_in': '#ffc107',   // yellow
+            'in_progress': '#fd7e14',  // orange
+            'completed': '#28a745',    // green
+            'billed': '#20c997',       // teal
+            'cancelled_by_patient': '#dc3545',  // red
+            'cancelled_by_clinic': '#dc3545',   // red
+            'no_show': '#6c757d'       // gray
         };
         return colors[status] || '#007bff';
     }
 
     onEventClick(event) {
         console.log("Appointment clicked:", event);
-        // You can show appointment details or navigate
+        // TODO: Show appointment details popup or navigate to appointment form
+        // Can access patient info via event.extendedProps.patients
     }
 }
 

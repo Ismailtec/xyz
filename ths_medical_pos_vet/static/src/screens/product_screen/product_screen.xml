@@ -24,17 +24,17 @@
     <t t-inherit="point_of_sale.OrderWidget" t-inherit-mode="extension">
 
         <!--
-        FIXED: Veterinary Enhancement - Add membership status display
+        Veterinary Enhancement - Add membership status display
         Using a more reliable XPath that exists in the OrderWidget template
         Shows membership status, type, and expiration dates for pet owners
         -->
         <xpath expr="//div[hasclass('order-summary')]" position="after">
-            <!-- FIXED: Only show membership info if partner exists and has membership state -->
+            <!-- Only show membership info if partner exists and has membership state -->
             <t t-if="order and order.get_partner() and order.get_partner().membership_state">
                 <t t-set="partner" t-value="order.get_partner()"/>
 
                 <div class="partner-membership-status mt-2 p-2 bg-light rounded">
-                    <!-- FIXED: Membership icon and label with proper accessibility -->
+                    <!-- Membership icon and label with proper accessibility -->
                     <small class="text-muted">
                         <i class="fa fa-star me-1"
                            role="img"

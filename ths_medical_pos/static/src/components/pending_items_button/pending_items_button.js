@@ -1,7 +1,7 @@
 /** @odoo-module */
 
 /**
- * FIXED Button component for accessing pending medical items in POS
+ * Button component for accessing pending medical items in POS
  *
  * FIXES APPLIED:
  * 1. Proper OWL 3 props validation
@@ -13,7 +13,7 @@ import { usePos } from "@point_of_sale/app/store/pos_hook";
 import { useService } from "@web/core/utils/hooks";
 import { _t } from "@web/core/l10n/translation";
 import { registry } from "@web/core/registry";
-// FIXED: Added required imports for Odoo 18 popup pattern
+// Added required imports for Odoo 18 popup pattern
 import { makeAwaitable } from "@point_of_sale/app/store/make_awaitable_dialog";
 import { PendingItemsListPopup } from "@ths_medical_pos/popups/pending_items_list_popup";
 
@@ -27,7 +27,7 @@ export class PendingItemsButton extends Component {
         this.pos = usePos();
         this.dialog = useService("dialog"); // Use dialog service for Odoo 18 popup management
 
-        // FIXED: Defensive notification service loading
+        // Defensive notification service loading
         try {
             this.notification = useService("notification");
         } catch (error) {
@@ -44,7 +44,7 @@ export class PendingItemsButton extends Component {
     }
 
     /**
-     * FIXED: Handle button click with proper customer checking
+     * Handle button click with proper customer checking
      */
     async onClick() {
         // Logging for traceability
@@ -64,7 +64,7 @@ export class PendingItemsButton extends Component {
         const domain = [['state', '=', 'pending']];
         let popupTitle = _t('Pending Medical Items');
 
-        // FIXED: Better customer checking
+        // Better customer checking
         if (client?.id) {
             domain.push(['partner_id', '=', client.id]);
             popupTitle = _t("Pending Items for %(partnerName)s", { partnerName: client.name });
@@ -97,7 +97,7 @@ export class PendingItemsButton extends Component {
             if (pendingItems && pendingItems.length > 0) {
                 console.log('Attempting to open PendingItemsListPopup with items:', pendingItems.length);
 
-                // FIXED: Use makeAwaitable pattern for Odoo 18
+                // Use makeAwaitable pattern for Odoo 18
                 const payload = await makeAwaitable(this.dialog, PendingItemsListPopup, {
                     title: popupTitle,
                     items: pendingItems,
@@ -105,7 +105,7 @@ export class PendingItemsButton extends Component {
 
                 console.log("Popup opened successfully", payload);
             } else {
-                // FIXED: Better no-items message handling
+                // etter no-items message handling
                 let message;
                 if (client) {
                     message = _t('No pending medical items found for %(partnerName)s.', { partnerName: client.name });
@@ -113,7 +113,7 @@ export class PendingItemsButton extends Component {
                     message = _t('No pending medical items found. Note: Select a customer to filter items for specific patients.');
                 }
 
-                // FIXED: Use defensive notification
+                // Use defensive notification
                 this.notification.add(message, {
                     type: 'info',
                     sticky: false,
@@ -124,7 +124,7 @@ export class PendingItemsButton extends Component {
         } catch (error) {
             console.error("Error fetching or showing pending medical items:", error);
 
-            // FIXED: More descriptive error messages
+            // More descriptive error messages
             let errorMessage;
             if (error.message && error.message.includes('timeout')) {
                 errorMessage = _t('Request timeout. Please check your connection and try again.');
@@ -142,4 +142,4 @@ export class PendingItemsButton extends Component {
 // Register component for use in POS components registry
 registry.category("pos_components").add("PendingItemsButton", PendingItemsButton);
 
-console.log("Loaded FIXED button file with proper error handling:", "pending_items_button.js");
+console.log("Loaded button file with proper error handling:", "pending_items_button.js");

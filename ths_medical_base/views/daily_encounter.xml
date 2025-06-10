@@ -43,7 +43,7 @@
                                 <list>
                                     <field name="name"/>
                                     <field name="appointment_id"/>
-                                    <field name="patient_id"/>
+                                    <field name="patient_ids"/>
                                     <field name="practitioner_id"/>
                                     <field name="date_start" widget="datetime"/>
                                     <field name="state"/>

@@ -61,7 +61,7 @@
         'views/calendar_event.xml',  # Inherited Calendar Event view
     ],
     'assets': {
-        # FIXED: Move gantt extension to lazy bundle where gantt renderer lives
+        # Move gantt extension to lazy bundle where gantt renderer lives
         'web.assets_backend_lazy': [
             'appointment/static/src/views/gantt/**',
             # Add our medical gantt extension AFTER appointment gantt files

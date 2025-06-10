@@ -76,7 +76,7 @@ class MedicalAPI(http.Controller):
         Expected params:
         - appointment_type_id: int
         - start: str (ISO datetime)
-        - pet_id: int
+        - pet_ids: list of int (Changed from pet_id to pet_ids for Many2many)
         - practitioner_ar_id: int
         - location_ar_id: int (optional)
         - reason: str
@@ -84,27 +84,38 @@ class MedicalAPI(http.Controller):
         try:
             data = request.jsonrequest
 
-            # Validate required fields
-            required = ['appointment_type_id', 'start', 'pet_id', 'practitioner_ar_id']
+            # Validate required fields - updated for Many2many
+            required = ['appointment_type_id', 'start', 'pet_ids', 'practitioner_ar_id']
             if not all(data.get(f) for f in required):
                 return {'error': 'Missing required parameters'}
 
-            # Get pet and validate owner
-            pet = request.env['res.partner'].sudo().browse(data['pet_id'])
-            if not pet.exists() or not pet.is_pet:
-                return {'error': 'Invalid pet'}
+            # Get pets and validate - handle list of IDs
+            pet_ids = data['pet_ids']
+            if not isinstance(pet_ids, list) or not pet_ids:
+                return {'error': 'pet_ids must be a non-empty list'}
+
+            pets = request.env['res.partner'].sudo().browse(pet_ids)
+            invalid_pets = pets.filtered(lambda p: not p.exists() or not p.is_pet)
+            if invalid_pets:
+                return {'error': f'Invalid pets: {invalid_pets.ids}'}
+
+            # TODO: Handle multiple pets - for now take first pet's owner
+            primary_pet = pets[0]
+            owner = primary_pet.ths_pet_owner_id
+            if not owner:
+                return {'error': f'Pet {primary_pet.name} has no assigned owner'}
 
             # Create appointment
             appointment_vals = {
                 'appointment_type_id': data['appointment_type_id'],
                 'start': data['start'],
                 'stop': (datetime.fromisoformat(data['start']) + timedelta(hours=0.5)).isoformat(),
-                'ths_patient_id': pet.id,
-                'partner_id': pet.ths_pet_owner_id.id,
+                'ths_patient_ids': [(6, 0, pet_ids)],  # Many2many field syntax
+                'partner_id': owner.id,
                 'ths_practitioner_id': data['practitioner_ar_id'],
                 'ths_room_id': data.get('location_ar_id'),
                 'ths_reason_for_visit': data.get('reason', ''),
-                'appointment_status': 'scheduled',
+                'appointment_status': 'draft',
             }
 
             appointment = request.env['calendar.event'].sudo().create(appointment_vals)
@@ -129,9 +140,9 @@ class MedicalAPI(http.Controller):
             if not pet.exists() or not pet.is_pet:
                 return {'error': 'Invalid pet'}
 
-            # Get encounters
+            # Get encounters - search for pet in Many2many field
             encounters = request.env['ths.medical.base.encounter'].sudo().search_read(
-                [('patient_id', '=', pet_id)],
+                [('patient_ids', 'in', [pet_id])],  # Search in Many2many field
                 ['name', 'date_start', 'practitioner_id', 'state',
                  'chief_complaint', 'ths_diagnosis_text', 'ths_plan'],
                 order='date_start desc',

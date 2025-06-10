@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from odoo import models, fields, api, _
-from odoo.exceptions import UserError
+#from odoo.exceptions import UserError
 
 import logging
 
@@ -55,9 +55,11 @@ class ThsMedicalCommissionLine(models.Model):
         index=True,
         readonly=True,
     )
+    # Changed to Many2one since pos.order.line.ths_patient_id is Many2one
+    # (Commission is per line, not per multiple patients)
     patient_id = fields.Many2one(
         'res.partner',
-        string='Patient',  # Changed label to generic Patient
+        string='Patient',
         related='pos_order_line_id.ths_patient_id',  # Get from the custom field
         store=True,  # Store for easier grouping/reporting
         index=True,

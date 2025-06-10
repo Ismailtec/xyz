@@ -42,7 +42,14 @@ class CalendarEvent(models.Model):
 
     # Patient receiving the service
     ths_patient_ids = fields.Many2many(
-        'res.partner', string='Patients', index=True, tracking=True, store=True,
+        'res.partner',
+        'calendar_event_patient_rel',
+        'event_id',
+        'patient_id',
+        string='Patients',
+        index=True,
+        tracking=True,
+        store=True,
         compute='_compute_ths_patient_ids',
         inverse='_inverse_ths_patient_ids',
         domain="['|', ('ths_partner_type_id.is_patient', '=', True), ('ths_partner_type_id.name', '=', 'Walk-in')]",
@@ -120,9 +127,9 @@ class CalendarEvent(models.Model):
             practitioner = None
             location = None
             for res in rec.resource_ids:
-                if res.ths_resource_category == 'practitioner' and not practitioner:
+                if res.ths_resource_category == 'practitioner'and not practitioner:
                     practitioner = res
-                elif res.ths_resource_category == 'location' and not location:
+                elif res.ths_resource_category == 'location'and not location:
                     location = res
 
             rec.ths_practitioner_id = practitioner
@@ -131,11 +138,17 @@ class CalendarEvent(models.Model):
     @api.depends('partner_ids')
     def _compute_ths_patient_ids(self):
         for rec in self:
-            rec.ths_patient_ids = rec.partner_ids
+            if rec.partner_ids:
+                rec.ths_patient_ids = [Command.set(rec.partner_ids.ids)]
+            else:
+                rec.ths_patient_ids = [Command.clear()]
 
     def _inverse_ths_patient_ids(self):
         for rec in self:
-            rec.partner_ids = rec.ths_patient_ids
+            if rec.ths_patient_ids:
+                rec.partner_ids = [Command.set(rec.ths_patient_ids.ids)]
+            else:
+                rec.partner_ids = [Command.clear()]
 
     # @api.depends('partner_ids')
     # def _compute_patient_from_partner_ids(self):
@@ -180,7 +193,7 @@ class CalendarEvent(models.Model):
 
         partner_ids = self.env.context.get('default_partner_ids') or []
         if partner_ids and 'ths_patient_ids' in fields_list:
-            res['ths_patient_ids'] = partner_ids[:1]
+            res['ths_patient_ids'] = [Command.set(partner_ids)]
 
         # _logger.info(f"CALENDAR_EVENT DG: Final res: {res}")
         return res
@@ -253,8 +266,8 @@ class CalendarEvent(models.Model):
                 walkin_partner = self.env['res.partner'].sudo().create(partner_vals)
                 # _logger.info(f"Created Walk-in partner: {walkin_partner.name} (ID: {walkin_partner.id})")
                 # Assign the new partner to both patient and partner fields of the appointment
-                vals['ths_patient_ids'] = walkin_partner.id
-                vals['partner_ids'] = walkin_partner.id
+                vals['ths_patient_ids'] = [Command.set([walkin_partner.id])]
+                vals['partner_ids'] = [Command.set([walkin_partner.id])]
                 # Add attendees automatically if needed
                 vals['partner_ids'] = vals.get('partner_ids', []) + [(4, walkin_partner.id)]
             except Exception as e:
@@ -271,9 +284,21 @@ class CalendarEvent(models.Model):
         for vals in vals_list:
             vals = self._handle_walkin_partner(vals.copy())
 
-            # Populate ths_patient_ids from partner_ids
+            # Populate ths_patient_ids from partner_ids if not set
             if vals.get('partner_ids') and not vals.get('ths_patient_ids'):
-                vals['ths_patient_ids'] = [Command.set(vals['partner_ids'])]
+                # Handle different formats of partner_ids
+                partner_ids_val = vals['partner_ids']
+                if isinstance(partner_ids_val, list) and partner_ids_val:
+                    # Extract IDs from Command operations
+                    ids = []
+                    for cmd in partner_ids_val:
+                        if isinstance(cmd, (list, tuple)) and len(cmd) >= 2:
+                            if cmd[0] == Command.SET:
+                                ids.extend(cmd[2] if cmd[2] else [])
+                            elif cmd[0] == Command.LINK:
+                                ids.append(cmd[1])
+                    if ids:
+                        vals['ths_patient_ids'] = [Command.set(ids)]
 
             vals["name"] = self.env["ir.sequence"].next_by_code("medical.appointment")
             vals_list.append(vals)
@@ -288,7 +313,18 @@ class CalendarEvent(models.Model):
 
         # Update ths_patient_ids if partner_ids is updated
         if 'partner_ids' in vals and 'ths_patient_ids' not in vals:
-            vals['ths_patient_ids'] = [Command.set(vals['partner_ids'])]
+            partner_ids_val = vals['partner_ids']
+            if isinstance(partner_ids_val, list):
+                # Extract IDs from Command operations
+                ids = []
+                for cmd in partner_ids_val:
+                    if isinstance(cmd, (list, tuple)) and len(cmd) >= 2:
+                        if cmd[0] == Command.SET:
+                            ids.extend(cmd[2] if cmd[2] else [])
+                        elif cmd[0] == Command.LINK:
+                            ids.append(cmd[1])
+                if ids:
+                    vals['ths_patient_ids'] = [Command.set(ids)]
 
         return super().write(vals)
 
@@ -411,19 +447,23 @@ class CalendarEvent(models.Model):
     def _prepare_encounter_vals(self):
         """ Prepare values for creating a ths.medical.base.encounter record. """
         self.ensure_one()
-        # Patient and Partner should be validated before calling this (e.g., in action_check_in)
-        patient_partner = self.ths_patient_ids
-        owner_partner = self.ths_patient_ids[1]
-        practitioner_employee = self.ths_practitioner_id  # This is now computed from ths_practitioner_id
-        if not patient_partner or not owner_partner:
-            raise UserError(_("Cannot create encounter: Patient and Customer/Owner must be set on the appointment."))
-        if not practitioner_employee:  # Check the derived employee field
+        # Patient and Partner should be validated for Many2many field
+        patient_partners = self.ths_patient_ids
+        # TODO: Handle multiple patients scenario - for now take first patient's data
+        owner_partner = patient_partners[0] if patient_partners else False
+        practitioner_employee = self.ths_practitioner_id
+
+        if not patient_partners:
+            raise UserError(_("Cannot create encounter: Patients must be set on the appointment."))
+        if not owner_partner:
+            raise UserError(_("Cannot create encounter: Customer/Owner must be set."))
+        if not practitioner_employee:
             raise UserError(_("Cannot create encounter: Practitioner is not set."))
 
         return {
             'appointment_id': self.id,
             'state': 'draft',
-            'patient_ids': patient_partner.id,
+            'patient_ids': [Command.set(patient_partners.ids)],
             'practitioner_id': practitioner_employee.id,
             'partner_id': owner_partner.id,
             # EMR fields like chief complaint could potentially be copied from appointment reason

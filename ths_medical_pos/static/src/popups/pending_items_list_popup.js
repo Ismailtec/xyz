@@ -27,7 +27,7 @@ export class PendingItemsListPopup extends Component {
 
     static props = {
         title: { type: String, optional: true },
-        items: { type: Array, optional: true }, // FIXED: Made optional to allow default value
+        items: { type: Array, optional: true }, // Made optional to allow default value
         close: Function,
         getPayload: { type: Function, optional: true },
     };
@@ -211,7 +211,7 @@ export class PendingItemsListPopup extends Component {
                 discount: item.discount || 0,
                 extras: {
                     ths_pending_item_id: item.id,
-                    ths_patient_id: item.patient_id?.[0],
+                    ths_patient_ids: item.patient_id?.[0], // TESTING, return back to ths_patient_id if it didn't work
                     ths_provider_id: item.practitioner_id?.[0],
                     ths_commission_pct: item.commission_pct || 0,
                     encounter_id: item.encounter_id?.[0],

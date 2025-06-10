@@ -25,8 +25,16 @@
                         <p><strong>Location:</strong> ${object.ths_room_id.name}</p>
                         % endif
 
-                        % if object.ths_patient_id:
-                        <p><strong>Patient:</strong> ${object.ths_patient_id.name}</p>
+                        <!-- Handle Many2many field for patients -->
+                        % if object.ths_patient_ids:
+                        <p><strong>Patients:</strong>
+                            % for patient in object.ths_patient_ids:
+                                ${patient.name}
+                                % if not loop.last:
+                                    ,
+                                % endif
+                            % endfor
+                        </p>
                         % endif
 
                         % if object.ths_reason_for_visit:

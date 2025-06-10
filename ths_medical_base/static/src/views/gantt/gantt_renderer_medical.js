@@ -84,12 +84,20 @@ patch(AppointmentBookingGanttRenderer.prototype, {
         const popoverProps = await super.getPopoverProps(pill);
         const { record } = pill;
 
+        // Handle Many2many field for patients display
+        let patientNames = '';
+        if (record.ths_patient_ids && Array.isArray(record.ths_patient_ids)) {
+            patientNames = record.ths_patient_ids.map(patient =>
+                Array.isArray(patient) ? patient[1] : patient.name || patient.toString()
+            ).join(', ');
+        }
+
         // Add medical-specific context for popover template
         Object.assign(popoverProps.context, {
             // Medical fields for popover display
             ths_practitioner_name: record.ths_practitioner_id ? record.ths_practitioner_id[1] : '',
             ths_room_name: record.ths_room_id ? record.ths_room_id[1] : '',
-            ths_patient_name: record.ths_patient_id ? record.ths_patient_id[1] : '',
+            ths_patient_names: patientNames,  // Handle multiple patients
             // Status information
             medical_appointment: !!record.appointment_type_id,
             appointment_status_display: this._getStatusDisplayText(record.appointment_status),

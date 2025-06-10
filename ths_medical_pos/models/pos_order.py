@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from odoo import models, fields, api, _
-from odoo.exceptions import UserError
+# from odoo.exceptions import UserError
 
 import logging
 
@@ -13,12 +13,12 @@ class PosOrder(models.Model):
 
     # Optional: Link back to all pending items processed in this order
     # Useful for traceability, but requires Many2many field and logic to populate.
-    # ths_processed_pending_item_ids = fields.Many2many(
-    #     'ths.pending.pos.item',
-    #     string='Processed Pending Items (Trace)',
-    #     readonly=True,
-    #     copy=False
-    # )
+    ths_processed_pending_item_ids = fields.Many2many(
+        'ths.pending.pos.item',
+        string='Processed Pending Items (Trace)',
+        readonly=True,
+        copy=False
+    )
 
     # --- Overrides ---
 
@@ -48,7 +48,7 @@ class PosOrder(models.Model):
     #     # for idx, ui_line_vals in enumerate(lines_values):
     #     #     ui_line = ui_lines[idx][2] # Odoo 16 structure, may vary
     #     #     ui_line_vals['ths_pending_item_id'] = ui_line.get('ths_pending_item_id')
-    #     #     ui_line_vals['ths_patient_id'] = ui_line.get('ths_patient_id')
+    #     #     ui_line_vals['ths_patient_ids'] = ui_line.get('ths_patient_ids')
     #     #     ui_line_vals['ths_provider_id'] = ui_line.get('ths_provider_id')
     #     #     ui_line_vals['ths_commission_pct'] = ui_line.get('ths_commission_pct')
     #
@@ -57,12 +57,11 @@ class PosOrder(models.Model):
     @api.model
     def _process_order(self, order, draft, existing_order=None):
         """ Override to link pending items and update encounter state. """
-        # --- (Keep the existing refined _process_order logic from previous step) ---
-        ui_order_lines_data = {line[2]['uid']: line[2] for line in order.get('lines', []) if
-                               len(line) > 2 and 'uid' in line[2]}
-        _logger.debug(f"UI Order Lines Data Keys (UIDs): {list(ui_order_lines_data.keys())}")
+        ui_order_lines_data = {line[2]['uuid']: line[2] for line in order.get('lines', []) if
+                               len(line) > 2 and 'uuid' in line[2]}
+        _logger.debug(f"UI Order Lines Data Keys (UUIDs): {list(ui_order_lines_data.keys())}")
 
-        order_id = super(PosOrder, self)._process_order(order, draft)
+        order_id = super(PosOrder, self)._process_order(order, existing_order)
         _logger.info(f"Processing POS Order ID: {order_id} from UI Order: {order.get('name')}")
 
         pos_order = self.browse(order_id)
@@ -76,31 +75,32 @@ class PosOrder(models.Model):
 
         if not ui_order_lines_data and order.get('lines'):
             _logger.warning(
-                f"POS Order {pos_order.name}: Could not extract UID mapping from UI order lines. Cannot process medical data reliably for new order.")
-            # If it's an existing order being modified maybe UID isn't relevant? Need careful check.
+                f"POS Order {pos_order.name}: Could not extract UUID mapping from UI order lines. Cannot process medical data reliably for new order.")
+            # If it's an existing order being modified maybe UUID isn't relevant? Need careful check.
         elif order.get('lines'):
             for line in pos_order.lines:
-                line_uid = line.pos_order_line_uid  # Odoo 17+ field? Check this field exists.
+                # Use the correct uuid field from the line
+                line_uuid = line.uuid  # Standard Odoo pos.order.line uuid field
 
-                ui_line_data = ui_order_lines_data.get(line_uid)
+                ui_line_data = ui_order_lines_data.get(line_uuid)
 
                 if not ui_line_data:
                     _logger.warning(
-                        f"POS Order {pos_order.name}, Line {line.id}: Could not find corresponding UI data using UID '{line_uid}'. Skipping medical data processing for this line.")
+                        f"POS Order {pos_order.name}, Line {line.id}: Could not find corresponding UI data using UUID '{line_uuid}'. Skipping medical data processing for this line.")
                     continue
 
                 line_extras = ui_line_data.get('extras', {})
                 if not line_extras:
                     _logger.debug(
-                        f"POS Order {pos_order.name}, Line {line.id}: No 'extras' found in UI data for UID '{line_uid}'.")
+                        f"POS Order {pos_order.name}, Line {line.id}: No 'extras' found in UI data for UUID '{line_uuid}'.")
                     continue
 
                 _logger.info(
-                    f"POS Order {pos_order.name}, Line {line.id} (UID {line_uid}): Processing extras: {line_extras}")
+                    f"POS Order {pos_order.name}, Line {line.id} (UUID {line_uuid}): Processing extras: {line_extras}")
 
                 line_update_vals = {}
                 pending_item_id = line_extras.get('ths_pending_item_id')
-                patient_id = line_extras.get('ths_patient_id')
+                patient_id = line_extras.get('ths_patient_id')  # Note: This is still Many2one for POS lines
                 provider_id = line_extras.get('ths_provider_id')
                 commission_pct = line_extras.get('ths_commission_pct')
 
@@ -114,7 +114,7 @@ class PosOrder(models.Model):
 
                 if line_update_vals: lines_to_update_vals[line.id] = line_update_vals
 
-        # --- Batch Update Lines ---
+            # --- Batch Update Lines ---
         if lines_to_update_vals:
             _logger.info(
                 f"POS Order {pos_order.name}: Batch updating {len(lines_to_update_vals)} lines with medical data.")
@@ -126,7 +126,7 @@ class PosOrder(models.Model):
                     _logger.error(f"Failed to write medical data to POS Order Line {line_id}: {e}")
                     pos_order.note = (pos_order.note or '') + f"\nError updating line {line_id} medical data: {e}"
 
-        # --- Batch Update Pending Items ---
+            # --- Batch Update Pending Items ---
         if pending_items_to_update:
             pending_item_ids = list(pending_items_to_update.keys())
             _logger.info(
@@ -156,7 +156,7 @@ class PosOrder(models.Model):
                     _logger.warning(
                         f"Pending Item {item.id} was expected to be linked but state is '{item.state}' or linked line mismatch. Skipping update.")
 
-        # --- Batch Update Encounters ---
+            # --- Batch Update Encounters ---
         if encounter_ids_to_check:
             _logger.info(
                 f"POS Order {pos_order.name}: Checking encounters {list(encounter_ids_to_check)} for update to 'billed' state.")

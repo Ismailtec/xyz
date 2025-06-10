@@ -2,11 +2,11 @@
 <templates xml:space="preserve">
 
     <!--
-    FIXED: Removed invalid 'class' prop from Dialog component
+    Removed invalid 'class' prop from Dialog component
     OWL 3 Dialog component in Odoo 18 has strict prop validation
     -->
     <t t-name="ths_medical_pos.PendingItemsListPopup">
-        <!-- FIXED: Removed class prop, only use valid Dialog props -->
+        <!-- Removed class prop, only use valid Dialog props -->
         <Dialog title="props.title">
             <!-- Modal body content with proper CSS classes on inner div instead -->
             <div class="modal-body pos-medical-popup">
@@ -59,7 +59,7 @@
                 </table>
             </div>
 
-            <!-- FIXED: Proper footer slot usage for Odoo 18 Dialog component -->
+            <!-- Proper footer slot usage for Odoo 18 Dialog component -->
             <t t-set-slot="footer">
                 <!-- Close button with proper component method -->
                 <button class="btn btn-secondary btn-lg" t-on-click="close">Close</button>

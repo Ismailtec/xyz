@@ -15,7 +15,7 @@ import { OrderWidget } from "@point_of_sale/app/generic_components/order_widget/
  */
 patch(OrderWidget.prototype, {
     /**
-     * FIXED: Helper function to format membership dates for veterinary display
+     * Helper function to format membership dates for veterinary display
      * Updated to use Odoo 18's latest date formatting utilities properly
      *
      * @param {string} dateString - Date string from backend (usually 'YYYY-MM-DD' format)
@@ -27,7 +27,7 @@ patch(OrderWidget.prototype, {
         }
 
         try {
-            // FIXED: Enhanced date parsing to handle various backend formats
+            // Enhanced date parsing to handle various backend formats
             let date;
             if (typeof dateString === 'string') {
                 // Handle 'YYYY-MM-DD' format from backend
@@ -45,7 +45,7 @@ patch(OrderWidget.prototype, {
                 return dateString.toString(); // Return original string if invalid
             }
 
-            // FIXED: Use Odoo 18's formatDate utility for consistent formatting
+            // Use Odoo 18's formatDate utility for consistent formatting
             return formatDate(date);
         } catch (error) {
             console.error("Vet POS: Error formatting membership date:", error);
@@ -54,7 +54,7 @@ patch(OrderWidget.prototype, {
     },
 
     /**
-     * FIXED: Enhanced setup method for veterinary-specific initialization
+     * Enhanced setup method for veterinary-specific initialization
      * Updated to work with the latest OWL 3 component lifecycle
      * Maintains parent functionality while adding vet-specific features
      */
@@ -62,7 +62,7 @@ patch(OrderWidget.prototype, {
         super.setup(); // REQUIRED: Call parent setup to maintain base functionality
         console.log("Vet POS: OrderWidget enhanced with veterinary membership features for Odoo 18");
 
-        // FIXED: Initialize any veterinary-specific reactive state if needed
+        // Initialize any veterinary-specific reactive state if needed
         // This ensures proper reactivity with OWL 3's updated system
         try {
             // Any additional setup for vet-specific features can go here
@@ -74,7 +74,7 @@ patch(OrderWidget.prototype, {
     },
 
     /**
-     * FIXED: Get membership status color for visual indicators
+     * Get membership status color for visual indicators
      * Provides consistent color coding for different membership states
      *
      * @param {string} membershipState - The membership state from backend
@@ -92,7 +92,7 @@ patch(OrderWidget.prototype, {
     },
 
     /**
-     * FIXED: Get membership status display text
+     * Get membership status display text
      * Provides user-friendly text for membership states
      *
      * @param {string} membershipState - The membership state from backend
@@ -110,4 +110,4 @@ patch(OrderWidget.prototype, {
     }
 });
 
-console.log("Loaded FIXED vet product screen JS - compatible with Odoo 18 OWL 3:", "product_screen.js");
+console.log("Loaded vet product screen JS - compatible with Odoo 18 OWL 3:", "product_screen.js");

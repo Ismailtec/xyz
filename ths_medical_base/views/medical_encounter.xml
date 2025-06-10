@@ -9,7 +9,7 @@
                   decoration-success="state=='billed'" decoration-warning="state=='ready_for_billing'">
                 <field name="name"/>
                 <field name="appointment_id" optional="show"/>
-                <field name="patient_id"/>
+                <field name="patient_ids"/>
                 <field name="practitioner_id" optional="show"/>
                 <field name="room_id" optional="show"/>
                 <field name="date_start" widget="datetime" optional="show"/>
@@ -20,7 +20,7 @@
                        decoration-danger="state == 'cancelled'"/>
                 <field name="appointment_status" widget="badge" optional="show"
                        decoration-success="appointment_status == 'billed'"
-                       decoration-info="appointment_status in ('scheduled', 'confirmed', 'checked_in')"
+                       decoration-info="appointment_status in ('draft', 'confirmed', 'checked_in')"
                        decoration-warning="appointment_status in ('in_progress', 'completed')"
                        decoration-danger="appointment_status in ('cancelled_by_patient', 'cancelled_by_clinic', 'no_show')"/>
                 <field name="daily_id" optional="hide"/>
@@ -72,7 +72,7 @@
                         <group>
                             <field name="appointment_id" readonly="1" options="{'no_open': True}"/>
                             <field name="partner_id" string="Customer/Owner" readonly="1" options="{'no_open': True}"/>
-                            <field name="patient_id" string="Patient" readonly="1" options="{'no_open': True}"/>
+                            <field name="patient_ids" string="Patient" readonly="1" options="{'no_open': True}"/>
                         </group>
                         <group>
                             <field name="practitioner_id" readonly="1" options="{'no_open': True}"
@@ -182,9 +182,9 @@
                 <field name="name" string="Encounter ID"/>
                 <field name="appointment_id"/>
                 <field name="partner_id"
-                       filter_domain="['|', ('partner_id', 'ilike', self), ('patient_id', 'ilike', self)]"
+                       filter_domain="['|', ('partner_id', 'ilike', self), ('patient_ids', 'ilike', self)]"
                        string="Customer/Patient"/>
-                <field name="patient_id" string="Patient"/>
+                <field name="patient_ids" string="Patient"/>
                 <field name="practitioner_id"/>
                 <field name="date_start"/>
                 <field name="daily_id"/>
@@ -196,7 +196,7 @@
                 <filter string="Cancelled" name="filter_cancelled" domain="[('state', '=', 'cancelled')]"/>
                 <separator/>
                 <filter string="Scheduled Appointments" name="filter_apt_scheduled"
-                        domain="[('appointment_status', 'in', ['scheduled', 'confirmed'])]"/>
+                        domain="[('appointment_status', 'in', ['draft', 'confirmed'])]"/>
                 <filter string="Checked In Appointments" name="filter_apt_checked_in"
                         domain="[('appointment_status', '=', 'checked_in')]"/>
                 <filter string="In Progress Appointments" name="filter_apt_in_progress"
@@ -224,7 +224,7 @@
                             context="{'group_by': 'practitioner_id'}"/>
                     <filter string="Room" name="groupby_room"
                             context="{'group_by': 'room_id'}"/>
-                    <filter string="Patient" name="groupby_patient" context="{'group_by': 'patient_id'}"/>
+                    <filter string="Patient" name="groupby_patient" context="{'group_by': 'patient_ids'}"/>
                     <filter string="Status" name="groupby_state" context="{'group_by': 'state'}"/>
                     <filter string="Daily Record" name="groupby_daily" context="{'group_by': 'daily_id'}"/>
                     <filter string="Appointment Date" name="groupby_date" context="{'group_by': 'date_start:day'}"/>
@@ -240,7 +240,7 @@
         <field name="arch" type="xml">
             <kanban default_group_by="state" class="o_kanban_small_column" quick_create="false">
                 <field name="name"/>
-                <field name="patient_id"/>
+                <field name="patient_ids"/>
                 <field name="practitioner_id"/>
                 <field name="appointment_status"/>
                 <field name="state"/>
@@ -260,7 +260,7 @@
                                 </span>
                             </div>
                             <div class="o_kanban_record_body">
-                                <field name="patient_id"/>
+                                <field name="patient_ids"/>
                                 <br/>
                                 <field name="practitioner_id"/>
                                 <br/>

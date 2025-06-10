@@ -46,11 +46,16 @@ class ThsMedicalEncounter(models.Model):
         help = "Customer responsible for billing."
     )
     patient_ids = fields.Many2many(
-        'res.partner', string='Patients',
+        'res.partner',
+        'medical_encounter_patient_rel',  # Custom relation table
+        'encounter_id',
+        'patient_id',
+        string='Patients',
         domain="[('ths_partner_type_id.is_patient', '=', True)]",
         store=True, index=True, readonly=True,
         help="Patients participating in this encounter.")
 
+    # TODO: Add computed fields for primary patient info for backward compatibility
     patient_ref = fields.Char(string="Patient File", related='patient_ids.ref', store=False, readonly=True)
     patient_mobile = fields.Char(string="Patient Mobile", related='patient_ids.mobile', store=False, readonly=True)
 
@@ -128,11 +133,13 @@ class ThsMedicalEncounter(models.Model):
         for encounter in self:
             appointment = encounter.appointment_id
             # Get Partner (Customer/Owner) directly from appointment
-            encounter.partner_ids = appointment.partner_ids if appointment else False
-            # Get Patient from custom field on appointment (ensure field name is correct)
-            # Use hasattr for safety if ths_patient_id might not always exist (e.g. different modules)
-            encounter.patient_id = appointment.ths_patient_id if appointment and hasattr(appointment,
-                                                                                         'ths_patient_id') else False
+            encounter.partner_id = appointment.partner_id if appointment else False
+            # Get Patients from Many2many field on appointment
+            # Use hasattr for safety if ths_patient_ids might not always exist (e.g. different modules)
+            if appointment and hasattr(appointment, 'ths_patient_ids'):
+                encounter.patient_ids = appointment.ths_patient_ids
+            else:
+                encounter.patient_ids = False
             # Get Practitioner from custom field on appointment (ensure field name is correct)
             encounter.practitioner_id = appointment.ths_practitioner_id if appointment and hasattr(appointment,
                                                                                                    'ths_practitioner_id') else False
@@ -219,12 +226,14 @@ class ThsMedicalEncounter(models.Model):
                     raise UserError(
                         _("Provider is not set on service line for product '%s' and no default practitioner on encounter '%s'.",
                           line.product_id.name, encounter.name))
-                # Ensure patient is set
-                patient = encounter.patient_ids  # Assume patient is always from encounter header
-                if not patient:
-                    raise UserError(_("Patient is not set on encounter '%s'.", encounter.name))
+                # Ensure patient is set - handle Many2many field
+                patients = encounter.patient_ids
+                if not patients:
+                    raise UserError(_("Patients not set on encounter '%s'.", encounter.name))
+                # TODO: Handle multiple patients scenario - for now use first patient
+                primary_patient = patients[0]
                 # Ensure customer is set
-                customer = encounter.partner_id or patient  # Fallback to patient if no owner
+                customer = encounter.partner_id or primary_patient  # Fallback to patient if no owner
                 if not customer:
                     raise UserError(_("Customer/Owner is not set on encounter '%s'.", encounter.name))
                 # --- End Validation Checks ---
@@ -232,7 +241,7 @@ class ThsMedicalEncounter(models.Model):
                 item_vals = {
                     'encounter_id': encounter.id,
                     'partner_id': customer.id,
-                    'patient_id': patient.id,
+                    'patient_id': primary_patient.id,  # Use primary patient
                     'product_id': line.product_id.id,
                     'description': line.description,  # Use line description
                     'qty': line.quantity,
@@ -243,7 +252,6 @@ class ThsMedicalEncounter(models.Model):
                     'commission_pct': line.commission_pct,
                     'state': 'pending',  # Initial state
                     'notes': line.notes,  # Copy line notes
-                    # 'company_id': self.env.company.id,
                     # Link back to the source service line? Optional, but useful for traceability
                     # 'source_service_line_id': line.id, # Need to add this field to pending.pos.item model if desired
                 }

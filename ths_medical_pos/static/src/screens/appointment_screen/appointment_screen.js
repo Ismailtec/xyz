@@ -28,7 +28,7 @@ patch(PosStore.prototype, {
             const action = await this.data.call("calendar.event", "action_open_medical_gantt_view", [false], {
                 context: {
                     // Pass any relevant context
-                    default_appointment_status: 'scheduled',
+                    default_appointment_status: 'draft',
                     appointment_booking_gantt_show_all_resources: true,
                     active_model: 'appointment.type'
                 },
