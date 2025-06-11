@@ -8,81 +8,56 @@
         <field name="inherit_id" ref="ths_medical_base.view_ths_medical_encounter_form"/>
         <field name="arch" type="xml">
 
-            <!-- Replace patient information section with vet workflow -->
-            <!--            <xpath expr="//group[@name='encounter_patient_info']" position="replace">-->
-            <!--                <group string="Veterinary Information" name="vet_encounter_info" col="2">-->
-            <!--                    <group name="vet_col_1">-->
-            <!--                        <field name="ths_pet_owner_id" string="Pet Owner (Billing)"-->
-            <!--                               domain="[('ths_partner_type_id.name', '=', 'Pet Owner')]"-->
-            <!--                               options="{'no_create': True, 'no_quick_create': True}"-->
-            <!--                               placeholder="Select pet owner for billing..."-->
-            <!--                               help="Pet owner responsible for billing and medical decisions"/>-->
+            <!-- Update encounter info section for vet workflow -->
+            <xpath expr="//group[@name='encounter_patient_info']" position="replace">
+                <group string="Veterinary Information" name="vet_encounter_info" col="2">
+                    <group name="vet_col_1">
+                        <field name="appointment_id" readonly="1" options="{'no_open': True}"/>
 
-            <!--                        <field name="patient_ids" string="Pets (Patients)"-->
-            <!--                               widget="many2many_tags"-->
-            <!--                               domain="patient_ids_domain"-->
-            <!--                               context="{'default_ths_partner_type_id': %(ths_medical_vet.partner_type_pet)d}"-->
-            <!--                               options="{'no_create': True, 'no_quick_create': True}"-->
-            <!--                               placeholder="Select pets receiving care..."-->
-            <!--                               help="Pets receiving veterinary care in this encounter"/>-->
+                        <field name="ths_pet_owner_id"
+                               string="Pet Owner (Billing)"
+                               domain="[('ths_partner_type_id.name', '=', 'Pet Owner')]"
+                               options="{'no_create': True, 'no_quick_create': True}"
+                               help="Pet owner responsible for billing. Usually inherited from appointment."/>
 
-            <!--                        <field name="patient_ids_domain" invisible="1"/>-->
+                        <field name="patient_ids"
+                               string="Pets (Patients)"
+                               widget="many2many_tags"
+                               domain="[('ths_partner_type_id.name', '=', 'Pet')]"
+                               options="{'no_create': True, 'no_quick_create': True}"
+                               help="Pets receiving veterinary care in this encounter"/>
 
-            <!--                        <field name="practitioner_id" string="Veterinarian"-->
-            <!--                               domain="[('ths_is_medical', '=', True)]"-->
-            <!--                               options="{'no_create': True, 'no_quick_create': True}"-->
-            <!--                               help="Veterinarian providing the care"/>-->
-            <!--                    </group>-->
+                        <field name="practitioner_id"
+                               string="Veterinarian"
+                               domain="[('ths_is_medical', '=', True)]"
+                               options="{'no_create': True, 'no_quick_create': True}"
+                               help="Veterinarian providing the care"/>
+                    </group>
 
-            <!--                    <group name="vet_col_2">-->
-            <!--                        <field name="partner_id" string="Billing Customer" readonly="1"-->
-            <!--                               domain="[('ths_partner_type_id.name', '=', 'Pet Owner')]"-->
-            <!--                               help="Billing customer (automatically synced with Pet Owner)"/>-->
-            <!--                        <field name="appointment_id" readonly="1" options="{'no_open': True}"/>-->
-            <!--                        <field name="date_start" string="Start Date/Time"/>-->
-            <!--                        <field name="date_end" string="End Date/Time"/>-->
-            <!--                    </group>-->
-            <!--                </group>-->
-            <!--            </xpath>-->
-            <xpath expr="//group[@name='encounter_patient_info']/group/field[@name='partner_id']" position="replace">
-                <field name="partner_id"
-                       string="Billing Customer"
-                       domain="[('ths_partner_type_id.name', '=', 'Pet Owner')]"
-                       help="Billing customer (automatically synced with Pet Owner)"/>
-            </xpath>
+                    <group name="vet_col_2">
+                        <field name="partner_id"
+                               string="Billing Customer"
+                               readonly="1"
+                               help="Billing customer (automatically synced with Pet Owner)"/>
 
-            <xpath expr="//group[@name='encounter_patient_info']/group/field[@name='patient_ids']" position="replace">
-                <field name="patient_ids" string="Pets (Patients)"
-                       widget="many2many_tags"
-                       options="{'no_create': True, 'no_quick_create': True}"
-                       context="{'default_ths_partner_type_id': %(ths_medical_vet.partner_type_pet)d}"
-                       domain="patient_ids_domain"
-                       placeholder="Select pets receiving care..."
-                       help="Pets receiving veterinary care in this encounter"/>
-            </xpath>
+                        <field name="room_id"
+                               readonly="1"
+                               options="{'no_open': True}"
+                               string="Treatment Room"
+                               invisible="not room_id"/>
 
-            <xpath expr="//group[@name='encounter_patient_info']/group/field[@name='practitioner_id']"
-                   position="replace">
-                <field name="practitioner_id" string="Veterinarian"
-                       domain="[('ths_is_medical', '=', True)]"
-                       options="{'no_create': True, 'no_quick_create': True}"
-                       help="Veterinarian providing the care"/>
-            </xpath>
-
-            <xpath expr="//group[@name='encounter_patient_info']/group" position="after">
-                <group>
-                    <field name="ths_pet_owner_id" string="Pet Owner (Billing)"
-                           options="{'no_create': True, 'no_quick_create': True}"
-                           domain="[('ths_partner_type_id.name', '=', 'Pet Owner')]"
-                           placeholder="Select pet owner for billing..."
-                           help="Pet owner responsible for billing and medical decisions"/>
+                        <field name="date_start" readonly="1"/>
+                        <field name="date_end" readonly="1"/>
+                        <field name="daily_id" readonly="1" options="{'no_open': False}"/>
+                    </group>
                 </group>
             </xpath>
 
-
-            <!-- Add vet-specific encounter actions -->
+            <!-- Add vet-specific smart buttons -->
             <xpath expr="//div[@name='button_box']" position="inside">
-                <button class="oe_stat_button" type="object" name="action_view_pet_medical_histories"
+                <button class="oe_stat_button"
+                        type="object"
+                        name="action_view_pet_medical_histories"
                         icon="fa-paw"
                         invisible="not patient_ids">
                     <div class="o_field_widget o_stat_info">
@@ -90,28 +65,21 @@
                         <span class="o_stat_text">Histories</span>
                     </div>
                 </button>
-
-                <button class="oe_stat_button" type="object" name="action_create_pending_items_for_all_pets"
-                        icon="fa-shopping-cart"
-                        invisible="not patient_ids or state != 'in_progress'">
-                    <div class="o_field_widget o_stat_info">
-                        <span class="o_stat_text">Create Pending</span>
-                        <span class="o_stat_text">Items</span>
-                    </div>
-                </button>
             </xpath>
 
-
-            <!-- Add vet-specific clinical fields -->
-            <xpath expr="//field[@name='chief_complaint']" position="after">
-                <!-- Add quick pet summary -->
-                <field name="patient_ids" invisible="1"/>
-                <div class="alert alert-info" invisible="not patient_ids">
-                    <strong>Pets in this encounter:</strong>
-                    <ul>
-                        <li><field name="patient_ids" widget="many2many_tags" readonly="1"/></li>
-                    </ul>
-                </div>
+            <!-- Add pet summary information -->
+            <xpath expr="//group[@name='vet_encounter_info']" position="after">
+                <group string="Pet Summary" name="pet_summary" invisible="not patient_ids">
+                    <group>
+                        <field name="total_pets_count" readonly="1"/>
+                        <field name="pets_summary" readonly="1"/>
+                    </group>
+                    <group>
+                        <field name="all_pets_species" readonly="1"/>
+                        <field name="ths_species" readonly="1" string="Primary Species"/>
+                        <field name="ths_breed" readonly="1" string="Primary Breed"/>
+                    </group>
+                </group>
             </xpath>
 
         </field>
@@ -133,9 +101,11 @@
             <!-- Add pet owner field -->
             <xpath expr="//field[@name='patient_ids']" position="after">
                 <field name="ths_pet_owner_id" optional="show" string="Pet Owner"/>
+                <field name="total_pets_count" optional="hide" string="# Pets"/>
+                <field name="all_pets_species" optional="hide" string="Species"/>
             </xpath>
 
-            <!-- Update partner_id label -->
+            <!-- Update partner_id label for clarity -->
             <xpath expr="//field[@name='partner_id']" position="attributes">
                 <attribute name="string">Billing Customer</attribute>
                 <attribute name="optional">hide</attribute>
@@ -151,44 +121,84 @@
         <field name="inherit_id" ref="ths_medical_base.view_ths_medical_encounter_search"/>
         <field name="arch" type="xml">
 
-            <!-- Update field labels and add pet owner search -->
+            <!-- Update search fields for vet context -->
             <xpath expr="//field[@name='patient_ids']" position="attributes">
                 <attribute name="string">Pets</attribute>
             </xpath>
 
+            <!-- Add vet-specific search fields -->
             <xpath expr="//field[@name='patient_ids']" position="after">
                 <field name="ths_pet_owner_id" string="Pet Owner"/>
+                <field name="ths_species" string="Species"/>
+                <field name="all_pets_species" string="All Species"/>
             </xpath>
 
             <!-- Add vet-specific filters -->
             <xpath expr="//filter[@name='filter_ready_billing']" position="after">
                 <separator/>
-                <filter string="Multi-Pet Encounters" name="filter_multi_pet"
-                        domain="[('patient_ids', '!=', False)]"
-                        help="Encounters with multiple pets"/>
-                <filter string="Single Pet Encounters" name="filter_single_pet"
-                        domain="[('patient_ids', '!=', False)]"
-                        help="Encounters with single pet"/>
+<!--                <filter string="Multi-Pet Encounters" name="filter_multi_pet" domain="[('total_pets_count', '>', 1)]"/>-->
+<!--                <filter string="Single Pet Encounters" name="filter_single_pet"-->
+<!--                        domain="[('total_pets_count', '=', 1)]"/>-->
             </xpath>
 
             <!-- Add vet-specific group by options -->
             <xpath expr="//filter[@name='groupby_practitioner']" position="after">
-                <filter string="Pet Owner" name="groupby_pet_owner"
+                <filter string="Pet Owner"
+                        name="groupby_pet_owner"
                         context="{'group_by': 'ths_pet_owner_id'}"/>
-<!--                <filter string="Pet Species" name="groupby_species"-->
-<!--                        context="{'group_by': 'patient_ids.ths_species'}"/>-->
+                <filter string="Primary Species"
+                        name="groupby_species"
+                        context="{'group_by': 'ths_species'}"/>
             </xpath>
 
         </field>
     </record>
 
-    <!-- Create vet-specific encounter action -->
+    <!-- Vet-specific Medical Encounter Kanban View -->
+    <record id="view_ths_medical_encounter_kanban_inherit_vet" model="ir.ui.view">
+        <field name="name">ths.medical.base.encounter.kanban.inherit.vet</field>
+        <field name="model">ths.medical.base.encounter</field>
+        <field name="inherit_id" ref="ths_medical_base.view_ths_medical_encounter_kanban"/>
+        <field name="arch" type="xml">
+
+            <!-- Add vet-specific fields to kanban -->
+            <xpath expr="//field[@name='patient_ids']" position="after">
+                <field name="ths_pet_owner_id"/>
+                <field name="total_pets_count"/>
+                <field name="all_pets_species"/>
+            </xpath>
+
+            <!-- Update kanban card content for vet context -->
+            <xpath expr="//div[hasclass('o_kanban_record_body')]//div[1]" position="replace">
+                <div>
+                    <strong>Pet Owner: </strong>
+                    <t t-esc="record.ths_pet_owner_id.value"/>
+                </div>
+                <div>
+                    <strong>Pets: </strong>
+                    <t t-esc="record.patient_ids.value"/>
+                    <t t-if="record.total_pets_count.raw_value > 1">
+                        <span class="badge badge-info">
+                            <t t-esc="record.total_pets_count.value"/> pets
+                        </span>
+                    </t>
+                </div>
+                <div t-if="record.all_pets_species.value">
+                    <strong>Species: </strong>
+                    <t t-esc="record.all_pets_species.value"/>
+                </div>
+            </xpath>
+
+        </field>
+    </record>
+
+    <!-- Veterinary Encounters Action -->
     <record id="action_ths_medical_encounter_vet" model="ir.actions.act_window">
         <field name="name">Veterinary Encounters</field>
         <field name="res_model">ths.medical.base.encounter</field>
-        <field name="view_mode">tree,form,calendar</field>
+        <field name="view_mode">kanban,list,form</field>
         <field name="domain">[('patient_ids.ths_partner_type_id.name', '=', 'Pet')]</field>
-        <field name="context">{'search_default_filter_in_progress': 1, 'default_practitioner_required': True}</field>
+        <field name="context">{'search_default_filter_in_progress': 1}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
                 No veterinary encounters found

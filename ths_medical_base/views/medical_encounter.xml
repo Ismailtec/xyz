@@ -10,6 +10,7 @@
                 <field name="name"/>
                 <field name="appointment_id" optional="show"/>
                 <field name="patient_ids" string="Patients" widget="many2many_tags"/>
+                <field name="partner_id" string="Customer" optional="show" options="{'no_open': True}"/>
                 <field name="practitioner_id" optional="show"/>
                 <field name="room_id" optional="show"/>
                 <field name="date_start" widget="datetime" optional="show"/>
