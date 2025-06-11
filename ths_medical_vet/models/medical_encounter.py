@@ -1,48 +1,45 @@
 # -*- coding: utf-8 -*-
 
-from odoo import models, fields, api, _
-from odoo.exceptions import UserError
+from odoo import models, fields, api, _, Command
+from odoo.exceptions import UserError, ValidationError
 
 import logging
 
 _logger = logging.getLogger(__name__)
 
 
-class ThsMedicalEncounter(models.Model):
+class ThsMedicalBaseEncounter(models.Model):
     _inherit = 'ths.medical.base.encounter'
 
-    # Override fields for vet context with proper labels and domains
+    # Override patient_ids for vet context - now refers to pets
     patient_ids = fields.Many2many(
         'res.partner',
-        'medical_encounter_patient_rel',
+        'ths_medical_encounter_patient_rel',
         'encounter_id',
         'patient_id',
-        string='Pets',  # Relabeled for vet context
+        string='Pets',  # Relabeled for veterinary context
         domain="[('ths_partner_type_id.name', '=', 'Pet')]",
-        store=True,
-        index=True,
-        readonly=True,
-        help="Pets seen during this veterinary encounter."
+        help="Pets receiving veterinary care in this encounter."
     )
 
-    partner_id = fields.Many2one(
-        'res.partner',
-        string="Pet Owner",  # Relabeled for vet context
-        store=True,
-        readonly=True,
-        index=True,
-        domain="[('ths_partner_type_id.name', '=', 'Pet Owner')]",
-        help="The pet owner responsible for billing and payment."
-    )
-
-    # Add vet-specific pet owner field synced with partner_id
+    # Pet Owner field for vet billing context
     ths_pet_owner_id = fields.Many2one(
         'res.partner',
-        string='Pet Owner (Billing)',
-        related='partner_id',
+        string='Pet Owner',
+        compute='_compute_pet_owner',
+        inverse='_inverse_pet_owner',
+        domain="[('ths_partner_type_id.name','=','Pet Owner')]",
         store=True,
-        readonly=True,
-        help="Pet owner responsible for billing - same as partner_id in vet practice."
+        readonly=False,
+        index=True,
+        tracking=True,
+        help="Pet owner responsible for billing. This is synced with the encounter's billing customer.",
+    )
+
+    # Computed domain string for pets based on selected owner
+    patient_ids_domain = fields.Char(
+        compute='_compute_patient_domain',
+        store=False
     )
 
     # Add related fields from Pet for convenience in encounter view/reports
@@ -104,6 +101,10 @@ class ThsMedicalEncounter(models.Model):
     )
 
     # --- VET-SPECIFIC COMPUTE METHODS ---
+    @api.depends('patient_ids')
+    def _compute_total_pets_count(self):
+        for rec in self:
+            rec.total_pets_count = len(rec.patient_ids)
 
     @api.depends('patient_ids')
     def _compute_primary_pet_details(self):
@@ -148,217 +149,350 @@ class ThsMedicalEncounter(models.Model):
                 unique_species = list(set([s for s in species if s]))
                 rec.all_pets_species = ', '.join(unique_species) if unique_species else ""
 
-    @api.depends('appointment_id', 'appointment_id.ths_patient_ids', 'appointment_id.ths_pet_owner_id')
-    def _compute_all_fields(self):
+    @api.depends('partner_id')
+    def _compute_pet_owner(self):
         """
-        Compute partner, patients, and practitioner from the appointment.
-        For vet practice: partner_id = pet owner, patient_ids = pets
+        For vet practice: sync ths_pet_owner_id with partner_id
+        In vet context, partner_id should always be the pet owner (billing customer)
         """
-        for encounter in self:
-            appointment = encounter.appointment_id
-
-            # For vet practice: partner_id = pet owner (billing customer)
-            if appointment and hasattr(appointment, 'ths_pet_owner_id'):
-                encounter.partner_id = appointment.ths_pet_owner_id
-            elif appointment:
-                # Fallback to partner_id if ths_pet_owner_id not available
-                encounter.partner_id = appointment.partner_id
+        for rec in self:
+            if rec.partner_id and rec.partner_id.ths_partner_type_id.name == 'Pet Owner':
+                rec.ths_pet_owner_id = rec.partner_id
             else:
-                encounter.partner_id = False
+                rec.ths_pet_owner_id = False
 
-            # For vet practice: patient_ids = pets (service recipients)
-            if appointment and hasattr(appointment, 'ths_patient_ids'):
-                encounter.patient_ids = appointment.ths_patient_ids
+    def _inverse_pet_owner(self):
+        """
+        For vet practice: when pet owner changes, update partner_id (billing customer)
+        """
+        for rec in self:
+            if rec.ths_pet_owner_id:
+                rec.partner_id = rec.ths_pet_owner_id
+
+    @api.depends('ths_pet_owner_id')
+    def _compute_patient_domain(self):
+        """
+        Compute domain for pets based on selected owner
+        """
+        for rec in self:
+            if rec.ths_pet_owner_id:
+                # Filter pets by selected owner
+                rec.patient_ids_domain = str([
+                    ('ths_pet_owner_id', '=', rec.ths_pet_owner_id.id),
+                    ('ths_partner_type_id.name', '=', 'Pet')
+                ])
             else:
-                encounter.patient_ids = False
+                # Show all pets when no owner selected
+                rec.patient_ids_domain = str([('ths_partner_type_id.name', '=', 'Pet')])
 
-            # Get Practitioner from appointment
-            encounter.practitioner_id = (appointment.ths_practitioner_id
-                                         if appointment and hasattr(appointment, 'ths_practitioner_id')
-                                         else False)
+    # --- VET-SPECIFIC ONCHANGE METHODS ---
 
-            # Get Room from appointment
-            encounter.room_id = (appointment.ths_room_id
-                                 if appointment and hasattr(appointment, 'ths_room_id')
-                                 else False)
-
-    # --- OVERRIDE BILLING ACTIONS FOR VET CONTEXT ---
-
-    def action_ready_for_billing(self):
+    @api.onchange('ths_pet_owner_id')
+    def _onchange_pet_owner_filter_pets(self):
         """
-        Override to ensure proper vet billing relationships:
-        - partner_id = pet owner (billing customer)
-        - patient_id = individual pet per line (service recipient)
+        When owner changes, filter available pets and update billing customer
         """
-        PendingItem = self.env['ths.pending.pos.item']
-        items_created_count = 0
-        encounters_to_process = self.filtered(lambda enc: enc.state in ('draft', 'in_progress'))
+        if self.ths_pet_owner_id:
+            # Set as main billing customer
+            self.partner_id = self.ths_pet_owner_id
 
-        if not encounters_to_process:
-            raise UserError(_("No encounters in 'Draft' or 'In Progress' state selected."))
+            # Find pets for this owner
+            pets = self.env['res.partner'].search([
+                ('ths_partner_type_id.name', '=', 'Pet'),
+                ('ths_pet_owner_id', '=', self.ths_pet_owner_id.id)
+            ])
 
-        for encounter in encounters_to_process:
-            if not encounter.service_line_ids:
-                self._logger.warning(
-                    f"Encounter {encounter.name} has no service lines defined. Cannot mark as Ready for Billing without items.")
-                continue
+            # Clear current pet selection - user will reselect appropriate pets
+            self.patient_ids = [Command.clear()]
 
-            # Use a list to collect vals for batch creation
-            pending_item_vals_list = []
-            for line in encounter.service_line_ids:
-                # --- VET-SPECIFIC VALIDATION CHECKS ---
-                if not line.product_id:
-                    raise UserError(_("Service line is missing a Product/Service."))
-                if line.quantity <= 0:
-                    raise UserError(
-                        _("Service line for product '%s' has zero or negative quantity.", line.product_id.name))
-
-                # Ensure provider is set (crucial for commissions)
-                practitioner = line.practitioner_id or encounter.practitioner_id
-                if not practitioner:
-                    raise UserError(
-                        _("Provider is not set on service line for product '%s' and no default practitioner on encounter '%s'.",
-                          line.product_id.name, encounter.name))
-
-                # Ensure pets are set
-                pets = encounter.patient_ids
-                if not pets:
-                    raise UserError(_("No pets set on encounter '%s'.", encounter.name))
-
-                # Ensure pet owner is set
-                pet_owner = encounter.partner_id  # In vet practice, this is the pet owner
-                if not pet_owner:
-                    raise UserError(_("Pet owner is not set on encounter '%s'.", encounter.name))
-
-                # TODO: Handle multiple pets scenario - for now use first pet per line
-                # In future, might want to split lines per pet or allow selecting specific pet per line
-                primary_pet = pets[0]
-
-                # Validate pet ownership
-                if primary_pet.ths_pet_owner_id and primary_pet.ths_pet_owner_id != pet_owner:
-                    raise UserError(_(
-                        "Pet ownership mismatch: Pet '%s' belongs to '%s' but encounter is for owner '%s'.",
-                        primary_pet.name, primary_pet.ths_pet_owner_id.name, pet_owner.name
-                    ))
-                # --- End VET-SPECIFIC Validation Checks ---
-
-                item_vals = {
-                    'encounter_id': encounter.id,
-                    'partner_id': pet_owner.id,  # Pet owner (billing customer)
-                    'patient_id': primary_pet.id,  # Pet (service recipient)
-                    'product_id': line.product_id.id,
-                    'description': line.description,
-                    'qty': line.quantity,
-                    'price_unit': line.price_unit,
-                    'discount': line.discount,
-                    'practitioner_id': practitioner.id,
-                    'room_id': encounter.room_id.id if encounter.room_id else False,
-                    'commission_pct': line.commission_pct,
-                    'state': 'pending',
-                    'notes': line.notes,
+            # Update domain to show only this owner's pets
+            return {
+                'domain': {
+                    'patient_ids': [('id', 'in', pets.ids)] if pets else [('id', '=', False)]
                 }
-                pending_item_vals_list.append(item_vals)
+            }
+        else:
+            # Clear billing customer if no owner
+            self.partner_id = False
+            # Show all pets when no owner selected
+            return {
+                'domain': {
+                    'patient_ids': [('ths_partner_type_id.name', '=', 'Pet')]
+                }
+            }
 
-            if pending_item_vals_list:
-                try:
-                    created_items = PendingItem.sudo().create(pending_item_vals_list)
-                    items_created_count += len(created_items)
-                    self._logger.info(
-                        f"Created {len(created_items)} pending POS items for vet encounter {encounter.name}.")
-                    encounter.message_post(body=_("%d items marked as pending for POS billing.", len(created_items)))
-                except Exception as e:
-                    self._logger.error(f"Failed to create pending POS items for vet encounter {encounter.name}: {e}")
-                    raise UserError(_("Failed to create pending POS items for encounter %s: %s", encounter.name, e))
+    @api.onchange('patient_ids')
+    def _onchange_patient_sync_owner(self):
+        """
+        When pets are selected, auto-set owner if all pets have same owner
+        """
+        if self.patient_ids:
+            owners = self.patient_ids.mapped('ths_pet_owner_id')
+            unique_owners = list(set(owners.ids)) if owners else []
 
-            # Update encounter state
-            encounter.write({'state': 'ready_for_billing'})
+            if len(unique_owners) == 1 and not self.ths_pet_owner_id:
+                # All pets have same owner - auto-set it
+                self.ths_pet_owner_id = owners[0]
+                self.partner_id = owners[0]  # Set as billing customer
+            elif len(unique_owners) > 1:
+                # Multiple owners - show warning and require manual selection
+                return {
+                    'warning': {
+                        'title': _('Multiple Pet Owners'),
+                        'message': _(
+                            'Selected pets belong to different owners. Please select pets from the same owner or choose the primary owner for billing.')
+                    }
+                }
 
-        if items_created_count > 0:
-            self._logger.info(
-                f"Successfully processed {len(encounters_to_process)} vet encounters, created {items_created_count} total pending POS items.")
-        return True
+        # Explicit return for PyCharm
+        return None
+
+    @api.onchange('partner_id')
+    def _onchange_partner_id_sync_owner(self):
+        """
+        When partner_id changes, sync with ths_pet_owner_id
+        """
+        if self.partner_id and self.partner_id != self.ths_pet_owner_id:
+            # Check if partner_id is a valid pet owner
+            if self.partner_id.ths_partner_type_id.name == 'Pet Owner':
+                self.ths_pet_owner_id = self.partner_id
+            elif self.partner_id.ths_partner_type_id.name == 'Pet':
+                # If a pet is selected as partner_id, get its owner
+                if self.partner_id.ths_pet_owner_id:
+                    self.ths_pet_owner_id = self.partner_id.ths_pet_owner_id
+                    self.partner_id = self.partner_id.ths_pet_owner_id  # Set owner as billing customer
+                    return {
+                        'warning': {
+                            'title': _('Pet Selected as Billing Customer'),
+                            'message': _(
+                                'A pet was selected as billing customer. Changed to pet owner: %s',
+                                self.ths_pet_owner_id.name)
+                        }
+                    }
+
+        # Explicit return for PyCharm
+        return None
+
+    # --- OVERRIDE CREATE/WRITE FOR VET WORKFLOW ---
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        """
+        Override create to handle vet-specific partner/patient relationships
+        """
+        processed_vals_list = []
+        for vals in vals_list:
+            # For vet practice: ensure proper owner/pet relationships
+            if vals.get('ths_pet_owner_id') and not vals.get('partner_id'):
+                # Set pet owner as billing customer
+                vals['partner_id'] = vals['ths_pet_owner_id']
+
+            if vals.get('partner_id') and not vals.get('ths_pet_owner_id'):
+                # Sync owner field with billing customer
+                partner = self.env['res.partner'].browse(vals['partner_id'])
+                if partner.ths_partner_type_id.name == 'Pet Owner':
+                    vals['ths_pet_owner_id'] = vals['partner_id']
+                elif partner.ths_partner_type_id.name == 'Pet' and partner.ths_pet_owner_id:
+                    # If pet selected as partner, use its owner
+                    vals['ths_pet_owner_id'] = partner.ths_pet_owner_id.id
+                    vals['partner_id'] = partner.ths_pet_owner_id.id
+
+            processed_vals_list.append(vals)
+
+        return super().create(processed_vals_list)
+
+    def write(self, vals):
+        """
+        Override write to maintain vet-specific relationships
+        """
+        # For vet practice: maintain partner_id = pet owner relationship
+        if 'ths_pet_owner_id' in vals and 'partner_id' not in vals:
+            vals['partner_id'] = vals['ths_pet_owner_id']
+
+        if 'partner_id' in vals and 'ths_pet_owner_id' not in vals:
+            # Ensure partner_id is always a pet owner
+            if vals['partner_id']:
+                partner = self.env['res.partner'].browse(vals['partner_id'])
+                if partner.ths_partner_type_id.name == 'Pet Owner':
+                    vals['ths_pet_owner_id'] = vals['partner_id']
+                elif partner.ths_partner_type_id.name == 'Pet' and partner.ths_pet_owner_id:
+                    vals['ths_pet_owner_id'] = partner.ths_pet_owner_id.id
+                    vals['partner_id'] = partner.ths_pet_owner_id.id
+
+        return super().write(vals)
 
     # --- VET-SPECIFIC CONSTRAINT VALIDATIONS ---
-    @api.constrains('patient_ids', 'partner_id')
+
+    @api.constrains('patient_ids', 'ths_pet_owner_id', 'partner_id')
     def _check_vet_encounter_consistency(self):
         """
         Validate vet encounter consistency:
         1. All pets must belong to the same owner
-        2. partner_id must be the pet owner
+        2. partner_id must be the pet owner (billing customer)
+        3. ths_pet_owner_id must match partner_id
         """
         for encounter in self:
-            if encounter.patient_ids and encounter.partner_id:
-                # Check 1: All pets must belong to the same owner
+            if encounter.patient_ids:
+                # Check 1: All pets must have the same owner
                 pet_owners = encounter.patient_ids.mapped('ths_pet_owner_id')
                 unique_owners = list(set(pet_owners.ids)) if pet_owners else []
 
                 if len(unique_owners) > 1:
                     owner_names = [owner.name for owner in pet_owners if owner]
-                    raise UserError(_(
-                        "All pets in encounter '%s' must belong to the same owner. "
-                        "Found pets belonging to: %s",
-                        encounter.name, ', '.join(set(owner_names))
+                    raise ValidationError(_(
+                        "All pets in an encounter must belong to the same owner. "
+                        "Found pets belonging to: %s", ', '.join(set(owner_names))
                     ))
 
-                # Check 2: partner_id must be the pet owner
-                if unique_owners and encounter.partner_id.id not in unique_owners:
-                    expected_owner = self.env['res.partner'].browse(unique_owners[0])
-                    raise UserError(_(
-                        "Encounter billing customer must be the pet owner. "
-                        "Expected: %s, Current: %s",
-                        expected_owner.name, encounter.partner_id.name
-                    ))
+                # Check 2 & 3: Owner consistency with billing
+                if unique_owners and encounter.partner_id:
+                    expected_owner_id = unique_owners[0]
+                    if encounter.partner_id.id != expected_owner_id:
+                        expected_owner = self.env['res.partner'].browse(expected_owner_id)
+                        raise ValidationError(_(
+                            "Billing customer must be the pet owner. "
+                            "Expected: %s, Current: %s",
+                            expected_owner.name, encounter.partner_id.name
+                        ))
 
-    # --- VET-SPECIFIC HELPER METHODS ---
+                if encounter.ths_pet_owner_id and encounter.partner_id:
+                    if encounter.ths_pet_owner_id != encounter.partner_id:
+                        raise ValidationError(_(
+                            "Pet Owner field must match the billing customer. "
+                            "Pet Owner: %s, Billing Customer: %s",
+                            encounter.ths_pet_owner_id.name, encounter.partner_id.name
+                        ))
+
+    # --- VET-SPECIFIC BUSINESS METHODS ---
+
     def _get_primary_pet(self):
         """Get the primary/first pet for this encounter"""
         self.ensure_one()
         return self.patient_ids[0] if self.patient_ids else False
 
-    def _get_pet_owner(self):
-        """Get the pet owner (billing customer) for this encounter"""
+    def _get_all_pets_species(self):
+        """Get unique species of all pets in this encounter"""
         self.ensure_one()
-        return self.partner_id
+        return self.patient_ids.mapped('ths_species_id').mapped('name')
 
-    def _get_all_pets_by_species(self):
-        """Get pets grouped by species"""
+    def _get_pet_ages_summary(self):
+        """Get age summary for all pets in encounter"""
         self.ensure_one()
-        pets_by_species = {}
+        pets_with_ages = []
         for pet in self.patient_ids:
-            species = pet.ths_species_id.name if pet.ths_species_id else 'Unknown'
-            if species not in pets_by_species:
-                pets_by_species[species] = []
-            pets_by_species[species].append(pet)
-        return pets_by_species
+            if hasattr(pet, '_get_pet_age_in_years'):
+                age = pet._get_pet_age_in_years()
+                if age:
+                    pets_with_ages.append(f"{pet.name}: {age}")
+        return '; '.join(pets_with_ages) if pets_with_ages else 'Ages not available'
 
-    def _validate_pet_ownership(self):
-        """Validate that all pets belong to the billing customer"""
+    def action_create_pending_items_for_all_pets(self):
+        """
+        Create pending POS items for all pets in this encounter
+        Follows vet logic: partner_id=Pet Owner (billing), patient_id=individual pet
+        """
         self.ensure_one()
-        if not self.patient_ids or not self.partner_id:
-            return True
+        if not self.patient_ids:
+            raise UserError(_("No pets selected for this encounter."))
 
+        if not self.ths_pet_owner_id:
+            raise UserError(_("Pet owner must be set before creating pending items."))
+
+        # This would create individual pending items for each pet
+        # Implementation would depend on the specific pending item creation logic
+        # For now, just a placeholder to show the structure
+
+        pending_items = self.env['ths.pending.pos.item']
         for pet in self.patient_ids:
-            if pet.ths_pet_owner_id and pet.ths_pet_owner_id != self.partner_id:
-                return False
-        return True
+            # Example structure - actual implementation would be more detailed
+            item_vals = {
+                'encounter_id': self.id,
+                'partner_id': self.ths_pet_owner_id.id,  # Pet Owner for billing
+                'patient_id': pet.id,  # Individual pet receiving service
+                'practitioner_id': self.practitioner_id.id,
+                # Other fields would be populated based on services provided
+            }
+            # pending_items |= self.env['ths.pending.pos.item'].create(item_vals)
+
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Pending POS Items'),
+            'res_model': 'ths.pending.pos.item',
+            'view_mode': 'list,form',
+            'domain': [('encounter_id', '=', self.id)],
+            'context': {'create': False}
+        }
+
+    def action_view_pet_medical_histories(self):
+        """View individual medical histories for all pets in this encounter"""
+        self.ensure_one()
+        if not self.patient_ids:
+            return {}
+
+        return {
+            'name': _('Pet Medical Histories'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'ths.medical.base.encounter',
+            'view_mode': 'list,form',
+            'domain': [('patient_ids', 'in', self.patient_ids.ids)],
+            'context': {
+                'search_default_groupby_patient': 1,
+                'create': False,
+            }
+        }
+
+    # --- OVERRIDE PENDING ITEM CREATION ---
+
+    def _create_pending_pos_items(self, services_data):
+        """
+        Override to handle vet-specific pending item creation
+        Ensures partner_id=Pet Owner (billing), patient_id=individual pet
+        """
+        self.ensure_one()
+        if not self.ths_pet_owner_id:
+            raise UserError(_("Pet owner must be set before creating pending items."))
+
+        pending_items = self.env['ths.pending.pos.item']
+
+        for service_data in services_data:
+            # For vet practice: each service can be for a specific pet
+            pet_id = service_data.get('pet_id') or (self.patient_ids[0].id if self.patient_ids else False)
+
+            if not pet_id:
+                raise UserError(_("Pet must be specified for each service in veterinary practice."))
+
+            item_vals = {
+                'encounter_id': self.id,
+                'appointment_id': self.appointment_id.id if self.appointment_id else False,
+                'partner_id': self.ths_pet_owner_id.id,  # Pet Owner (billing customer)
+                'patient_id': pet_id,  # Individual pet receiving service
+                'product_id': service_data.get('product_id'),
+                'description': service_data.get('description', ''),
+                'qty': service_data.get('qty', 1.0),
+                'price_unit': service_data.get('price_unit', 0.0),
+                'discount': service_data.get('discount', 0.0),
+                'practitioner_id': self.practitioner_id.id,
+                'commission_pct': service_data.get('commission_pct', 0.0),
+                'state': 'pending',
+                'notes': service_data.get('notes', ''),
+            }
+
+            pending_items |= pending_items.create(item_vals)
+
+        return pending_items
 
     # TODO: Add vet-specific encounter methods
-    def action_generate_vaccination_schedule(self):
-        """Generate vaccination schedule for pets in this encounter"""
-        # TODO: Implement vaccination schedule generation
+    def action_create_vaccination_records(self):
+        """Create vaccination records for pets in this encounter"""
+        # TODO: Implement vaccination record creation
         pass
 
-    def action_create_follow_up_appointment(self):
-        """Create follow-up appointment for the same pets and owner"""
-        # TODO: Implement follow-up appointment creation
+    def action_schedule_follow_up_for_pets(self):
+        """Schedule follow-up appointments for pets"""
+        # TODO: Implement follow-up scheduling for individual pets
         pass
 
-    def action_create_boarding_request(self):
-        """Create boarding request for pets if needed"""
-        # TODO: Implement boarding request creation
-        pass
-
-    def action_update_pet_medical_history(self):
-        """Update medical history records for all pets in encounter"""
-        # TODO: Implement medical history updates
+    def action_create_treatment_plan(self):
+        """Create treatment plan for pets"""
+        # TODO: Implement treatment plan creation
         pass

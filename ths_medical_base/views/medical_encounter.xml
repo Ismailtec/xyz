@@ -68,7 +68,7 @@
                             <field name="name" readonly="1"/>
                         </h1>
                     </div>
-                    <group>
+                    <group name="encounter_patient_info">
                         <group>
                             <field name="appointment_id" readonly="1" options="{'no_open': True}"/>
                             <field name="partner_id" string="Patient" readonly="1" options="{'no_open': True}"
@@ -257,23 +257,37 @@
                                 <strong class="o_kanban_record_title">
                                     <t t-esc="record.name.value"/>
                                 </strong>
-                                <span class="badge badge-pill float-end"
-                                      t-attf-class="badge-#{record.appointment_status.raw_value == 'checked_in' ? 'warning' :
-                                                            record.appointment_status.raw_value == 'in_progress' ? 'info' :
-                                                            record.appointment_status.raw_value == 'completed' ? 'success' : 'secondary'}">
+                                <span t-att-class="{
+                                    'badge': true,
+                                    'badge-warning': record.appointment_status.raw_value == 'checked_in',
+                                    'badge-info': record.appointment_status.raw_value == 'in_progress',
+                                    'badge-success': record.appointment_status.raw_value == 'completed',
+                                    'badge-secondary': !['checked_in','in_progress','completed'].includes(record.appointment_status.raw_value)
+                                }" class="badge float-end">
                                     <t t-esc="record.appointment_status.value"/>
                                 </span>
                             </div>
                             <div class="o_kanban_record_body">
-                                <field name="patient_ids" string="Patients"/>
-                                <br/>
-                                <field name="practitioner_id"/>
-                                <br/>
-                                <field name="room_id" invisible="not room_id"/>
-                                <br/>
-                                <small class="text-muted">
-                                    <t t-esc="record.date_start.value"/>
-                                </small>
+                                <div>
+                                    <strong>Patient(s): </strong>
+                                    <t t-esc="record.patient_ids.value"/>
+                                </div>
+                                <div>
+                                    <strong>Practitioner: </strong>
+                                    <t t-esc="record.practitioner_id.value"/>
+                                </div>
+                                <t t-if="record.room_id.raw_value">
+                                    <div>
+                                        <strong>Room: </strong>
+                                        <t t-esc="record.room_id.value"/>
+                                    </div>
+                                </t>
+                                <div>
+                                    <small class="text-muted">
+                                        <i class="fa fa-calendar me-1"/>
+                                        <t t-esc="record.date_start.value"/>
+                                    </small>
+                                </div>
                             </div>
                         </div>
                     </t>
