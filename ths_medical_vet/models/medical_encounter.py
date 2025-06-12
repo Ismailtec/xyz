@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from odoo import models, fields, api, _, Command
-from odoo.exceptions import UserError, ValidationError
+from odoo import models, fields, api, _
+from odoo.exceptions import ValidationError
 
 import logging
 
@@ -19,6 +19,8 @@ class ThsMedicalBaseEncounter(models.Model):
         'patient_id',
         string='Pets',  # Relabeled for veterinary context
         domain="[('ths_partner_type_id.name', '=', 'Pet')]",
+        compute='_compute_pet_from_appointment',
+        store=True,
         help="Pets receiving veterinary care in this encounter."
     )
 
@@ -33,6 +35,12 @@ class ThsMedicalBaseEncounter(models.Model):
         index=True,
         tracking=True,
         help="Pet owner responsible for billing. Usually inherited from appointment.",
+    )
+
+    # Computed domain string for pets based on selected owner
+    ths_patient_ids_domain = fields.Char(
+        compute='_compute_patient_domain',
+        store=False
     )
 
     # --- VET-SPECIFIC COMPUTED FIELDS FOR CONVENIENCE ---
@@ -98,6 +106,19 @@ class ThsMedicalBaseEncounter(models.Model):
         help="All species represented in this encounter"
     )
 
+    @api.depends('ths_pet_owner_id')
+    def _compute_patient_domain(self):
+        """Compute domain for pets based on selected owner"""
+        for rec in self:
+            if rec.ths_pet_owner_id:
+                # Filter pets by selected owner
+                rec.ths_patient_ids_domain = str([
+                    ('ths_pet_owner_id', '=', rec.ths_pet_owner_id.id),
+                    ('ths_partner_type_id.name', '=', 'Pet')
+                ])
+            else:
+                # Show all pets when no owner selected
+                rec.ths_patient_ids_domain = str([('ths_partner_type_id.name', '=', 'Pet')])
     # --- CORE VET LOGIC: INHERIT PET OWNER FROM APPOINTMENT ---
 
     @api.depends('appointment_id', 'appointment_id.ths_pet_owner_id')
@@ -109,12 +130,22 @@ class ThsMedicalBaseEncounter(models.Model):
         for encounter in self:
             if encounter.appointment_id and hasattr(encounter.appointment_id, 'ths_pet_owner_id'):
                 encounter.ths_pet_owner_id = encounter.appointment_id.ths_pet_owner_id
+                encounter.partner_id = encounter.ths_pet_owner_id  # Sync billing customer
             elif not encounter.ths_pet_owner_id:
                 # If no appointment or no owner set, try to infer from pets
                 if encounter.patient_ids:
                     owners = encounter.patient_ids.mapped('ths_pet_owner_id')
                     if len(set(owners.ids)) == 1:
                         encounter.ths_pet_owner_id = owners[0]
+
+    @api.depends('appointment_id', 'appointment_id.ths_patient_ids')
+    def _compute_pet_from_appointment(self):
+        """  Inherit pet from appointment's ths_patient_ids  """
+        for encounter in self:
+            if encounter.appointment_id and hasattr(encounter.appointment_id, 'ths_patient_ids'):
+                encounter.patient_ids = encounter.appointment_id.ths_patient_ids
+            else:
+                encounter.patient_ids = False
 
     @api.depends('ths_pet_owner_id')
     def _compute_all_fields(self):
@@ -213,19 +244,18 @@ class ThsMedicalBaseEncounter(models.Model):
 
     @api.constrains('patient_ids', 'ths_pet_owner_id')
     def _check_vet_encounter_consistency(self):
-        """Validate vet encounter consistency"""
+        """Validate vet encounter consistency - but allow changes if not billed"""
         for encounter in self:
-            if encounter.patient_ids and encounter.ths_pet_owner_id:
-                # All pets must belong to the same owner
-                wrong_owner_pets = encounter.patient_ids.filtered(
-                    lambda p: p.ths_pet_owner_id != encounter.ths_pet_owner_id
-                )
-                if wrong_owner_pets:
-                    raise ValidationError(_(
-                        "All pets in an encounter must belong to the Pet Owner. "
-                        "The following pets belong to different owners: %s",
-                        ', '.join(wrong_owner_pets.mapped('name'))
-                    ))
+            # ONLY enforce constraint if encounter is billed
+            if encounter.state == 'billed':
+                if encounter.patient_ids and encounter.ths_pet_owner_id:
+                    wrong_owner_pets = encounter.patient_ids.filtered(
+                        lambda p: p.ths_pet_owner_id != encounter.ths_pet_owner_id
+                    )
+                    if wrong_owner_pets:
+                        raise ValidationError(_(
+                            "Cannot change pets after billing. Encounter is already billed."
+                        ))
 
             # Ensure billing customer is set
             if encounter.patient_ids and not encounter.partner_id:
@@ -255,7 +285,7 @@ class ThsMedicalBaseEncounter(models.Model):
             'name': _('Pet Medical Histories'),
             'type': 'ir.actions.act_window',
             'res_model': 'ths.medical.base.encounter',
-            'view_mode': 'tree,form',
+            'view_mode': 'list,form',
             'domain': [('patient_ids', 'in', self.patient_ids.ids)],
             'context': {
                 'search_default_groupby_patient': 1,

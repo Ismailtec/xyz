@@ -23,14 +23,14 @@
                         <field name="patient_ids"
                                string="Pets (Patients)"
                                widget="many2many_tags"
-                               domain="[('ths_partner_type_id.name', '=', 'Pet')]"
+                               domain="ths_patient_ids_domain"
                                options="{'no_create': True, 'no_quick_create': True}"
                                help="Pets receiving veterinary care in this encounter"/>
 
                         <field name="practitioner_id"
-                               string="Veterinarian"
-                               domain="[('ths_is_medical', '=', True)]"
+                               string="Service Provider"
                                options="{'no_create': True, 'no_quick_create': True}"
+                               readonly="1"
                                help="Veterinarian providing the care"/>
                     </group>
 

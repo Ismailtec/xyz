@@ -28,17 +28,17 @@
                 <attribute name="invisible">0</attribute>
             </xpath>
 
-            <xpath expr="//field[@name='partner_ids']" position="attributes">
-                <attribute name="invisible">0</attribute>
-                <attribute name="string">Patients</attribute>
-                <attribute name="widget">many2many_tags</attribute>
-                <attribute name="class">o_required_modifier o_field_highlight</attribute>
-                <attribute name="options">{"no_create": True, "no_quick_create": True}</attribute>
-                <attribute name="placeholder">Patients...</attribute>
-                <attribute name="domain">[('ths_partner_type_id.is_patient', '=', True)]</attribute>
-                <attribute name="help">Patients receiving medical treatment. In human medical practice, these are both
-                    the service recipients and billing customers.</attribute>
-            </xpath>
+<!--            <xpath expr="//field[@name='partner_ids']" position="attributes">-->
+<!--                <attribute name="invisible">0</attribute>-->
+<!--                <attribute name="string">Patients</attribute>-->
+<!--                <attribute name="widget">many2many_tags</attribute>-->
+<!--                <attribute name="class">o_required_modifier o_field_highlight</attribute>-->
+<!--                <attribute name="options">{"no_create": True, "no_quick_create": True}</attribute>-->
+<!--                <attribute name="placeholder">Patients...</attribute>-->
+<!--                <attribute name="domain">[('ths_partner_type_id.is_patient', '=', True)]</attribute>-->
+<!--                <attribute name="help">Patients receiving medical treatment. In human medical practice, these are both-->
+<!--                    the service recipients and billing customers.</attribute>-->
+<!--            </xpath>-->
 
             <xpath expr="//field[@name='name']" position="attributes">
                 <attribute name="readonly">1</attribute>
@@ -94,12 +94,13 @@
                     <group name="medical_top">
                         <group name="medical_col_1">
                             <field name="ths_is_walk_in" widget="boolean_toggle"/>
+                            <field name="partner_ids" widget="many2many_tags" invisible="1"/>
                             <field name="ths_patient_ids" string="Patients" widget="many2many_tags"
                                    options="{'no_create': True, 'no_quick_create': True}"
                                    context="{'default_is_patient': True, 'default_ths_partner_type_code': 'PAT'}"
                                    domain="[('ths_partner_type_id.is_patient', '=', True)]"
                                    placeholder="Select patients..."
-                                   help="Patients receiving medical treatment. In human medical practice, these are both the service recipients and billing customers."
+                                   help="Patients receiving medical treatment. These are both the service recipients and billing customers."
                                    groups="base.group_user"/>
                             <field name="appointment_type_id"
                                    options="{'no_create': True, 'no_quick_create': True}"
@@ -246,7 +247,7 @@
             </xpath>
 
             <!-- CLEANED UP status display in popover -->
-            <xpath expr="//li[@t-if='appointment_status']//select[@class='o_appointment_booking_status o_input']"
+            <xpath expr="//li[@t-if='appointment_status']//select[hasclass('o_appointment_booking_status')]"
                    position="replace">
                 <select t-if="can_edit" class="o_appointment_booking_status o_input">
                     <option value="draft" t-att-selected="appointment_status === 'draft'">Draft</option>
@@ -305,7 +306,7 @@
     <record id="action_calendar_event_medical_gantt" model="ir.actions.act_window">
         <field name="name">Medical Schedule</field>
         <field name="res_model">calendar.event</field>
-        <field name="view_mode">gantt,calendar,tree,form</field>
+        <field name="view_mode">gantt,calendar,list,form</field>
         <field name="view_id" ref="calendar_event_medical_resource_gantt_ths_medical"/>
         <field name="domain">[('ths_practitioner_id', '!=', False)]</field>
         <field name="context">{

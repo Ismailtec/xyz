@@ -144,7 +144,7 @@
                                 <field name="appointment_status" readonly="1" string="Current Appointment Status"/>
                                 <field name="state" readonly="1" string="Current Encounter State"/>
                             </group>
-                            <div class="alert alert-info">
+                            <div class="alert alert-info" role="alert">
                                 <h4>Status Sync Rules:</h4>
                                 <ul>
                                     <li><strong>Checked In</strong> → Encounter moves to "In Progress"</li>
@@ -213,8 +213,6 @@
                     <separator/>
                     <filter string="Today" name="filter_today"
                             domain="[('date_start', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('date_start', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
-                    <filter string="My Encounters" name="filter_my_encounters"
-                            domain="[('practitioner_id.user_id', '=', uid)]"/>
                     <!-- Status mismatch filter for troubleshooting -->
                     <filter string="Status Sync Issues" name="filter_sync_issues"
                             domain="['|',
@@ -252,7 +250,7 @@
                 <field name="state"/>
                 <field name="date_start"/>
                 <templates>
-                    <t t-name="kanban-box">
+                    <t t-name="card">
                         <div class="oe_kanban_card oe_kanban_global_click">
                             <div class="o_kanban_record_top">
                                 <strong class="o_kanban_record_title">

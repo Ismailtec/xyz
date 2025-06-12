@@ -91,7 +91,7 @@
             </xpath>
 
             <!-- Add pet owner field -->
-            <xpath expr="//field[@name='ths_patient_ids']" position="after">
+            <xpath expr="//field[@name='ths_patient_ids']" position="before">
                 <field name="ths_pet_owner_id" optional="show" string="Pet Owner"/>
             </xpath>
 
@@ -162,7 +162,7 @@
         <field name="arch" type="xml">
 
             <!-- Add vet-specific fields to calendar -->
-            <xpath expr="//field[@name='ths_patient_ids']" position="after">
+            <xpath expr="//field[@name='ths_patient_ids']" position="before">
                 <field name="ths_pet_owner_id"/>
             </xpath>
 

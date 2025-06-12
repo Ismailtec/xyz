@@ -47,7 +47,7 @@ class ThsPendingPosItem(models.Model):
         store=True,
         index=True,
         required=True,
-        help="The patient receiving treatment and responsible for payment. In human medical practice, this is both the service recipient and the billing customer."
+        help="The patient receiving treatment and responsible for payment. This is both the service recipient and the billing customer."
     )
 
     # For human medical: patient_id = partner_id (same person, for consistency)
@@ -57,7 +57,7 @@ class ThsPendingPosItem(models.Model):
         store=True,
         index=True,
         required=True,
-        help="The patient who received the service/product. In human medical practice, this is the same person as the billing customer."
+        help="The patient who received the service/product. This is the same person as the billing customer."
     )
 
     product_id = fields.Many2one(
@@ -89,12 +89,20 @@ class ThsPendingPosItem(models.Model):
 
     # Practitioner who provided the service (for commission/reporting)
     practitioner_id = fields.Many2one(
-        'hr.employee',
+        'appointment.resource',
         string='Practitioner',
         required=True,
         index=True,
-        domain="[('ths_is_medical', '=', True)]",
+        domain="[('ths_resource_category', '=', 'practitioner')]",
         help="The medical staff member who provided this service/item."
+    )
+
+    room_id = fields.Many2one(
+        'appointment.resource',
+        string='Room',
+        store=True,
+        index=True,
+        # readonly=True
     )
 
     # Commission percentage for this specific line/item/practitioner
@@ -139,19 +147,19 @@ class ThsPendingPosItem(models.Model):
                 name += f" ({item.encounter_id.name})"
             item.name = name
 
-    @api.constrains('partner_id', 'patient_id')
-    def _check_patient_partner_consistency(self):
-        """
-        For human medical: ensure partner_id and patient_id are the same person
-        This constraint enforces the human medical business rule where the patient is the customer
-        """
-        for item in self:
-            if item.partner_id and item.patient_id and item.partner_id != item.patient_id:
-                raise UserError(_(
-                    "In human medical practice, the Patient (Recipient) and Patient (Customer) must be the same person. "
-                    "Patient: %s, Customer: %s",
-                    item.patient_id.name, item.partner_id.name
-                ))
+    # @api.constrains('partner_id', 'patient_id')
+    # def _check_patient_partner_consistency(self):
+    #     """
+    #     For human medical: ensure partner_id and patient_id are the same person
+    #     This constraint enforces the human medical business rule where the patient is the customer
+    #     """
+    #     for item in self:
+    #         if item.partner_id and item.patient_id and item.partner_id != item.patient_id:
+    #             raise UserError(_(
+    #                 "In human medical practice, the Patient (Recipient) and Patient (Customer) must be the same person. "
+    #                 "Patient: %s, Customer: %s",
+    #                 item.patient_id.name, item.partner_id.name
+    #             ))
 
     @api.onchange('partner_id')
     def _onchange_partner_id(self):

@@ -60,10 +60,11 @@ class ThsMedicalEncounterService(models.Model):
 
     # Provider and Commission Handling
     practitioner_id = fields.Many2one(
-        'hr.employee',
+        'appointment.resource',
         string='Provider',
         index=True,
-        domain="[('ths_is_medical', '=', True)]",
+        #domain="[('ths_is_medical', '=', True)]",
+        domain="[('ths_resource_category', '=', 'practitioner')]",
         help="The medical staff member who provided this specific service/item.",
     )
     room_id = fields.Many2one(

@@ -44,14 +44,14 @@ class ThsMedicalEncounter(models.Model):
     partner_id = fields.Many2one(
         'res.partner',
         string='Patient',  # In human medical, patient is the customer
-        related='appointment_id.partner_id',
+        #related='appointment_id.partner_id',
         store=True,
         index=True,
-        readonly=True,
-        help="Patient receiving treatment. In human medical practice, this is both the recipient of care and the billing customer."
+        #readonly=True,
+        help="Billing customer."
     )
 
-    # For human medical: patient_ids = [patient] (same as partner_id, but Many2many for consistency)
+    # For medical: patient_ids = [patient]
     patient_ids = fields.Many2many(
         'res.partner',
         'medical_encounter_patient_rel',
@@ -61,7 +61,7 @@ class ThsMedicalEncounter(models.Model):
         domain="[('ths_partner_type_id.is_patient', '=', True)]",
         store=True,
         index=True,
-        readonly=True,
+        #readonly=True,
         help="Patients participating in this encounter. In human medical practice, these are the same people as in partner_id."
     )
 
@@ -70,32 +70,33 @@ class ThsMedicalEncounter(models.Model):
     patient_mobile = fields.Char(string="Patient Mobile", related='patient_ids.mobile', store=False, readonly=True)
 
     practitioner_id = fields.Many2one(
-        'hr.employee',
-        string='Practitioner',
+        'appointment.resource',
+        string='Service Provider',
+        domain="[('ths_resource_category', '=', 'practitioner')]",
         related='appointment_id.ths_practitioner_id',
         store=True,
         index=True,
         readonly=True
     )
     room_id = fields.Many2one(
-        'ths.treatment.room',
-        string='Room (Treatment Room)',
+        'appointment.resource',
+        string='Room',
         related='appointment_id.ths_room_id',
         store=True,
         index=True,
-        readonly=True
+        #readonly=True
     )
     date_start = fields.Datetime(
         string='Start Time',
         related='appointment_id.start',
         store=True,
-        readonly=True
+        #readonly=True
     )
     date_end = fields.Datetime(
         string='End Time',
         related='appointment_id.stop',
         store=True,
-        readonly=True
+        #readonly=True
     )
     appointment_status = fields.Selection(
         related='appointment_id.appointment_status',
@@ -154,7 +155,7 @@ class ThsMedicalEncounter(models.Model):
             appointment = encounter.appointment_id
 
             # For human medical: partner_id is the primary patient (billing customer)
-            encounter.partner_id = appointment.partner_id if appointment else False
+            #encounter.partner_id = appointment.partner_id if appointment else False
 
             # For human medical: patient_ids = partner_ids (same people)
             if appointment and hasattr(appointment, 'ths_patient_ids'):
@@ -266,7 +267,7 @@ class ThsMedicalEncounter(models.Model):
 
                 item_vals = {
                     'encounter_id': encounter.id,
-                    'partner_id': customer.id,  # In human medical: patient is the customer
+                    'partner_id': encounter.partner_id.id,  # In human medical: patient is the customer
                     'patient_id': primary_patient.id,  # Same as partner_id in human medical
                     'product_id': line.product_id.id,
                     'description': line.description,

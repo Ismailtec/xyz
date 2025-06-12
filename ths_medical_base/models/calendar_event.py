@@ -50,8 +50,9 @@ class CalendarEvent(models.Model):
         index=True,
         tracking=True,
         store=True,
-        compute='_compute_ths_patient_ids',
-        inverse='_inverse_ths_patient_ids',
+        readonly=False,
+        # compute='_compute_ths_patient_ids',
+        # inverse='_inverse_ths_patient_ids',
         domain="['|', ('ths_partner_type_id.is_patient', '=', True), ('ths_partner_type_id.name', '=', 'Walk-in')]",
         help="Patients linked to this appointment. In human medical practice, these are the people receiving treatment and responsible for payment."
     )
@@ -135,30 +136,30 @@ class CalendarEvent(models.Model):
             rec.ths_practitioner_id = practitioner
             rec.ths_room_id = location
 
-    @api.depends('partner_ids')
-    def _compute_ths_patient_ids(self):
-        """
-        For base human medical: partner_ids = ths_patient_ids (same people)
-        Patients are both the recipients of care AND the customers who pay
-        """
-        for rec in self:
-            if rec.partner_ids:
-                # In human medical, all partners are patients
-                rec.ths_patient_ids = [Command.set(rec.partner_ids.ids)]
-            else:
-                rec.ths_patient_ids = [Command.clear()]
+    # @api.depends('partner_ids')
+    # def _compute_ths_patient_ids(self):
+    #     """
+    #     For base human medical: partner_ids = ths_patient_ids (same people)
+    #     Patients are both the recipients of care AND the customers who pay
+    #     """
+    #     for rec in self:
+    #         if rec.partner_ids:
+    #             # In human medical, all partners are patients
+    #             rec.ths_patient_ids = [Command.set(rec.partner_ids.ids)]
+    #         else:
+    #             rec.ths_patient_ids = [Command.clear()]
 
-    def _inverse_ths_patient_ids(self):
-        """
-        For base human medical: ths_patient_ids = partner_ids (same people)
-        When patient selection changes, update partner_ids accordingly
-        """
-        for rec in self:
-            if rec.ths_patient_ids:
-                # In human medical, patients are also the partners/customers
-                rec.partner_ids = [Command.set(rec.ths_patient_ids.ids)]
-            else:
-                rec.partner_ids = [Command.clear()]
+    # def _inverse_ths_patient_ids(self):
+    #     """
+    #     For base human medical: ths_patient_ids = partner_ids (same people)
+    #     When patient selection changes, update partner_ids accordingly
+    #     """
+    #     for rec in self:
+    #         if rec.ths_patient_ids:
+    #             # In human medical, patients are also the partners/customers
+    #             rec.partner_ids = [Command.set(rec.ths_patient_ids.ids)]
+    #         else:
+    #             rec.partner_ids = [Command.clear()]
 
     @api.model
     def default_get(self, fields_list):
@@ -174,6 +175,13 @@ class CalendarEvent(models.Model):
 
         # Gantt sets default_resource_ids, we use resource_ids (computed field with inverse)
         ctx_resource_ids = self.env.context.get('default_resource_ids', [])
+        # Store our partner_ids before appointment module interferes
+        our_partner_ids = res.get('partner_ids', [])
+
+        # If we have vet-specific partners, preserve them
+        if self.env.context.get('default_ths_pet_owner_id') or self.env.context.get('default_ths_patient_ids'):
+            # Don't let appointment module override our partner_ids
+            pass
 
         if ctx_resource_ids and 'resource_ids' in fields_list:
             # Set resource_ids - this will trigger inverse method automatically
@@ -271,19 +279,19 @@ class CalendarEvent(models.Model):
             vals = self._handle_walkin_partner(vals.copy())
 
             # For human medical: ensure consistency between partner_ids and ths_patient_ids
-            if vals.get('partner_ids') and not vals.get('ths_patient_ids'):
-                # Extract IDs from Command operations
-                partner_ids_val = vals['partner_ids']
-                if isinstance(partner_ids_val, list) and partner_ids_val:
-                    ids = []
-                    for cmd in partner_ids_val:
-                        if isinstance(cmd, (list, tuple)) and len(cmd) >= 2:
-                            if cmd[0] == Command.SET:
-                                ids.extend(cmd[2] if cmd[2] else [])
-                            elif cmd[0] == Command.LINK:
-                                ids.append(cmd[1])
-                    if ids:
-                        vals['ths_patient_ids'] = [Command.set(ids)]
+            # if vals.get('partner_ids') and not vals.get('ths_patient_ids'):
+            #     # Extract IDs from Command operations
+            #     partner_ids_val = vals['partner_ids']
+            #     if isinstance(partner_ids_val, list) and partner_ids_val:
+            #         ids = []
+            #         for cmd in partner_ids_val:
+            #             if isinstance(cmd, (list, tuple)) and len(cmd) >= 2:
+            #                 if cmd[0] == Command.SET:
+            #                     ids.extend(cmd[2] if cmd[2] else [])
+            #                 elif cmd[0] == Command.LINK:
+            #                     ids.append(cmd[1])
+            #         if ids:
+            #             vals['ths_patient_ids'] = [Command.set(ids)]
 
             vals["name"] = self.env["ir.sequence"].next_by_code("medical.appointment")
             processed_vals_list.append(vals)
@@ -292,25 +300,39 @@ class CalendarEvent(models.Model):
 
     # --- Write Override ---
     def write(self, vals):
+        """Override write to trigger actions when status changes via statusbar"""
+        result = super().write(vals)
         # Handle walk-in before super to ensure partner_ids is set if needed
         if vals.get("ths_is_walk_in") and not vals.get("ths_patient_ids") and not self.ths_patient_ids:
             vals = self._handle_walkin_partner(vals.copy())
 
-        # For human medical: maintain consistency between partner_ids and ths_patient_ids
-        if 'partner_ids' in vals and 'ths_patient_ids' not in vals:
-            partner_ids_val = vals['partner_ids']
-            if isinstance(partner_ids_val, list):
-                ids = []
-                for cmd in partner_ids_val:
-                    if isinstance(cmd, (list, tuple)) and len(cmd) >= 2:
-                        if cmd[0] == Command.SET:
-                            ids.extend(cmd[2] if cmd[2] else [])
-                        elif cmd[0] == Command.LINK:
-                            ids.append(cmd[1])
-                if ids:
-                    vals['ths_patient_ids'] = [Command.set(ids)]
+        # If appointment status is being changed, trigger appropriate actions
+        if 'appointment_status' in vals:
+            for event in self:
+                new_status = vals['appointment_status']
 
-        return super().write(vals)
+                # Trigger actions based on status change
+                if new_status == 'checked_in':
+                    event._create_medical_encounter()
+                elif new_status == 'in_progress':
+                    if not event.ths_encounter_id:
+                        event._create_medical_encounter()
+                    if event.ths_encounter_id and event.ths_encounter_id.state == 'draft':
+                        event.ths_encounter_id.write({'state': 'in_progress'})
+                elif new_status == 'completed':
+                    if event.ths_encounter_id and event.ths_encounter_id.state != 'billed':
+                        event.ths_encounter_id.write({'state': 'ready_for_billing'})
+
+        # if 'ths_patient_ids' not in vals:
+        #     # Ensure ths_patient_ids is always in sync with partner_ids
+        #     for event in self:
+        #         if event.partner_ids and not event.ths_patient_ids:
+        #             event.ths_patient_ids = [Command.set(event.partner_ids.ids)]
+        #         elif not event.partner_ids and event.ths_patient_ids:
+        #             event.partner_ids = [Command.clear()]
+
+
+        return result
 
     # --- Encounter Count & Actions
     @api.depends('ths_encounter_id')
@@ -419,11 +441,11 @@ class CalendarEvent(models.Model):
     def _prepare_encounter_vals(self):
         """
         Prepare values for creating a ths.medical.base.encounter record.
-        For human medical: patient = partner (same person)
+        For medical: patient = partner (same person)
         """
         self.ensure_one()
 
-        # In human medical: patients are the partners/customers
+        # Patients are the partners/customers
         patients = self.ths_patient_ids
         # TODO: Handle multiple patients scenario - for now take first patient's data
         primary_patient = patients[0] if patients else False
@@ -441,7 +463,7 @@ class CalendarEvent(models.Model):
             'state': 'draft',
             'patient_ids': [Command.set(patients.ids)],  # Patients receiving care
             'practitioner_id': practitioner_employee.id,
-            'partner_id': primary_patient.id,  # Same as primary patient in human medical
+            'partner_id': primary_patient.id,  # Same as primary patient
             'chief_complaint': self.ths_reason_for_visit,
         }
 

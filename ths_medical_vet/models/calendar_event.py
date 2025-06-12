@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from odoo import models, fields, api, _, Command
-from odoo.exceptions import UserError, ValidationError
+from odoo.exceptions import UserError
 
 import logging
 
@@ -21,6 +21,7 @@ class CalendarEvent(models.Model):
         domain="[('ths_partner_type_id.name', '=', 'Pet')]",  # Filter for pets only
         store=True,
         index=True,
+        readonly=False,
         tracking=True,
         help="Pets attending this appointment and receiving veterinary care."
     )
@@ -77,6 +78,10 @@ class CalendarEvent(models.Model):
                 ('ths_partner_type_id.name', '=', 'Pet'),
                 ('ths_pet_owner_id', '=', self.ths_pet_owner_id.id)
             ])
+            # AUTO-SELECT SINGLE PET
+            if len(pets) == 1:
+                self.ths_patient_ids = [Command.set([pets[0].id])]
+                self.partner_ids = [Command.set([self.ths_pet_owner_id.id, pets[0].id])]
 
             return {
                 'domain': {
@@ -138,11 +143,26 @@ class CalendarEvent(models.Model):
         self.partner_ids = [Command.set(partner_ids)]
         return None
 
+    @api.onchange('user_id')
+    def _onchange_user_id_preserve_partners(self):
+        """Prevent user_id changes from overriding our partner_ids"""
+        # If we have vet-specific data, don't let user_id change partner_ids
+        if self.ths_pet_owner_id or self.ths_patient_ids:
+            # Rebuild partner_ids from our vet data
+            partner_ids = []
+            if self.ths_pet_owner_id:
+                partner_ids.append(self.ths_pet_owner_id.id)
+            if self.ths_patient_ids:
+                partner_ids.extend(self.ths_patient_ids.ids)
+
+            if partner_ids:
+                self.partner_ids = [Command.set(partner_ids)]
+
     # --- SIMPLIFIED CREATE/WRITE ---
 
     @api.model_create_multi
     def create(self, vals_list):
-        """Simplified create - handle walk-in and basic vet relationships"""
+        """ handle walk-in and basic vet relationships """
         processed_vals_list = []
         for vals in vals_list:
             # Handle walk-in
@@ -156,10 +176,28 @@ class CalendarEvent(models.Model):
         return super().create(processed_vals_list)
 
     def write(self, vals):
-        """Simplified write - handle walk-in"""
+        """ handle walk-in """
         # Handle walk-in before super
         if vals.get("ths_is_walk_in") and not vals.get("ths_patient_ids") and not self.ths_patient_ids:
             vals = self._handle_walkin_partner(vals.copy())
+
+        if hasattr(self, 'ths_pet_owner_id'):  # Only log for vet records
+            _logger.warning(f"VET write() called with vals: {vals.keys()}")
+            if 'partner_ids' in vals:
+                _logger.warning(f"VET partner_ids being changed to: {vals['partner_ids']}")
+            else:
+                _logger.warning(
+                    f"VET partner_ids NOT in vals - current partner_ids: {self.partner_ids.ids if self.partner_ids else 'None'}")
+
+        # if 'ths_pet_owner_id' not in vals:
+        #     # Ensure pet owner is set if pets are selected
+        #     if self.ths_patient_ids and not self.ths_pet_owner_id:
+        #         # Auto-set owner based on pets
+        #         pet_owners = self.ths_patient_ids.mapped('ths_pet_owner_id')
+        #         if len(set(pet_owners.ids)) == 1:
+        #             vals['ths_pet_owner_id'] = pet_owners[0].id
+        #         else:
+        #             raise UserError(_("Multiple pet owners found. Please select a Pet Owner."))
 
         return super().write(vals)
 
@@ -175,32 +213,31 @@ class CalendarEvent(models.Model):
             res['appointment_status'] = 'draft'
 
         # Handle context with specific vet partners
-        context_partner_ids = self.env.context.get('default_partner_ids') or []
-        if context_partner_ids:
-            partners = self.env['res.partner'].browse(context_partner_ids)
+        # context_partner_ids = self.env.context.get('default_partner_ids') or []
+        # if context_partner_ids:
+        #     partners = self.env['res.partner'].browse(context_partner_ids)
+        #
+        #     # Separate pets and owners
+        #     pets = partners.filtered(lambda p: p.ths_partner_type_id.name == 'Pet')
+        #     owners = partners.filtered(lambda p: p.ths_partner_type_id.name == 'Pet Owner')
 
-            # Separate pets and owners
-            pets = partners.filtered(lambda p: p.ths_partner_type_id.name == 'Pet')
-            owners = partners.filtered(lambda p: p.ths_partner_type_id.name == 'Pet Owner')
-
-            if pets and 'ths_patient_ids' in fields_list:
-                res['ths_patient_ids'] = [Command.set(pets.ids)]
-
-                # Auto-set owner if pets have common owner
-                pet_owners = pets.mapped('ths_pet_owner_id')
-                if len(set(pet_owners.ids)) == 1:
-                    owner = pet_owners[0]
-                    if 'ths_pet_owner_id' in fields_list:
-                        res['ths_pet_owner_id'] = owner.id
-
-            elif owners and 'ths_pet_owner_id' in fields_list:
-                # Owner selected directly
-                res['ths_pet_owner_id'] = owners[0].id
+        # if pets and 'ths_patient_ids' in fields_list:
+        #     res['ths_patient_ids'] = [Command.set(pets.ids)]
+        #
+        #     # Auto-set owner if pets have common owner
+        #     pet_owners = pets.mapped('ths_pet_owner_id')
+        #     if len(set(pet_owners.ids)) == 1:
+        #         owner = pet_owners[0]
+        #         if 'ths_pet_owner_id' in fields_list:
+        #             res['ths_pet_owner_id'] = owner.id
+        #
+        # elif owners and 'ths_pet_owner_id' in fields_list:
+        #     # Owner selected directly
+        #     res['ths_pet_owner_id'] = owners[0].id
 
         return res
 
     # --- VET-SPECIFIC CONSTRAINTS ---
-
 
     # --- ENCOUNTER CREATION FOR VET ---
 
@@ -228,7 +265,8 @@ class CalendarEvent(models.Model):
             'state': 'draft',
             'patient_ids': [Command.set(pets.ids)],  # Pets receiving care
             'practitioner_id': self.ths_practitioner_id.id,
-            'partner_id': owner.id,  # Pet owner for billing (from ths_pet_owner_id)
+            'partner_id': self.ths_pet_owner_id.id,  # Pet owner for billing
+            'ths_pet_owner_id': owner.id,
             'chief_complaint': self.ths_reason_for_visit,
         }
 

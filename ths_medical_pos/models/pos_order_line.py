@@ -26,7 +26,7 @@ class PosOrderLine(models.Model):
         readonly=True,
         copy=False,
         domain="[('ths_partner_type_id.is_patient', '=', True)]",
-        help="Patient who received this service. In human medical practice, this is the same person as the billing customer."
+        help="Patient who received this service. This is the same person as the billing customer."
     )
 
     # Store Provider for commission/reporting
@@ -53,7 +53,7 @@ class PosOrderLine(models.Model):
     def _check_human_medical_consistency(self):
         """
         For human medical: ensure patient is consistent with order customer
-        In human medical practice, patient should be the same as the order's customer
+        Patient should be the same as the order's customer
         """
         for line in self:
             if line.ths_patient_id and line.order_id.partner_id:
@@ -62,7 +62,7 @@ class PosOrderLine(models.Model):
                     # This could be a warning instead of hard error for flexibility
                     _logger.warning(
                         f"POS Line {line.id}: Patient '{line.ths_patient_id.name}' differs from order customer '{line.order_id.partner_id.name}'. "
-                        f"In human medical practice, these should typically be the same person."
+                        f"These should typically be the same person."
                     )
 
     # --- ONCHANGE METHODS FOR HUMAN MEDICAL ---
@@ -84,25 +84,25 @@ class PosOrderLine(models.Model):
             if item.commission_pct:
                 self.ths_commission_pct = item.commission_pct
 
-    @api.onchange('ths_patient_id')
-    def _onchange_patient_check_consistency(self):
-        """
-        When patient changes, check consistency with order customer (human medical)
-        """
-        if self.ths_patient_id and self.order_id and self.order_id.partner_id:
-            if self.ths_patient_id != self.order_id.partner_id:
-                return {
-                    'warning': {
-                        'title': _('Patient/Customer Mismatch'),
-                        'message': _(
-                            "In human medical practice, the patient receiving service ('%s') "
-                            "should typically be the same as the customer paying ('%s'). "
-                            "Please verify this is correct.",
-                            self.ths_patient_id.name,
-                            self.order_id.partner_id.name
-                        )
-                    }
-                }
+    # @api.onchange('ths_patient_id')
+    # def _onchange_patient_check_consistency(self):
+    #     """
+    #     When patient changes, check consistency with order customer (human medical)
+    #     """
+    #     if self.ths_patient_id and self.order_id and self.order_id.partner_id:
+    #         if self.ths_patient_id != self.order_id.partner_id:
+    #             return {
+    #                 'warning': {
+    #                     'title': _('Patient/Customer Mismatch'),
+    #                     'message': _(
+    #                         "The patient receiving service ('%s') "
+    #                         "should typically be the same as the customer paying ('%s'). "
+    #                         "Please verify this is correct.",
+    #                         self.ths_patient_id.name,
+    #                         self.order_id.partner_id.name
+    #                     )
+    #                 }
+    #             }
 
     def export_for_ui(self):
         """ Add custom fields to the data sent to the POS UI """
