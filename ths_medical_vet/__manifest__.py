@@ -23,14 +23,20 @@ Adapts the Techouse Medical Base module for veterinary clinics.
         'data/partner_type_data.xml',
         'views/boarding.xml',
         'views/res_partner.xml',
-        'views/vaccination.xml',
         'views/calendar_event.xml',
         'views/medical_encounter.xml',
         'views/medical_history.xml',
         'views/medical_summary.xml',
+        'views/species.xml',
+        'views/vaccination.xml',
         'views/vet_menus.xml',
         'wizard/species_breed_import_view.xml',
     ],
+    # 'assets': {
+    #     'web.assets_backend': [
+    #         'ths_medical_vet/static/src/style.scss',
+    #     ],
+    # },
     'installable': True,
     'application': False,
     'auto_install': False,  # Should be installed manually after ths_medical_base

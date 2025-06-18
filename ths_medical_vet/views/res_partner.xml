@@ -379,10 +379,10 @@
                         <i class="fa fa-tag me-1" title="Species"/>
                         <field name="ths_species_id"/>
                     </div>
-                    <div t-if="record.ths_pet_owner_id.raw_value">
-                        <i class="fa fa-user me-1" title="Owner"/>
-                        Owner: <field name="ths_pet_owner_id"/>
-                    </div>
+<!--                    <div t-if="record.ths_pet_owner_id.raw_value">-->
+<!--                        <i class="fa fa-user me-1" title="Owner"/>-->
+<!--                        Owner: <field name="ths_pet_owner_id"/>-->
+<!--                    </div>-->
                 </div>
 
                 <!-- Pet Owner Information -->

@@ -136,9 +136,9 @@
             <!-- Add vet-specific filters -->
             <xpath expr="//filter[@name='filter_ready_billing']" position="after">
                 <separator/>
-<!--                <filter string="Multi-Pet Encounters" name="filter_multi_pet" domain="[('total_pets_count', '>', 1)]"/>-->
-<!--                <filter string="Single Pet Encounters" name="filter_single_pet"-->
-<!--                        domain="[('total_pets_count', '=', 1)]"/>-->
+                <!--                <filter string="Multi-Pet Encounters" name="filter_multi_pet" domain="[('total_pets_count', '>', 1)]"/>-->
+                <!--                <filter string="Single Pet Encounters" name="filter_single_pet"-->
+                <!--                        domain="[('total_pets_count', '=', 1)]"/>-->
             </xpath>
 
             <!-- Add vet-specific group by options -->
@@ -166,6 +166,8 @@
                 <field name="ths_pet_owner_id"/>
                 <field name="total_pets_count"/>
                 <field name="all_pets_species"/>
+                <field name="pet_badge_display"/>
+                <field name="pet_badge_data"/>
             </xpath>
 
             <!-- Update kanban card content for vet context -->
@@ -176,17 +178,26 @@
                 </div>
                 <div>
                     <strong>Pets: </strong>
-                    <t t-esc="record.patient_ids.value"/>
-                    <t t-if="record.total_pets_count.raw_value > 1">
-                        <span class="badge badge-info">
-                            <t t-esc="record.total_pets_count.value"/> pets
+                    <t t-foreach="record.pet_badge_data.raw_value" t-as="badge" t-key="badge.name">
+                        <span t-att-class="'o_tag o_tag_color_' + badge.color" class="badge-pet">
+                            <t t-esc="badge.name"/> (<t t-esc="badge.species"/>)
                         </span>
                     </t>
                 </div>
-                <div t-if="record.all_pets_species.value">
-                    <strong>Species: </strong>
-                    <t t-esc="record.all_pets_species.value"/>
-                </div>
+
+
+                <!--                <div>-->
+                <!--                    <strong>Pets: </strong>-->
+                <!--                    <t t-foreach="record.pet_badge_display.value.split(', ')" t-as="pet" t-key="pet">-->
+                <!--                        <span class="badge-pet me-1 d-inline-block">-->
+                <!--                            <t t-esc="pet"/>-->
+                <!--                        </span>-->
+                <!--                    </t>-->
+                <!--                </div>-->
+                <!--                <div t-if="record.all_pets_species.value">-->
+                <!--                    <strong>Species: </strong>-->
+                <!--                    <t t-esc="record.all_pets_species.value"/>-->
+                <!--                </div>-->
             </xpath>
 
         </field>

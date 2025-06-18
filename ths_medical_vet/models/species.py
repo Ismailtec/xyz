@@ -7,7 +7,10 @@ class ThsSpecies(models.Model):
     _description = 'Animal Species'
 
     name = fields.Char(required=True, translate=True)
+    color = fields.Integer(string="Color Index", default=10)
+
     _sql_constraints = [('name_uniq', 'unique(name)', 'Species must be unique.')]
+
 
     @api.model_create_multi
     def create(self, vals_list):

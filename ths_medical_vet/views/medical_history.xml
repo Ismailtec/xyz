@@ -25,9 +25,5 @@
         </field>
     </record>
 
-    <menuitem id="menu_vet_medical_history_summary"
-              name="Medical History Summary"
-              parent="ths_medical_vet.menu_ths_medical_vet_root"
-              action="action_vet_medical_history_summary"
-              sequence="50"/>
+
 </odoo>

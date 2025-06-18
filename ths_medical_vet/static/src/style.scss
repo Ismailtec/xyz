@@ -1,0 +1,35 @@
+// .badge-pet {
+//   @extend .badge;
+//   background-color: #28a745; // green
+//   color: white;
+//   margin-right: 4px;
+//   border-radius: 8px;
+//   padding: 2px 6px;
+//   font-size: 0.85em;
+// }
+// .badge-pet {
+//   @extend .badge;
+//   background-color: #28a745;
+//   color: white;
+//   margin: 2px 4px 2px 0;
+//   border-radius: 12px;
+//   padding: 2px 8px;
+//   font-size: 0.8rem;
+//   line-height: 1.2;
+//   display: inline-block;
+// }
+.badge-pet {
+  @extend .badge;
+  background-color: #28a745;
+  color: white;
+  margin: 2px 4px 2px 0;
+  border-radius: 12px;
+  padding: 4px 10px;
+  font-size: 0.8rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+}
+

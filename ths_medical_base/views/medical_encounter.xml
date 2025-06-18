@@ -246,26 +246,41 @@
                 <field name="name"/>
                 <field name="patient_ids"/>
                 <field name="practitioner_id"/>
+                <field name="room_id"/>
                 <field name="appointment_status"/>
                 <field name="state"/>
                 <field name="date_start"/>
                 <templates>
                     <t t-name="card">
                         <div class="oe_kanban_card oe_kanban_global_click">
-                            <div class="o_kanban_record_top">
+                            <div class="d-flex justify-content-between align-items-center">
                                 <strong class="o_kanban_record_title">
                                     <t t-esc="record.name.value"/>
                                 </strong>
-                                <span t-att-class="{
+                                <div class="d-flex flex-column align-items-end">
+                                    <span class="text-muted" style="font-size: 11px; line-height: 1;">Appointment</span>
+                                    <span t-att-class="{
                                     'badge': true,
                                     'badge-warning': record.appointment_status.raw_value == 'checked_in',
                                     'badge-info': record.appointment_status.raw_value == 'in_progress',
                                     'badge-success': record.appointment_status.raw_value == 'completed',
                                     'badge-secondary': !['checked_in','in_progress','completed'].includes(record.appointment_status.raw_value)
-                                }" class="badge float-end">
-                                    <t t-esc="record.appointment_status.value"/>
-                                </span>
+                                    }" class="badge" style="margin-top: 2px;">
+                                        <t t-esc="record.appointment_status.value"/>
+                                    </span>
+                                </div>
                             </div>
+
+
+                            <!--                                <span t-att-class="{-->
+                            <!--                                    'badge': true,-->
+                            <!--                                    'badge-warning': record.appointment_status.raw_value == 'checked_in',-->
+                            <!--                                    'badge-info': record.appointment_status.raw_value == 'in_progress',-->
+                            <!--                                    'badge-success': record.appointment_status.raw_value == 'completed',-->
+                            <!--                                    'badge-secondary': !['checked_in','in_progress','completed'].includes(record.appointment_status.raw_value)-->
+                            <!--                                }" class="badge float-end">-->
+                            <!--                                    <t t-esc="record.appointment_status.value"/>-->
+                            <!--                                </span>-->
                             <div class="o_kanban_record_body">
                                 <div>
                                     <strong>Patient(s): </strong>
@@ -282,6 +297,7 @@
                                     </div>
                                 </t>
                                 <div>
+                                    <div style="margin-bottom: 4px;"></div>
                                     <small class="text-muted">
                                         <i class="fa fa-calendar me-1"/>
                                         <t t-esc="record.date_start.value"/>

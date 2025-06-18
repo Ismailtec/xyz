@@ -68,8 +68,9 @@ class ThsMedicalEncounterService(models.Model):
         help="The medical staff member who provided this specific service/item.",
     )
     room_id = fields.Many2one(
-        'ths.treatment.room',
+        'appointment.resource',
         string='Treatment Room',
+        domain="[('ths_resource_category', '=', 'location')]",
         index=True,
         help="The room where this specific service/item was provided.",
     )

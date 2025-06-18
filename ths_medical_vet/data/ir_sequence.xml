@@ -25,4 +25,29 @@
         <field name="company_id" eval="False"/>
     </record>
 
+    <record id="seq_product_sub_type_grm" model="ir.sequence">
+        <field name="name">Product Sub Type - Grooming (GRM)</field>
+        <field name="code">product.sub.type.seq.GRM</field>
+        <field name="prefix">GRM-</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+
+    <record id="seq_product_sub_type_brd" model="ir.sequence">
+        <field name="name">Product Sub Type - Boarding (BRD)</field>
+        <field name="code">product.sub.type.seq.BRD</field>
+        <field name="prefix">BRD-</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+
+    <record id="seq_product_sub_type_member" model="ir.sequence">
+        <field name="name">Product Sub Type - Membership (MEM)</field>
+        <field name="code">product.sub.type.seq.MEM</field>
+        <field name="prefix">MEM-</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+
+
 </odoo>

@@ -105,6 +105,17 @@ class ThsMedicalBaseEncounter(models.Model):
         readonly=True,
         help="All species represented in this encounter"
     )
+    # pet_names_display = fields.Char(
+    #     string="Pet Names Display",
+    #     compute="_compute_pet_names_display",
+    #     store=True,
+    # )
+    pet_badge_display = fields.Char(
+        string="Pet Names with species Display",
+        compute="_compute_pet_badge_display",
+        store=True,
+    )
+    pet_badge_data = fields.Json(string="Pet Badge Data", compute="_compute_pet_badge_data", store=True)
 
     @api.depends('ths_pet_owner_id')
     def _compute_patient_domain(self):
@@ -239,6 +250,32 @@ class ThsMedicalBaseEncounter(models.Model):
                 self.partner_id = owners[0]
 
         return None
+
+    # @api.depends('patient_ids.name')
+    # def _compute_pet_names_display(self):
+    #     for rec in self:
+    #         rec.pet_names_display = ', '.join(rec.patient_ids.mapped('name')) if rec.patient_ids else ''
+
+    @api.depends('patient_ids')
+    def _compute_pet_badge_display(self):
+        for rec in self:
+            rec.pet_badge_display = ', '.join(
+                f"{pet.name} ({pet.ths_species_id.name})" if pet.ths_species_id else pet.name
+                for pet in rec.patient_ids
+            )
+
+    @api.depends('patient_ids.ths_species_id.color', 'patient_ids.name', 'patient_ids.ths_species_id.name')
+    def _compute_pet_badge_data(self):
+        for rec in self:
+            badge_data = []
+            for pet in rec.patient_ids:
+                if pet.ths_species_id:
+                    badge_data.append({
+                        'name': pet.name,
+                        'species': pet.ths_species_id.name,
+                        'color': pet.ths_species_id.color or 0,
+                    })
+            rec.pet_badge_data = badge_data
 
     # --- VET-SPECIFIC CONSTRAINTS ---
 

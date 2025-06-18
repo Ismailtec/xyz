@@ -77,5 +77,29 @@
                 parent="menu_ths_medical_vet_root"
                 action="action_vet_pets"
                 sequence="20"/>
+
+        <menuitem id="menu_vet_medical_history_summary"
+                  name="Medical History Summary"
+                  parent="ths_medical_vet.menu_ths_medical_vet_root"
+                  action="action_vet_medical_history_summary"
+                  sequence="50"/>
+
+        <!-- Vet Menus -->
+        <menuitem id="menu_vet_vaccinations"
+                  name="Vaccinations"
+                  parent="ths_medical_vet.menu_ths_medical_vet_root"
+                  sequence="40"/>
+
+        <menuitem id="menu_vet_vaccination_records"
+                  name="Vaccination Records"
+                  parent="menu_vet_vaccinations"
+                  action="action_vet_vaccination"
+                  sequence="10"/>
+
+        <menuitem id="menu_vet_vaccine_types"
+                  name="Vaccine Types"
+                  parent="menu_vet_vaccinations"
+                  action="action_vet_vaccine_type"
+                  sequence="20"/>
     </data>
 </odoo>
