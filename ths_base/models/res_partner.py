@@ -33,7 +33,8 @@ class ResPartner(models.Model):
         ('female', 'Female'),
     ], string='Gender')
 
-    ths_gov_id = fields.Char(string='ID Number', help="National Identifier (ID)", readonly=False, copy=False, store=True)
+    ths_gov_id = fields.Char(string='ID Number', help="National Identifier (ID)", readonly=False, copy=False,
+                             store=True)
     ths_dob = fields.Date(string='Date of Birth')
     ths_age = fields.Char(string='Age', compute='_compute_ths_age', store=False)
 
@@ -200,13 +201,49 @@ class ResPartner(models.Model):
     # --- Name Search Override ---
     @api.model
     def _name_search(self, name, args=None, operator='ilike', limit=100, name_get_uid=None, order=None):
-        """ Override name_search to include ref, mobile, phone, ths_gov_id, and name_ar. """
+        """
+        Override name_search to include additional searchable fields.
+        Searches across: name, ref, mobile, phone, email, name_ar, ths_gov_id
+        """
         args = args or []
+
+        # If no search term provided, return standard search
         if operator == 'ilike' and not (name or '').strip():
             domain = []
         else:
-            domain_fields = ['name', 'ref', 'mobile', 'phone', 'name_ar', 'email', 'ths_gov_id']
+            # Define base searchable fields (always available)
+            base_fields = ['name', 'ref', 'mobile', 'phone', 'email']
 
-            domain = expression.OR([[(field, operator, name)] for field in domain_fields])
+            # Define optional fields with defensive checking
+            optional_fields = []
 
-        return self._search(expression.AND([domain, args]), limit=limit, access_rights_uid=name_get_uid, order=order)
+            # Safely add name_ar if available (from ths_base or ths_hr)
+            if 'name_ar' in self._fields:
+                optional_fields.append('name_ar')
+
+            # Safely add ths_gov_id if available and field is not False/None
+            if 'ths_gov_id' in self._fields:
+                # Additional check: ensure field is properly defined
+                gov_id_field = self._fields.get('ths_gov_id')
+                if gov_id_field and hasattr(gov_id_field, 'type') and gov_id_field.type == 'char':
+                    optional_fields.append('ths_gov_id')
+
+            # Combine all available fields
+            searchable_fields = base_fields + optional_fields
+
+            _logger.info(f"SEARCH DEBUG: Base fields: {base_fields}")
+            _logger.info(f"SEARCH DEBUG: Optional fields: {optional_fields}")
+            _logger.info(f"SEARCH DEBUG: Final searchable fields: {searchable_fields}")
+
+            # Create OR domain across all searchable fields
+            domain = expression.OR([
+                [(field, operator, name)] for field in searchable_fields
+            ])
+
+        # Execute search with combined domain
+        return self._search(
+            expression.AND([domain, args]),
+            limit=limit,
+            access_rights_uid=name_get_uid,
+            order=order
+        )

@@ -74,7 +74,7 @@
                         <field name="title" options="{'no_open': True, 'no_create': True}" invisible="is_company"/>
                         <field name="phone" widget="phone"/>
                         <field name="mobile" widget="phone"/>
-                        <!--                        <field name="ths_gov_id" placeholder="National ID" required="0" invisible="is_company"/>-->
+                        <field name="ths_gov_id" placeholder="National ID" required="0" invisible="is_company"/>
                         <field name="gender" widget="radio" options="{'horizontal': true}" class="oe_inline"
                                invisible="is_company"/>
                         <field name="ths_dob" placeholder="Date of Birth"
@@ -122,7 +122,7 @@
             <field name="arch" type="xml">
                 <xpath expr="//field[@name='complete_name']" position="after">
                     <field name="ths_partner_type_id" optional="show"/>
-                    <!--                    <field name="ths_gov_id" optional="hide"/>-->
+                    <field name="ths_gov_id" optional="hide"/>
                 </xpath>
                 <field name="user_id" position="attributes">
                     <attribute name="optional">Hide</attribute>
@@ -160,7 +160,7 @@
                 </xpath>
                 <xpath expr="//field[@name='user_id']" position="after">
                     <field name="ths_partner_type_id"/>
-                    <!--                    <field name="ths_gov_id"/>-->
+                    <field name="ths_gov_id"/>
                 </xpath>
             </field>
         </record>

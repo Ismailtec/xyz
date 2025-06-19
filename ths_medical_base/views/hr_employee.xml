@@ -9,6 +9,11 @@
                 <field name="ths_is_medical" readonly="0"/>
                 <field name="ths_add_to_calendar"/>
             </xpath>
+
+<!--             <xpath expr="//field[@name='has_work_entries']" position="attributes">-->
+<!--                <attribute name="groups">hr.group_hr_user</attribute>-->
+<!--            </xpath>-->
+
         </field>
     </record>
 
@@ -43,5 +48,18 @@
             </xpath>
         </field>
     </record>
+
+<!--    <record id="view_employee_form_inherit_ths_medical_work_entries" model="ir.ui.view">-->
+<!--        <field name="name">hr.employee.form.inherit.ths.medical.work.entries</field>-->
+<!--        <field name="model">hr.employee</field>-->
+<!--        <field name="inherit_id" ref="hr_work_entry.hr_employee_view_form"/>-->
+<!--        <field name="arch" type="xml">-->
+
+<!--             <xpath expr="//field[@name='has_work_entries']" position="attributes">-->
+<!--                <attribute name="groups">base.group_user</attribute>-->
+<!--            </xpath>-->
+
+<!--        </field>-->
+<!--    </record>-->
 
 </odoo>

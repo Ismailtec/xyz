@@ -14,6 +14,7 @@ Adapts the Techouse Medical Base module for veterinary clinics.
     'website': 'https://www.techouse.ae',
     'depends': [
         'ths_medical_base',  # Essential dependency
+        'ths_base',
         'ths_hr',  # For ths_hr.employee
         'contacts',  # For res.partner
     ],

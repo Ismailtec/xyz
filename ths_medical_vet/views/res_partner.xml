@@ -93,7 +93,7 @@
                     <field name="title" options="{'no_open': True, 'no_create': True}" invisible="is_company"/>
                     <field name="phone" widget="phone"/>
                     <field name="mobile" widget="phone"/>
-<!--                    <field name="ths_gov_id" placeholder="National ID" required="0" invisible="is_company"/>-->
+                    <field name="ths_gov_id" placeholder="National ID" required="0" invisible="is_company"/>
                     <field name="gender" widget="radio" options="{'horizontal': true}" class="oe_inline"
                            invisible="is_company"/>
                     <field name="ths_dob" placeholder="Date of Birth"
