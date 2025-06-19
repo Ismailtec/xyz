@@ -14,82 +14,6 @@
                 <field name="is_pet_owner" invisible="1"/>
             </xpath>
 
-            <!-- Pet Owner Selection (Prominent for Pets) -->
-            <xpath expr="//div[hasclass('d-inline-block')]" position="after">
-                <div class="alert alert-primary mb-3" role="alert" invisible="not is_pet">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <label for="ths_pet_owner_id" class="fw-bold">
-                                <i class="fa fa-user me-2" title="Pet Owner Icon"/>Pet Owner (Billing Responsible)
-                            </label>
-                            <field name="ths_pet_owner_id"
-                                   required="is_pet"
-                                   domain="[('ths_partner_type_id.name', '=', 'Pet Owner')]"
-                                   options="{'no_open': True, 'no_create': True, 'no_quick_create': True}"
-                                   placeholder="Select the pet owner..."
-                                   help="Pet owner responsible for billing and medical decisions"/>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="parent_id" class="fw-bold">
-                                <i class="fa fa-sitemap me-2" title="Parent Contact Icon"/>Parent Contact
-                            </label>
-                            <field name="parent_id" readonly="1"
-                                   help="Automatically set from pet owner"/>
-                        </div>
-                    </div>
-                </div>
-            </xpath>
-
-            <!-- Replace standard contact fields with pet/owner specific sections -->
-            <xpath expr="//sheet//group//group[2]" position="replace">
-
-                <!-- Pet Information Section -->
-                <group string="Pet Information" name="pet_info" invisible="not is_pet">
-                    <field name="ths_species_id"
-                           required="is_pet"
-                           options="{'no_create': True, 'no_quick_create': True}"
-                           placeholder="e.g., Dog, Cat, Bird..."/>
-                    <field name="ths_breed_id"
-                           options="{'no_create': True, 'no_quick_create': True}"
-                           placeholder="e.g., Golden Retriever, Persian..."/>
-                    <field name="ths_dob" string="Date of Birth" widget="date"/>
-                    <field name="gender" widget="radio" options="{'horizontal': true}"/>
-                    <field name="is_neutered_spayed" widget="boolean_toggle"/>
-                </group>
-
-                <!-- Pet Health & ID Section -->
-                <group string="Health &amp; Identification" name="pet_health" invisible="not is_pet">
-                    <field name="ths_microchip" placeholder="e.g., 982000123456789"/>
-                    <field name="ths_insurance_number" placeholder="Insurance policy number"/>
-                    <field name="ths_emergency_contact"
-                           domain="[('ths_partner_type_id.name', '=', 'Pet Owner'), ('id', '!=', ths_pet_owner_id)]"
-                           options="{'no_create': True, 'no_quick_create': True}"/>
-                    <field name="ths_deceased" widget="boolean_toggle"/>
-                    <field name="ths_deceased_date" invisible="not ths_deceased" widget="date"/>
-                </group>
-
-                <!-- Pet Owner Contact Information -->
-                <group string="Contact Information" name="owner_info" invisible="is_pet">
-                    <field name="function" placeholder="e.g., Manager"/>
-                    <field name="phone" widget="phone"/>
-                    <field name="mobile" widget="phone"/>
-                    <field name="user_id" string="Account Manager"
-                           domain="[('share', '=', False)]"/>
-                    <field name="title" options="{'no_open': True, 'no_create': True}"/>
-                    <field name="lang"/>
-                    <field name="category_id" widget="many2many_tags"
-                           options="{'color_field': 'color', 'no_create_edit': True}"/>
-                </group>
-            </xpath>
-
-            <!-- Hide company fields for pets -->
-            <xpath expr="//field[@name='is_company']" position="attributes">
-                <attribute name="invisible">is_pet</attribute>
-            </xpath>
-            <xpath expr="//field[@name='vat']" position="attributes">
-                <attribute name="invisible">is_pet</attribute>
-            </xpath>
-
             <!-- Add Smart Buttons -->
             <xpath expr="//div[@name='button_box']" position="inside">
                 <!-- Pets Count for Pet Owners -->
@@ -125,11 +49,90 @@
                 </button>
             </xpath>
 
+            <!-- Pet Owner Selection (Prominent for Pets) -->
+            <xpath expr="//div[hasclass('d-inline-block')]" position="after">
+                <div>
+                    <label for="ths_pet_owner_id" class="fw-bold" invisible="not is_pet"/>
+                    <field name="ths_pet_owner_id"
+                           required="is_pet"
+                           domain="[('ths_partner_type_id.name', '=', 'Pet Owner')]"
+                           options="{'no_open': True, 'no_create': True, 'no_quick_create': True}"
+                           invisible="not is_pet"
+                           placeholder="Select the pet owner..."
+                           class="oe_inline"
+                           help="Pet owner responsible for billing and medical decisions"/>
+                </div>
+            </xpath>
+
+            <!--            <xpath expr="//sheet//group//group[1]" position="attributes">-->
+            <!--                <attribute name="invisible">is_pet</attribute>-->
+            <!--            </xpath>-->
+
+            <!-- Replace standard contact fields with pet/owner specific sections -->
+            <xpath expr="//sheet//group//group[2]" position="replace">
+
+                <!-- Pet Information Section -->
+                <group string="Pet Information" name="pet_info" invisible="not is_pet">
+                    <field name="ths_species_id"
+                           required="is_pet"
+                           options="{'no_create': True, 'no_quick_create': True}"
+                           placeholder="e.g., Dog, Cat, Bird..."/>
+                    <field name="ths_breed_id"
+                           options="{'no_create': True, 'no_quick_create': True}"
+                           placeholder="e.g., Golden Retriever, Persian..."/>
+                    <field name="ths_dob" string="Date of Birth" widget="date"/>
+                    <field name="ths_age" placeholder="Age" readonly="1"/>
+                    <field name="gender" widget="radio" options="{'horizontal': true}"/>
+                    <field name="is_neutered_spayed" widget="boolean_toggle"/>
+                    <field name="category_id" widget="many2many_tags"
+                           options="{'color_field': 'color', 'no_create_edit': True}"/>
+                </group>
+
+                <!-- NON-Pet Information Section -->
+                <group string="Contact Information" name="cont_info" invisible="is_pet">
+                    <field name="title" options="{'no_open': True, 'no_create': True}" invisible="is_company"/>
+                    <field name="phone" widget="phone"/>
+                    <field name="mobile" widget="phone"/>
+<!--                    <field name="ths_gov_id" placeholder="National ID" required="0" invisible="is_company"/>-->
+                    <field name="gender" widget="radio" options="{'horizontal': true}" class="oe_inline"
+                           invisible="is_company"/>
+                    <field name="ths_dob" placeholder="Date of Birth"
+                           options="{'datepicker': {'showTime': False}}" invisible="is_company"/>
+                    <field name="ths_age" placeholder="Age" readonly="1" invisible="is_company"/>
+                    <field name="user_id" string="Account Manager"
+                           domain="[('share', '=', False)]" invisible="not is_company"/>
+                    <field name="function" placeholder="e.g. Sales Manager" invisible="is_company"/>
+                    <field name="lang" invisible="not is_company and active_lang_count &lt;= 1"/>
+                    <field name="email" widget="email" context="{'gravatar_image': True}" required="user_ids"/>
+                    <field name="website" string="Website" widget="url" placeholder="e.g. https://www.odoo.com"
+                           invisible="not is_company"/>
+                    <field name="category_id" widget="many2many_tags"
+                           options="{'color_field': 'color', 'no_create_edit': True}"/>
+                </group>
+
+                <!-- Pet Health & ID Section -->
+                <group string="Health &amp; Identification" name="pet_health" invisible="not is_pet">
+                    <field name="ths_microchip" placeholder="e.g., 982000123456789"/>
+                    <field name="ths_insurance_number" placeholder="Insurance policy number"/>
+                    <field name="ths_emergency_contact"
+                           domain="[('ths_partner_type_id.name', '=', 'Pet Owner'), ('id', '!=', ths_pet_owner_id)]"
+                           options="{'no_create': True, 'no_quick_create': True}"/>
+                    <field name="ths_deceased" widget="boolean_toggle"/>
+                    <field name="ths_deceased_date" invisible="not ths_deceased" widget="date"/>
+                </group>
+
+            </xpath>
+
+            <xpath expr="//notebook//page[@name='contact_addresses']" position="attributes">
+                <attribute name="invisible">1</attribute>
+            </xpath>
+
+
             <!-- Add Notebook Pages -->
-            <xpath expr="//notebook" position="inside">
+            <xpath expr="//notebook//page[@name='contact_addresses']" position="before">
 
                 <!-- Pets Management Tab for Pet Owners -->
-                <page string="Pets" name="owner_pets" invisible="not is_pet_owner">
+                <page string="Pets" name="owner_pets" invisible="not is_pet_owner" autofocus="autofocus">
                     <div class="row mb-3">
                         <div class="col-12">
                             <div class="alert alert-info" role="status">
@@ -164,7 +167,7 @@
                 </page>
 
                 <!-- Medical Summary Tab for Pets -->
-                <page string="Medical Summary" name="pet_medical" invisible="not is_pet">
+                <page string="Medical Summary" name="pet_medical" invisible="not is_pet" autofocus="autofocus">
                     <div class="row mb-3">
                         <div class="col-12">
                             <div class="alert alert-success" role="status">
@@ -379,10 +382,10 @@
                         <i class="fa fa-tag me-1" title="Species"/>
                         <field name="ths_species_id"/>
                     </div>
-<!--                    <div t-if="record.ths_pet_owner_id.raw_value">-->
-<!--                        <i class="fa fa-user me-1" title="Owner"/>-->
-<!--                        Owner: <field name="ths_pet_owner_id"/>-->
-<!--                    </div>-->
+                    <!--                    <div t-if="record.ths_pet_owner_id.raw_value">-->
+                    <!--                        <i class="fa fa-user me-1" title="Owner"/>-->
+                    <!--                        Owner: <field name="ths_pet_owner_id"/>-->
+                    <!--                    </div>-->
                 </div>
 
                 <!-- Pet Owner Information -->

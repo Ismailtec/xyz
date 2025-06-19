@@ -5,10 +5,8 @@
         <field name="model">res.partner</field>
         <field name="inherit_id" ref="base.view_partner_form"/>
         <field name="arch" type="xml">
-            <xpath expr="//page[@name='internal_notes']" position="inside">
-                <group string="HR Link" name="hr_link">
-                    <field name="ths_employee_id" readonly="1" options="{'no_open': True}"/>
-                </group>
+            <xpath expr="//field[@name='category_id']" position="after">
+                <field name="ths_employee_id" readonly="1" options="{'no_open': False}" invisible="not ths_employee_id"/>
             </xpath>
         </field>
     </record>

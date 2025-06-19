@@ -21,12 +21,15 @@ This module enhances Odoo's HR functionality by:
     'depends': [
         'base',
         'hr',  # Human Resources base
+        'hr_contract',
         'stock',  # For stock.location
         'account',  # For account.analytic.account/group
         'ths_base', # Dependency for ths.partner.type and base structures
         'analytic', # Often needed explicitly for analytic features
         # 'inventory' dependency is usually covered by 'stock'
     ],
+    'external_dependencies': {
+        'python': ['translate'],},
     'data': [
         # Security
         'security/hr_security.xml',

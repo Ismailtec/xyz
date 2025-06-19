@@ -2,7 +2,7 @@
 
 from odoo import models, fields, api, _
 from odoo.osv import expression
-from odoo.exceptions import UserError, ValidationError
+from odoo.exceptions import ValidationError
 
 # Use user's requested import block for translate library
 try:
@@ -21,13 +21,21 @@ _logger = logging.getLogger(__name__)
 class ResPartner(models.Model):
     _inherit = 'res.partner'
 
-    # --- Fields ---
     ths_partner_type_id = fields.Many2one(
         'ths.partner.type', string='Partner Type', required=True, index=True, tracking=True,
         default=lambda self: self.env.ref('ths_base.partner_type_contact', raise_if_not_found=False)
     )
-    # Added Arabic Name field (as per user's version)
+    # Added Arabic Name field
     name_ar = fields.Char("Name (Arabic)", store=True, copy=True)
+
+    gender = fields.Selection([
+        ('male', 'Male'),
+        ('female', 'Female'),
+    ], string='Gender')
+
+    ths_gov_id = fields.Char(string='ID Number', help="National Identifier (ID)", readonly=False, copy=False, store=True)
+    ths_dob = fields.Date(string='Date of Birth')
+    ths_age = fields.Char(string='Age', compute='_compute_ths_age', store=False)
 
     # --- Onchange Methods ---
     @api.onchange('name')
@@ -53,6 +61,33 @@ class ResPartner(models.Model):
             self.company_type = 'company' if self.ths_partner_type_id.is_company else 'person'
         else:
             self.company_type = 'person'
+
+    # @api.constrains('ths_gov_id')
+    # def _check_id_numeric(self):
+    #     for rec in self:
+    #         if rec.ths_gov_id and not rec.ths_gov_id.isdigit():
+    #             raise ValidationError(_("ID Number must contain only digits."))
+
+    # === Compute Methods ===
+    @api.depends('ths_dob')
+    def _compute_ths_age(self):
+        for partner in self:
+            age_str = ""
+            if partner.ths_dob:
+                today = fields.Date.context_today(partner)
+                delta = today - partner.ths_dob
+                years = delta.days // 365
+                months = (delta.days % 365) // 30  # Approximate
+                days = (delta.days % 365) % 30  # Approximate
+
+                if years > 0:
+                    age_str += f"{years}y "
+                if months > 0:
+                    age_str += f"{months}m "
+                if years == 0 and months == 0 and days >= 0:  # Show days only if less than a month old
+                    age_str += f"{days}d"
+                age_str = age_str.strip()
+            partner.ths_age = age_str or "N/A"
 
     # --- Helper to get HR Handled Type IDs ---
     @api.model
@@ -165,14 +200,13 @@ class ResPartner(models.Model):
     # --- Name Search Override ---
     @api.model
     def _name_search(self, name, args=None, operator='ilike', limit=100, name_get_uid=None, order=None):
-        """ Override name_search to include ref, mobile, phone, gov_code, and name_ar. """
+        """ Override name_search to include ref, mobile, phone, ths_gov_id, and name_ar. """
         args = args or []
         if operator == 'ilike' and not (name or '').strip():
             domain = []
         else:
-            domain_fields = ['name', 'ref', 'mobile', 'phone', 'name_ar']
-            if 'gov_code' in self._fields:  # Check if gov_code field exists before adding
-                domain_fields.append('gov_code')
+            domain_fields = ['name', 'ref', 'mobile', 'phone', 'name_ar', 'email', 'ths_gov_id']
+
             domain = expression.OR([[(field, operator, name)] for field in domain_fields])
 
         return self._search(expression.AND([domain, args]), limit=limit, access_rights_uid=name_get_uid, order=order)

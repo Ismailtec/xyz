@@ -31,6 +31,10 @@ class HrEmployee(models.Model):
         ],
         ondelete={'part_time': 'set default', 'external_employee': 'set default'}
     )
+    gender = fields.Selection([
+        ('male', 'Male'),
+        ('female', 'Female'),
+    ], string='Gender')
 
     # -- Custom Fields --
     ths_inv_loss_loc_id = fields.Many2one(
@@ -79,7 +83,7 @@ class HrEmployee(models.Model):
 
     def write(self, vals):
         """Override write to update related records if relevant fields change."""
-        tracked_fields = ['name', 'name_ar', 'department_id', 'work_contact_id', 'employee_type',
+        tracked_fields = ['name', 'name_ar', 'department_id', 'work_contact_id', 'employee_type', 'gender',
                           'work_email', 'work_phone', 'mobile_phone', 'job_title', 'country_id', 'image_1920']
         originals = {}
         if any(field in vals for field in tracked_fields):
@@ -91,6 +95,7 @@ class HrEmployee(models.Model):
                     'dept_code': emp.department_id.code if emp.department_id else None,
                     'work_contact_id': emp.work_contact_id.id if emp.work_contact_id else None,
                     'employee_type': emp.employee_type,
+                    'gender': emp.gender,
                     'work_email': emp.work_email,
                     'work_phone': emp.work_phone,
                     'mobile_phone': emp.mobile_phone,
@@ -197,6 +202,7 @@ class HrEmployee(models.Model):
         if work_partner.email != self.work_email: partner_vals_to_write['email'] = self.work_email
         if work_partner.phone != self.work_phone: partner_vals_to_write['phone'] = self.work_phone
         if work_partner.mobile != self.mobile_phone: partner_vals_to_write['mobile'] = self.mobile_phone
+        if work_partner.gender != self.gender: partner_vals_to_write['gender'] = self.gender
         if work_partner.function != self.job_title: partner_vals_to_write['function'] = self.job_title
         if work_partner.country_id != self.country_id: partner_vals_to_write[
             'country_id'] = self.country_id.id if self.country_id else False

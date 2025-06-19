@@ -58,6 +58,7 @@
         'views/product.xml',  # Adds sub-type field to Product views & domain logic
         'views/hr_department.xml',  # Adds medical flag to Department views
         'views/partner_type.xml',
+        #'views/res_partner.xml',
         'views/calendar_event.xml',  # Inherited Calendar Event view
     ],
     'assets': {
