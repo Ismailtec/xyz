@@ -33,8 +33,10 @@ class ResPartner(models.Model):
         ('female', 'Female'),
     ], string='Gender')
 
-    ths_gov_id = fields.Char(string='ID Number', help="National Identifier (ID)", readonly=False, copy=False,
-                             store=True)
+    ths_gov_id = fields.Char(string='ID Number', help="National Identifier (ID)", readonly=False, copy=False,store=True)
+
+    ths_nationality = fields.Many2one('res.country', 'Nationality', copy=False,store=True)
+
     ths_dob = fields.Date(string='Date of Birth')
     ths_age = fields.Char(string='Age', compute='_compute_ths_age', store=False)
 
@@ -63,11 +65,11 @@ class ResPartner(models.Model):
         else:
             self.company_type = 'person'
 
-    # @api.constrains('ths_gov_id')
-    # def _check_id_numeric(self):
-    #     for rec in self:
-    #         if rec.ths_gov_id and not rec.ths_gov_id.isdigit():
-    #             raise ValidationError(_("ID Number must contain only digits."))
+    @api.constrains('ths_gov_id')
+    def _check_id_numeric(self):
+        for rec in self:
+            if rec.ths_gov_id and not rec.ths_gov_id.isdigit():
+                raise ValidationError(_("ID Number must contain only digits."))
 
     # === Compute Methods ===
     @api.depends('ths_dob')
@@ -212,7 +214,7 @@ class ResPartner(models.Model):
             domain = []
         else:
             # Define base searchable fields (always available)
-            base_fields = ['name', 'ref', 'mobile', 'phone', 'email']
+            base_fields = ['name', 'ref', 'mobile', 'phone', 'email', 'ths_gov_id']
 
             # Define optional fields with defensive checking
             optional_fields = []

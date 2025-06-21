@@ -5,7 +5,7 @@
     <record id="view_partner_form_inherit_ths_vet" model="ir.ui.view">
         <field name="name">res.partner.form.inherit.ths.vet</field>
         <field name="model">res.partner</field>
-        <field name="inherit_id" ref="ths_base.view_partner_form_inherit_ths_base"/>
+        <field name="inherit_id" ref="base.view_partner_form"/>
         <field name="arch" type="xml">
 
             <!-- Add computed flags for form logic -->
@@ -50,23 +50,40 @@
             </xpath>
 
             <!-- Pet Owner Selection (Prominent for Pets) -->
+            <!--            <xpath expr="//div[hasclass('d-inline-block')]" position="after">-->
+            <!--                <div>-->
+            <!--                    <label for="ths_pet_owner_id" class="fw-bold" invisible="not is_pet"/>-->
+            <!--                    <field name="ths_pet_owner_id"-->
+            <!--                           required="is_pet"-->
+            <!--                           domain="[('ths_partner_type_id.name', '=', 'Pet Owner')]"-->
+            <!--                           options="{'no_open': True, 'no_create': True, 'no_quick_create': True}"-->
+            <!--                           invisible="not is_pet"-->
+            <!--                           class="oe_inline"-->
+            <!--                           placeholder="Select the Pet Owner..."-->
+            <!--                           help="Pet Owner responsible for billing and medical decisions"/>-->
+            <!--                </div>-->
+            <!--            </xpath>-->
+
             <xpath expr="//div[hasclass('d-inline-block')]" position="after">
-                <div>
-                    <label for="ths_pet_owner_id" class="fw-bold" invisible="not is_pet"/>
-                    <field name="ths_pet_owner_id"
-                           required="is_pet"
-                           domain="[('ths_partner_type_id.name', '=', 'Pet Owner')]"
-                           options="{'no_open': True, 'no_create': True, 'no_quick_create': True}"
-                           invisible="not is_pet"
-                           placeholder="Select the pet owner..."
-                           class="oe_inline"
-                           help="Pet owner responsible for billing and medical decisions"/>
+                <div invisible="not is_pet">
+                    <div>
+                        <label for="ths_pet_owner_id" class="o_form_label fw-bold"/>
+                        <div class="rounded p-1 d-inline-block mb-0 fw-bolder fs-4">
+                            <field name="ths_pet_owner_id"
+                                   required="is_pet"
+                                   domain="[('ths_partner_type_id.name', '=', 'Pet Owner')]"
+                                   options="{'no_open': False, 'no_create': True, 'no_quick_create': True}"
+                                   placeholder="Select the Pet Owner..."
+                                   help="Pet Owner responsible for billing and medical decisions"/>
+                        </div>
+                    </div>
                 </div>
             </xpath>
 
-            <!--            <xpath expr="//sheet//group//group[1]" position="attributes">-->
-            <!--                <attribute name="invisible">is_pet</attribute>-->
-            <!--            </xpath>-->
+
+            <xpath expr="//span[@name='address_name']//span" position="attributes">
+                <attribute name="invisible">is_pet</attribute>
+            </xpath>
 
             <!-- Replace standard contact fields with pet/owner specific sections -->
             <xpath expr="//sheet//group//group[2]" position="replace">
@@ -84,6 +101,9 @@
                     <field name="ths_age" placeholder="Age" readonly="1"/>
                     <field name="gender" widget="radio" options="{'horizontal': true}"/>
                     <field name="is_neutered_spayed" widget="boolean_toggle"/>
+                    <field name="ths_microchip" placeholder="e.g., 982000123456789"/>
+                    <field name="ths_deceased" widget="boolean_toggle"/>
+                    <field name="ths_deceased_date" invisible="not ths_deceased" widget="date"/>
                     <field name="category_id" widget="many2many_tags"
                            options="{'color_field': 'color', 'no_create_edit': True}"/>
                 </group>
@@ -95,6 +115,8 @@
                     <field name="mobile" widget="phone"/>
                     <field name="ths_gov_id" placeholder="National ID" required="0" invisible="is_company"/>
                     <field name="gender" widget="radio" options="{'horizontal': true}" class="oe_inline"
+                           invisible="is_company"/>
+                    <field name="ths_nationality" option="{'no_create': True, 'no_quick_create': True}"
                            invisible="is_company"/>
                     <field name="ths_dob" placeholder="Date of Birth"
                            options="{'datepicker': {'showTime': False}}" invisible="is_company"/>
@@ -111,15 +133,15 @@
                 </group>
 
                 <!-- Pet Health & ID Section -->
-                <group string="Health &amp; Identification" name="pet_health" invisible="not is_pet">
-                    <field name="ths_microchip" placeholder="e.g., 982000123456789"/>
-                    <field name="ths_insurance_number" placeholder="Insurance policy number"/>
-                    <field name="ths_emergency_contact"
-                           domain="[('ths_partner_type_id.name', '=', 'Pet Owner'), ('id', '!=', ths_pet_owner_id)]"
-                           options="{'no_create': True, 'no_quick_create': True}"/>
-                    <field name="ths_deceased" widget="boolean_toggle"/>
-                    <field name="ths_deceased_date" invisible="not ths_deceased" widget="date"/>
-                </group>
+                <!--                <group string="Health &amp; Identification" name="pet_health" invisible="not is_pet">-->
+                <!--                    <field name="ths_microchip" placeholder="e.g., 982000123456789"/>-->
+                <!--                    <field name="ths_insurance_number" placeholder="Insurance policy number"/>-->
+                <!--                    <field name="ths_emergency_contact"-->
+                <!--                           domain="[('ths_partner_type_id.name', '=', 'Pet Owner'), ('id', '!=', ths_pet_owner_id)]"-->
+                <!--                           options="{'no_create': True, 'no_quick_create': True}"/>-->
+                <!--                    <field name="ths_deceased" widget="boolean_toggle"/>-->
+                <!--                    <field name="ths_deceased_date" invisible="not ths_deceased" widget="date"/>-->
+                <!--                </group>-->
 
             </xpath>
 
@@ -180,14 +202,10 @@
 
                     <group>
                         <group string="Current Status">
-                            <field name="ths_deceased" readonly="1"/>
-                            <field name="ths_deceased_date" readonly="1" invisible="not ths_deceased"/>
-                            <field name="is_neutered_spayed" readonly="1"/>
-                        </group>
-                        <group string="Identification">
                             <field name="ths_microchip" readonly="1"/>
-                            <field name="ths_insurance_number" readonly="1"/>
-                            <field name="ths_emergency_contact" readonly="1"/>
+                            <field name="ths_deceased" readonly="1" widget="boolean_toggle"/>
+                            <field name="ths_deceased_date" readonly="1" invisible="not ths_deceased"/>
+                            <field name="is_neutered_spayed" readonly="1" widget="boolean_toggle"/>
                         </group>
                     </group>
 
@@ -263,7 +281,7 @@
     <record id="view_res_partner_filter_inherit_ths_vet" model="ir.ui.view">
         <field name="name">res.partner.filter.inherit.ths.vet</field>
         <field name="model">res.partner</field>
-        <field name="inherit_id" ref="ths_base.view_res_partner_filter_inherit_ths_base"/>
+        <field name="inherit_id" ref="base.view_res_partner_filter"/>
         <field name="arch" type="xml">
 
             <!-- Add vet-specific search fields -->
@@ -351,25 +369,25 @@
 
             <!-- Customize avatar for pets -->
             <xpath expr='//div[hasclass("o_kanban_image_fill")]' position="replace">
-                <div class="o_kanban_image_fill position-relative">
+                <div class="o_kanban_image_fill position-relative d-flex align-items-center justify-content-center"
+                     style="background-color: transparent; min-height: 80px;">
+
                     <!-- Pet Avatar -->
                     <t t-if="record.is_pet.raw_value">
-                        <div class="d-flex align-items-center justify-content-center h-100"
-                             t-att-class="record.ths_deceased.raw_value ? 'bg-light' : 'bg-primary'"
-                             style="border-radius: 50%;">
-                            <i t-att-class="'fa fa-paw fa-3x ' + (record.ths_deceased.raw_value ? 'text-muted' : 'text-white')"
-                               title="Pet Avatar"/>
-                        </div>
-                        <!-- Deceased indicator -->
+                        <i t-att-class="'fa fa-paw fa-4x ' + (record.ths_deceased.raw_value ? 'text-secondary' : '')"
+                           t-att-style="record.ths_deceased.raw_value ? 'color: grey;' : 'color: #79a942;'"
+                           title="Pet Icon"/>
+
+                        <!-- Ribbon for deceased pets -->
                         <div t-if="record.ths_deceased.raw_value"
-                             class="position-absolute top-0 end-0 badge bg-dark">
-                            <i class="fa fa-angel" title="Deceased"/>
+                             style="position: absolute; top: 0; right: 0; width: 0; height: 0; border-top: 40px solid black; border-left: 40px solid transparent;">
                         </div>
                     </t>
 
-                    <!-- Standard avatar for non-pets -->
+                    <!-- Standard Partner Avatar -->
                     <t t-else="">
-                        <field name="avatar_128" widget="image" class="h-100 w-100 object-fit-cover"/>
+                        <field name="avatar_128" widget="image"
+                               style="max-width: 100px; max-height: 100px; object-fit: contain; margin: auto;"/>
                     </t>
                 </div>
             </xpath>

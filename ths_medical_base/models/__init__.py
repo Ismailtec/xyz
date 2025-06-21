@@ -15,5 +15,4 @@ from . import pending_pos_item
 from . import appointment_type
 from . import cancellation_reason
 from . import medical_encounter_service
-#from . import res_partner
 from . import calendar_event

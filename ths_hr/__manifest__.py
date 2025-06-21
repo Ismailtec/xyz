@@ -22,9 +22,9 @@ This module enhances Odoo's HR functionality by:
         'base',
         'hr',  # Human Resources base
         'hr_contract',
+        'ths_base', # Dependency for ths.partner.type and base structures
         'stock',  # For stock.location
         'account',  # For account.analytic.account/group
-        'ths_base', # Dependency for ths.partner.type and base structures
         'analytic', # Often needed explicitly for analytic features
         # 'inventory' dependency is usually covered by 'stock'
     ],
@@ -46,8 +46,6 @@ This module enhances Odoo's HR functionality by:
         'views/hr_department.xml',
         'views/hr_employee.xml',
         'views/res_partner.xml',
-        #'views/hr_employee_type.xml',
-        #'views/hr_menus.xml',  # Menu for Employee Sub Type
     ],
     'installable': True,
     'application': True,

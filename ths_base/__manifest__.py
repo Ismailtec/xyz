@@ -97,7 +97,6 @@ Detailed Feature List (User-Friendly)
         'data/partner_type_data.xml',
         # Views
         'views/partner_type.xml',
-        'views/res_partner.xml',
         'views/purchase_order.xml',
         'views/sales_order.xml',
         'views/account_move.xml',
@@ -111,6 +110,7 @@ Detailed Feature List (User-Friendly)
         'views/product_service.xml',
         'views/res_config.xml',
         # 'views/reports.xml',
+        'views/res_partner.xml',
         'views/menus.xml',
     ],
     'installable': True,

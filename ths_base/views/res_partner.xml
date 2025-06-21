@@ -77,6 +77,8 @@
                         <field name="ths_gov_id" placeholder="National ID" required="0" invisible="is_company"/>
                         <field name="gender" widget="radio" options="{'horizontal': true}" class="oe_inline"
                                invisible="is_company"/>
+                        <field name="ths_nationality" option="{'no_create': True, 'no_quick_create': True}"
+                               invisible="is_company"/>
                         <field name="ths_dob" placeholder="Date of Birth"
                                options="{'datepicker': {'showTime': False}}" invisible="is_company"/>
                         <field name="ths_age" placeholder="Age" readonly="1" invisible="is_company"/>
@@ -120,6 +122,7 @@
             <field name="model">res.partner</field>
             <field name="inherit_id" ref="base.view_partner_tree"/>
             <field name="arch" type="xml">
+
                 <xpath expr="//field[@name='complete_name']" position="after">
                     <field name="ths_partner_type_id" optional="show"/>
                     <field name="ths_gov_id" optional="hide"/>

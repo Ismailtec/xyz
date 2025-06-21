@@ -27,7 +27,7 @@ class HrEmployee(models.Model):
     employee_type = fields.Selection(
         selection_add=[
             ('part_time', 'Part Time'),
-            ('external_employee', 'External Employee')  # Renamed as per plan
+            ('external_employee', 'External Employee')
         ],
         ondelete={'part_time': 'set default', 'external_employee': 'set default'}
     )
@@ -35,6 +35,11 @@ class HrEmployee(models.Model):
         ('male', 'Male'),
         ('female', 'Female'),
     ], string='Gender')
+
+    # -- Core Employee Fields --
+    ths_dob = fields.Date(string='Date of Birth')
+    ths_gov_id = fields.Char(string='ID Number', help="National Identifier (ID)", readonly=False, copy=False,
+                             store=True)
 
     # -- Custom Fields --
     ths_inv_loss_loc_id = fields.Many2one(
@@ -84,7 +89,8 @@ class HrEmployee(models.Model):
     def write(self, vals):
         """Override write to update related records if relevant fields change."""
         tracked_fields = ['name', 'name_ar', 'department_id', 'work_contact_id', 'employee_type', 'gender',
-                          'work_email', 'work_phone', 'mobile_phone', 'job_title', 'country_id', 'image_1920']
+                          'work_email', 'work_phone', 'mobile_phone', 'job_title', 'country_id', 'image_1920',
+                          'ths_dob', 'ths_gov_id', 'category_ids', 'private_country_id']
         originals = {}
         if any(field in vals for field in tracked_fields):
             originals = {
@@ -96,13 +102,15 @@ class HrEmployee(models.Model):
                     'work_contact_id': emp.work_contact_id.id if emp.work_contact_id else None,
                     'employee_type': emp.employee_type,
                     'gender': emp.gender,
-                    'work_email': emp.work_email,
                     'work_phone': emp.work_phone,
                     'mobile_phone': emp.mobile_phone,
-                    'job_title': emp.job_title,
-                    'country_id': emp.country_id.id if emp.country_id else None,
+                    'function': emp.job_title,
+                    'ths_nationality': emp.country_id.id if emp.country_id else None,
                     'partner_type_id': emp.work_contact_id.ths_partner_type_id.id if emp.work_contact_id else None,
                     'image_1920': emp.image_1920,
+                    'ths_dob': emp.birthday,
+                    'ths_gov_id': emp.identification_id,
+                    'partner_address_country': emp.private_country_id.id if emp.private_country_id else None,
                 } for emp in self
             }
 
@@ -121,7 +129,6 @@ class HrEmployee(models.Model):
                         if field in vals and current_id != original_id:
                             needs_trigger = True
                             break
-                    # For simplicity, trigger if image was in vals (more robust check might be needed).
                     elif field == 'image_1920' and field in vals:
                         needs_trigger = True
                         break
@@ -135,7 +142,6 @@ class HrEmployee(models.Model):
 
                 if needs_trigger:
                     try:
-                        # Pass original values for comparison within update methods if needed
                         employee.sudo()._trigger_related_creation_or_update(original_values=original)
                     except Exception as e:
                         _logger.error(
@@ -149,7 +155,7 @@ class HrEmployee(models.Model):
         original_values = original_values or {}
 
         # Sync Partner Type, Ref, and Common Fields
-        self._sync_work_partner_details()  # Removed original_partner_type_id parameter
+        self._sync_work_partner_details()
 
         # Location (depends on name, department)
         self._create_or_update_employee_location(original_values)
@@ -157,15 +163,15 @@ class HrEmployee(models.Model):
         # Analytic Account (depends on name, department code)
         self._create_or_update_employee_analytic_account(original_values)
 
-    # -- Partner Sync Method (Consolidated) --
-    # Removed original_partner_type_id parameter
+    # -- Partner Sync Method --
     def _sync_work_partner_details(self):
-        """ Set Partner Type, Ref, and common fields on the work_contact_id partner. """
+        """ Set Partner Type, Ref, and common fields on the work_contact_id partner.
+        FIXED: Employee ALWAYS overrides partner values.
+        """
         self.ensure_one()
         work_partner = self.work_contact_id
 
         if not work_partner:
-            # This is expected if work details aren't filled, use debug level
             _logger.debug(f"Emp {self.id} ({self.name}): No work contact partner. Skipping partner sync.")
             return
 
@@ -180,7 +186,7 @@ class HrEmployee(models.Model):
             target_partner_type_xmlid = 'ths_hr.partner_type_external_employee'
 
         target_partner_type = self.sudo().env.ref(target_partner_type_xmlid, raise_if_not_found=False)
-        type_is_changing = False  # Flag to track if type is being set/changed now
+        type_is_changing = False
 
         if not target_partner_type:
             _logger.error(
@@ -189,24 +195,38 @@ class HrEmployee(models.Model):
             # --- 2. Sync Partner Type ---
             if work_partner.ths_partner_type_id != target_partner_type:
                 partner_vals_to_write['ths_partner_type_id'] = target_partner_type.id
-                type_is_changing = True  # Flag that type is being set/changed
+                type_is_changing = True
 
         # --- 3. Sync Employee Backlink ---
         if hasattr(work_partner, 'ths_employee_id') and work_partner.ths_employee_id != self:
             partner_vals_to_write['ths_employee_id'] = self.id
 
-        # --- 4. Sync Common Fields (Employee -> Partner) ---
-        if work_partner.name != self.name: partner_vals_to_write['name'] = self.name
-        if hasattr(work_partner, 'name_ar') and work_partner.name_ar != self.name_ar: partner_vals_to_write[
-            'name_ar'] = self.name_ar
-        if work_partner.email != self.work_email: partner_vals_to_write['email'] = self.work_email
-        if work_partner.phone != self.work_phone: partner_vals_to_write['phone'] = self.work_phone
-        if work_partner.mobile != self.mobile_phone: partner_vals_to_write['mobile'] = self.mobile_phone
-        if work_partner.gender != self.gender: partner_vals_to_write['gender'] = self.gender
-        if work_partner.function != self.job_title: partner_vals_to_write['function'] = self.job_title
-        if work_partner.country_id != self.country_id: partner_vals_to_write[
-            'country_id'] = self.country_id.id if self.country_id else False
-        if work_partner.image_1920 != self.image_1920: partner_vals_to_write['image_1920'] = self.image_1920
+        # --- 4. Employee ALWAYS Overrides Partner Values ---
+        # Basic fields - always sync regardless of current partner values
+        if self.name:  # Only sync if employee has a name
+            partner_vals_to_write['name'] = self.name
+        if hasattr(work_partner, 'name_ar'):
+            partner_vals_to_write['name_ar'] = self.name_ar or False
+        if hasattr(work_partner, 'gender'):
+            partner_vals_to_write['gender'] = self.gender or False
+        if hasattr(work_partner, 'ths_dob'):
+            partner_vals_to_write['ths_dob'] = self.birthday or False
+        if hasattr(work_partner, 'ths_gov_id'):
+            partner_vals_to_write['ths_gov_id'] = self.identification_id or False
+        if hasattr(work_partner, 'partner_address_country'):
+            partner_vals_to_write['partner_address_country'] = self.private_country_id.id or False
+
+        # Contact fields
+        partner_vals_to_write['email'] = self.work_email or False
+        partner_vals_to_write['phone'] = self.work_phone or False
+        partner_vals_to_write['mobile'] = self.mobile_phone or False
+        partner_vals_to_write['function'] = self.job_title or False
+        partner_vals_to_write['country_id'] = self.country_id.id if self.country_id else False
+        partner_vals_to_write['image_1920'] = self.image_1920 or False
+        partner_vals_to_write['ths_dob'] = self.birthday or False
+        partner_vals_to_write['ths_gov_id'] = self.identification_id or False
+        partner_vals_to_write['partner_address_country'] = self.private_country_id.id or False
+
 
         # --- 5. Sync Partner Reference ('ref') ---
         is_target_employee_type = target_partner_type and target_partner_type.id in (
@@ -224,7 +244,6 @@ class HrEmployee(models.Model):
                         new_ref = employee_sequence.sudo().next_by_id()
                         if new_ref and work_partner.ref != new_ref:
                             partner_vals_to_write['ref'] = new_ref
-                            # Use debug level for successful ref setting
                             _logger.debug(f"Emp {self.id}: Setting partner ref to '{new_ref}' from employee sequence.")
                 except Exception as e:
                     _logger.error(f"Emp {self.id}: Failed to get next sequence for employee ref: {e}")
@@ -235,14 +254,11 @@ class HrEmployee(models.Model):
         if partner_vals_to_write:
             try:
                 work_partner.sudo().write(partner_vals_to_write)
-                # Use debug level for successful sync
                 _logger.debug(
                     f"Emp {self.id}: Synced work partner '{work_partner.name}' (ID: {work_partner.id}) with values: {partner_vals_to_write}")
             except Exception as e:
                 _logger.error(
                     f"Emp {self.id}: Failed to sync work partner {work_partner.name} (ID: {work_partner.id}): {e}")
-        # else: # No need to log if nothing changed
-        #    _logger.debug(f"Emp {self.id}: No sync needed for work partner '{work_partner.name}' (ID: {work_partner.id}).")
 
     # -- Location Methods --
     def _create_or_update_employee_location(self, original_values=None):
@@ -272,10 +288,8 @@ class HrEmployee(models.Model):
         if existing_location: self.sudo().write({'ths_inv_loss_loc_id': existing_location.id}); return
         loc_vals = {'name': loc_name, 'usage': 'inventory', 'location_id': parent_location.id, 'company_id': company_id}
         try:
-            # Pass vals as a list to create
             new_location = Location.sudo().create([loc_vals])
             self.sudo().write({'ths_inv_loss_loc_id': new_location.id})
-            # Use debug for successful creation
             _logger.debug(f"Emp {self.id}: Created location '{new_location.name}' (ID: {new_location.id})")
         except Exception as e:
             _logger.error(f"Emp {self.id}: Failed to create location '{loc_name}': {e}")
@@ -300,7 +314,6 @@ class HrEmployee(models.Model):
         if vals_to_write:
             try:
                 current_loc.sudo().write(vals_to_write)
-                # Use debug for successful update
                 _logger.debug("Emp %s: Updated location ID %s with values: %s", self.id, current_loc.id, vals_to_write)
             except Exception as e:
                 _logger.error("Emp %s: Failed to update location %s: %s", self.id, current_loc.id, str(e))
@@ -333,10 +346,8 @@ class HrEmployee(models.Model):
         if existing_account: self.sudo().write({'ths_analytic_acc_id': existing_account.id}); return
         acc_vals = {'name': acc_name, 'plan_id': analytic_plan.id, 'company_id': company_id}
         try:
-            # Pass vals as a list to create
             new_account = AnalyticAccount.sudo().create([acc_vals])
             self.sudo().write({'ths_analytic_acc_id': new_account.id})
-            # Use debug for successful creation
             _logger.debug(f"Emp {self.id}: Created analytic account '{new_account.name}' (ID: {new_account.id})")
         except Exception as e:
             _logger.error(f"Emp {self.id}: Failed to create analytic account '{acc_name}': {e}")
@@ -350,7 +361,6 @@ class HrEmployee(models.Model):
         if current_acc.name != new_name:
             try:
                 current_acc.sudo().write({'name': new_name})
-                # Use debug for successful update
                 _logger.debug("Emp %s: Updated analytic account name for ID %s to '%s'", self.id, current_acc.id,
                               new_name)
             except Exception as e:
@@ -368,7 +378,6 @@ class HrEmployee(models.Model):
             return fallback_parent
         if not self.department_id.ths_inv_location_id:
             try:
-                # Assumes _create_department_location_if_needed exists on hr.department
                 self.department_id.sudo()._create_department_location_if_needed()
                 self.department_id.invalidate_recordset(['ths_inv_location_id'])
                 if not self.department_id.ths_inv_location_id: raise ValidationError(
@@ -396,7 +405,7 @@ class HrEmployee(models.Model):
         elif not self:
             employees_to_process = self.sudo().search([])
         _logger.info(
-            f"Starting retroactive creation/linking for {len(employees_to_process)} employees.")  # Keep info for action start/end
+            f"Starting retroactive creation/linking for {len(employees_to_process)} employees.")
         count_loc = 0
         count_acc = 0
         processed_ids = set()
@@ -414,7 +423,7 @@ class HrEmployee(models.Model):
                 errors.append(
                     f"Employee {employee.name}: {e}")
         _logger.info(
-            f"Retroactive processing finished. Employees checked: {len(processed_ids)}. Locations linked: {count_loc}. Accounts linked: {count_acc}.")  # Keep info for action start/end
+            f"Retroactive processing finished. Employees checked: {len(processed_ids)}. Locations linked: {count_loc}. Accounts linked: {count_acc}.")
         message = _("Checked %s employees. Loss Locations created/linked: %s. Analytic Accounts created/linked: %s.",
                     len(processed_ids), count_loc, count_acc)
         if errors: message += _("\nErrors encountered:\n%s", "\n".join(errors))
@@ -425,3 +434,7 @@ class HrEmployee(models.Model):
                                                                                      'sticky': bool(errors),
                                                                                      'type': 'warning' if errors else 'info'}}
         return True
+
+# TODO: Add bulk update functionality for employee data
+# TODO: Add audit trail for partner sync operations
+# TODO: Add validation for duplicate employee references
