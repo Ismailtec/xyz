@@ -1,5 +1,5 @@
-from odoo import models, fields, api, _
-from odoo.tools.float_utils import float_is_zero, float_compare
+from odoo import models, fields, api
+from odoo.tools.float_utils import float_compare
 import logging
 
 _logger = logging.getLogger(__name__)
@@ -14,7 +14,7 @@ class ProductProduct(models.Model):
         help="Snapshot of standard_price just before the last landed cost application or any other change",
     )
 
-    # Override the method responsible for selecting the best seller
+    # Override the method responsible for selecting the bestseller
     def _select_seller(self, partner_id=False, quantity=0.0, date=None, uom_id=False, params=None):
         """
         Selects the best seller for a given product and quantity.

@@ -63,7 +63,7 @@ class ThsMedicalEncounterService(models.Model):
         'appointment.resource',
         string='Provider',
         index=True,
-        #domain="[('ths_is_medical', '=', True)]",
+        # domain="[('ths_is_medical', '=', True)]",
         domain="[('ths_resource_category', '=', 'practitioner')]",
         help="The medical staff member who provided this specific service/item.",
     )
@@ -81,7 +81,10 @@ class ThsMedicalEncounterService(models.Model):
     )
 
     # Related Fields for Context (mostly invisible in direct line view)
-    appointment_id = fields.Many2one(related='encounter_id.appointment_id', store=False)
+    appointment_id = fields.Many2one('calendar.event',
+                                     string='Source Appointment',
+                                     compute='_compute_appointment_id',
+                                     store=False)
 
     # For human medical: partner_id = patient (same person receiving care and paying)
     partner_id = fields.Many2one(
@@ -109,6 +112,11 @@ class ThsMedicalEncounterService(models.Model):
             lang_code = line.partner_id.lang if line.partner_id else self.env.user.lang
             product = line.product_id.with_context(lang=lang_code)
             line.description = product.get_product_multiline_description_sale()
+
+    @api.depends('encounter_id.appointment_ids')
+    def _compute_appointment_id(self):
+        for record in self:
+            record.appointment_id = record.encounter_id.appointment_ids[:1]
 
     # --- Onchange Methods ---
     @api.onchange('product_id')

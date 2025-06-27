@@ -28,17 +28,17 @@
                 <attribute name="invisible">0</attribute>
             </xpath>
 
-<!--            <xpath expr="//field[@name='partner_ids']" position="attributes">-->
-<!--                <attribute name="invisible">0</attribute>-->
-<!--                <attribute name="string">Patients</attribute>-->
-<!--                <attribute name="widget">many2many_tags</attribute>-->
-<!--                <attribute name="class">o_required_modifier o_field_highlight</attribute>-->
-<!--                <attribute name="options">{"no_create": True, "no_quick_create": True}</attribute>-->
-<!--                <attribute name="placeholder">Patients...</attribute>-->
-<!--                <attribute name="domain">[('ths_partner_type_id.is_patient', '=', True)]</attribute>-->
-<!--                <attribute name="help">Patients receiving medical treatment. In human medical practice, these are both-->
-<!--                    the service recipients and billing customers.</attribute>-->
-<!--            </xpath>-->
+            <!--            <xpath expr="//field[@name='partner_ids']" position="attributes">-->
+            <!--                <attribute name="invisible">0</attribute>-->
+            <!--                <attribute name="string">Patients</attribute>-->
+            <!--                <attribute name="widget">many2many_tags</attribute>-->
+            <!--                <attribute name="class">o_required_modifier o_field_highlight</attribute>-->
+            <!--                <attribute name="options">{"no_create": True, "no_quick_create": True}</attribute>-->
+            <!--                <attribute name="placeholder">Patients...</attribute>-->
+            <!--                <attribute name="domain">[('ths_partner_type_id.is_patient', '=', True)]</attribute>-->
+            <!--                <attribute name="help">Patients receiving medical treatment. In human medical practice, these are both-->
+            <!--                    the service recipients and billing customers.</attribute>-->
+            <!--            </xpath>-->
 
             <xpath expr="//field[@name='name']" position="attributes">
                 <attribute name="readonly">1</attribute>
@@ -119,6 +119,7 @@
                                    domain="ths_room_id_domain"
                                    options="{'no_create': True, 'no_create_edit': True}"/>
                             <field name="is_resource_based_type" readonly="1" invisible="1"/>
+                            <field name="encounter_id" readonly="1" invisible="1"/>
                         </group>
                     </group>
                     <group string="Visit Information" name="medical_visit_info">
@@ -134,7 +135,7 @@
                                    options="{'no_create': True, 'no_quick_create': True}"/>
                         </group>
                     </group>
-                    <field name="ths_encounter_id" readonly="1" invisible="1"/>
+                    <field name="encounter_id" readonly="1" invisible="1"/>
                 </page>
             </xpath>
         </field>
@@ -298,6 +299,16 @@
                         <t t-elif="appointment_status === 'no_show'">No Show</t>
                     </t>
                 </li>
+                <li t-if="context.pos_session_id" class="mt-3">
+                    <button class="btn btn-success btn-sm o_appointment_pay_button"
+                            t-att-data-appointment-id="id"
+                            t-att-data-partner-id="partner_ids and partner_ids[0]"
+                            t-att-data-patient-ids="ths_patient_ids and ths_patient_ids[0]"
+                            t-att-data-practitioner-id="ths_practitioner_id and ths_practitioner_id[0]"
+                            t-att-data-encounter-id="encounter_id and encounter_id[0]">
+                        <i class="fa fa-credit-card me-1"/>Pay Now
+                    </button>
+                </li>
             </xpath>
 
         </field>
@@ -322,5 +333,9 @@
             </p>
         </field>
     </record>
+
+    <!-- TODO: Add encounter status indicator in appointment list -->
+    <!-- TODO: Implement appointment-encounter quick navigation -->
+    <!-- TODO: Add encounter payment status in appointment view -->
 
 </odoo>

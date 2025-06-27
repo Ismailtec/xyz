@@ -29,12 +29,13 @@ class ThsPendingPosItem(models.Model):
         string='Source Encounter',
         ondelete='cascade',
         index=True,
-        copy=False
+        copy=False,
+        help="Daily encounter this item belongs to"
     )
     appointment_id = fields.Many2one(
         'calendar.event',
         string='Source Appointment',
-        related='encounter_id.appointment_id',
+        compute='_compute_appointment_id',
         store=True,
         index=True,
         copy=False
@@ -147,6 +148,11 @@ class ThsPendingPosItem(models.Model):
                 name += f" ({item.encounter_id.name})"
             item.name = name
 
+    @api.depends('encounter_id.appointment_ids')
+    def _compute_appointment_id(self):
+        for record in self:
+            record.appointment_id = record.encounter_id.appointment_ids[:1]
+
     # @api.constrains('partner_id', 'patient_id')
     # def _check_patient_partner_consistency(self):
     #     """
@@ -176,6 +182,27 @@ class ThsPendingPosItem(models.Model):
         """
         if self.patient_id:
             self.partner_id = self.patient_id
+
+    # @api.model_create_multi
+    # def create(self, vals_list):
+    #     """ Override to link items to daily encounters """
+    #     processed_vals_list = []
+    #
+    #     for vals in vals_list:
+    #         # Find or create encounter for this item
+    #         if vals.get('partner_id') and not vals.get('encounter_id'):
+    #             partner_id = vals['partner_id']
+    #             encounter_date = fields.Date.context_today(self)
+    #
+    #             # Find or create daily encounter
+    #             encounter = self.env['ths.medical.base.encounter']._find_or_create_daily_encounter(
+    #                 partner_id, encounter_date
+    #             )
+    #             vals['encounter_id'] = encounter.id
+    #
+    #         processed_vals_list.append(vals)
+    #
+    #     return super().create(processed_vals_list)
 
     # --- Actions ---
     def action_cancel(self):
@@ -229,3 +256,24 @@ class ThsPendingPosItem(models.Model):
             item.message_post(body=_("Item status reset to 'Pending' due to linked POS Order Line refund."))
 
         return True
+
+    def action_view_encounter(self):
+        """View the daily encounter for this item"""
+        self.ensure_one()
+        if not self.encounter_id:
+            return {}
+
+        return {
+            'name': _('Daily Encounter'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'ths.medical.base.encounter',
+            'view_mode': 'form',
+            'res_id': self.encounter_id.id,
+            'target': 'current'
+        }
+
+# TODO: Add pending item automatic grouping by encounter
+# TODO: Implement pending item priority system
+# TODO: Add pending item expiration warnings
+# TODO: Implement pending item bulk processing
+# TODO: Add pending item approval workflow for high-value items

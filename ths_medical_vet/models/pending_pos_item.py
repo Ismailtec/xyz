@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from odoo import models, fields, api, _
+from odoo import models, fields, api, _, Command
 from odoo.exceptions import ValidationError, UserError
 
 import logging
@@ -231,34 +231,29 @@ class ThsPendingPosItem(models.Model):
         """
         processed_vals_list = []
         for vals in vals_list:
-            # Validate and sync vet-specific relationships
+            # Validate vet-specific relationships first
             if vals.get('patient_id') and not vals.get('partner_id'):
                 # Auto-set pet owner from pet
                 pet = self.env['res.partner'].browse(vals['patient_id'])
                 if pet.ths_pet_owner_id:
                     vals['partner_id'] = pet.ths_pet_owner_id.id
 
-            # Validate partner_id is Pet Owner
-            if vals.get('partner_id'):
-                partner = self.env['res.partner'].browse(vals['partner_id'])
-                if partner.ths_partner_type_id.name != 'Pet Owner':
-                    raise UserError(_(
-                        "Billing customer must be a Pet Owner. "
-                        "Provided: %s (%s)",
-                        partner.name,
-                        partner.ths_partner_type_id.name
-                    ))
+            # Find or create encounter using pet owner (partner_id)
+            if vals.get('partner_id') and not vals.get('encounter_id'):
+                partner_id = vals['partner_id']  # This is pet owner in vet context
+                encounter_date = fields.Date.context_today(self)
 
-            # Validate patient_id is Pet
-            if vals.get('patient_id'):
-                patient = self.env['res.partner'].browse(vals['patient_id'])
-                if patient.ths_partner_type_id.name != 'Pet':
-                    raise UserError(_(
-                        "Patient must be a Pet. "
-                        "Provided: %s (%s)",
-                        patient.name,
-                        patient.ths_partner_type_id.name
-                    ))
+                # Use vet-specific encounter creation
+                encounter = self.env['ths.medical.base.encounter']._find_or_create_daily_encounter(
+                    partner_id, encounter_date
+                )
+                vals['encounter_id'] = encounter.id
+
+                # Ensure pet is linked to encounter
+                if vals.get('patient_id'):
+                    pet_id = vals['patient_id']
+                    if pet_id not in encounter.patient_ids.ids:
+                        encounter.patient_ids = [Command.link(pet_id)]
 
             processed_vals_list.append(vals)
 
@@ -412,3 +407,8 @@ class ThsPendingPosItem(models.Model):
             'commission_amount': (self.qty * self.price_unit * (1 - self.discount / 100)) * (
                     self.commission_pct / 100) if self.commission_pct else 0,
         }
+
+# TODO: Add pet-specific pricing rules integration
+# TODO: Implement multi-pet service bundling discounts
+# TODO: Add pet weight-based medication dosage calculations
+# TODO: Implement species-specific service filtering

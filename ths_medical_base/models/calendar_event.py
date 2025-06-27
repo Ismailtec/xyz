@@ -93,10 +93,12 @@ class CalendarEvent(models.Model):
                                     help="Check if this appointment was created for a walk-in patient.")
 
     # Link to the clinical encounter generated from this appointment
-    ths_encounter_id = fields.Many2one(
-        'ths.medical.base.encounter', string='Medical Encounter',
-        readonly=True, copy=False, index=True, ondelete='set null')
-    ths_encounter_count = fields.Integer(compute='_compute_ths_encounter_count', store=False)
+    encounter_id = fields.Many2one(
+        'ths.medical.base.encounter', string='Daily Encounter',
+        readonly=True, copy=False, index=True, ondelete='set null',
+        help="Daily encounter container for all services")
+
+    ths_encounter_count = fields.Integer(compute='_compute_encounter_count', store=False)
 
     is_resource_based_type = fields.Boolean(
         compute='_compute_is_resource_based_type', store=False
@@ -176,10 +178,10 @@ class CalendarEvent(models.Model):
         # Gantt sets default_resource_ids, we use resource_ids (computed field with inverse)
         ctx_resource_ids = self.env.context.get('default_resource_ids', [])
         # Store our partner_ids before appointment module interferes
-        our_partner_ids = res.get('partner_ids', [])
+        #our_partner_ids = res.get('partner_ids', [])
 
         # If we have vet-specific partners, preserve them
-        if self.env.context.get('default_ths_pet_owner_id') or self.env.context.get('default_ths_patient_ids'):
+        if self.env.context.get('default_ths_patient_ids'):
             # Don't let appointment module override our partner_ids
             pass
 
@@ -313,15 +315,12 @@ class CalendarEvent(models.Model):
 
                 # Trigger actions based on status change
                 if new_status == 'checked_in':
-                    event._create_medical_encounter()
+                    event._find_or_create_encounter()
                 elif new_status == 'in_progress':
-                    if not event.ths_encounter_id:
-                        event._create_medical_encounter()
-                    if event.ths_encounter_id and event.ths_encounter_id.state == 'draft':
-                        event.ths_encounter_id.write({'state': 'in_progress'})
-                elif new_status == 'completed':
-                    if event.ths_encounter_id and event.ths_encounter_id.state != 'billed':
-                        event.ths_encounter_id.write({'state': 'ready_for_billing'})
+                    if not event.encounter_id:
+                        event._find_or_create_encounter()
+                    if event.encounter_id and event.encounter_id.state == 'done':
+                        event.encounter_id.write({'state': 'in_progress'})
 
         # if 'ths_patient_ids' not in vals:
         #     # Ensure ths_patient_ids is always in sync with partner_ids
@@ -331,14 +330,13 @@ class CalendarEvent(models.Model):
         #         elif not event.partner_ids and event.ths_patient_ids:
         #             event.partner_ids = [Command.clear()]
 
-
         return result
 
     # --- Encounter Count & Actions
-    @api.depends('ths_encounter_id')
-    def _compute_ths_encounter_count(self):
+    @api.depends('encounter_id')
+    def _compute_encounter_count(self):
         for event in self:
-            event.ths_encounter_count = 1 if event.ths_encounter_id else 0
+            event.ths_encounter_count = 1 if event.encounter_id else 0
 
     # --- Action Buttons ---
     def action_check_in(self):
@@ -363,7 +361,7 @@ class CalendarEvent(models.Model):
                 'appointment_status': 'checked_in',
                 'ths_check_in_time': now
             })
-            event._create_medical_encounter()
+            event._find_or_create_encounter()
         return True
 
     def action_start_consultation(self):
@@ -371,17 +369,12 @@ class CalendarEvent(models.Model):
         for event in self:
             if event.appointment_status != 'checked_in':
                 raise UserError(_("Patient must be Checked In before starting the consultation."))
-            if not event.ths_encounter_id:
-                event._create_medical_encounter()
-            if not event.ths_encounter_id:
-                raise UserError(_("Cannot start consultation: Medical Encounter is missing."))
+            if not event.encounter_id:
+                event._find_or_create_encounter()
+            if not event.encounter_id:
+                raise UserError(_("Cannot start consultation: Daily Encounter is missing."))
 
             event.write({'appointment_status': 'in_progress'})
-            if event.ths_encounter_id.state == 'draft':
-                if hasattr(event.ths_encounter_id, 'action_in_progress'):
-                    event.ths_encounter_id.action_in_progress()
-                else:
-                    event.ths_encounter_id.write({'state': 'in_progress'})
         return True
 
     def action_complete_and_bill(self):
@@ -390,22 +383,13 @@ class CalendarEvent(models.Model):
         for event in self:
             if event.appointment_status not in ('checked_in', 'in_progress'):
                 raise UserError(_("Appointment must be Checked In or In Progress to mark as Completed."))
-            if not event.ths_encounter_id:
+            if not event.encounter_id:
                 raise UserError(_("Cannot complete appointment: Corresponding Medical Encounter not found."))
 
             event.write({
                 'appointment_status': 'completed',
                 'ths_check_out_time': now
             })
-
-            # Trigger encounter's action_ready_for_billing
-            if event.ths_encounter_id.state != 'billed':
-                try:
-                    event.ths_encounter_id.action_ready_for_billing()
-                except UserError as ue:
-                    raise ue
-                except Exception as e:
-                    raise UserError(_("An error occurred while preparing items for billing: %s", e))
         return True
 
     def action_cancel_appointment(self):
@@ -418,82 +402,70 @@ class CalendarEvent(models.Model):
         }
 
         self.write(vals_to_write)
-        for event_rec in self:
-            if event_rec.ths_encounter_id and event_rec.ths_encounter_id.state not in ('billed', 'cancelled'):
-                if hasattr(event_rec.ths_encounter_id, 'action_cancel'):
-                    event_rec.ths_encounter_id.action_cancel()
-                else:
-                    event_rec.ths_encounter_id.write({'state': 'cancelled'})
         return True
 
     def action_mark_no_show(self):
         """ Mark as No Show. """
         self.write({'appointment_status': 'no_show'})
-        for event_rec in self:
-            if event_rec.ths_encounter_id and event_rec.ths_encounter_id.state not in ('billed', 'cancelled'):
-                if hasattr(event_rec.ths_encounter_id, 'action_cancel'):
-                    event_rec.ths_encounter_id.action_cancel()
-                else:
-                    event_rec.ths_encounter_id.write({'state': 'cancelled'})
         return True
 
     # --- Encounter Creation Logic ---
-    def _prepare_encounter_vals(self):
-        """
-        Prepare values for creating a ths.medical.base.encounter record.
-        For medical: patient = partner (same person)
-        """
+    def _find_or_create_encounter(self):
+        """Find or create daily encounter for this appointment"""
         self.ensure_one()
 
-        # Patients are the partners/customers
+        # Get patient (billing partner) for encounter lookup
         patients = self.ths_patient_ids
-        # TODO: Handle multiple patients scenario - for now take first patient's data
         primary_patient = patients[0] if patients else False
-        practitioner_employee = self.ths_practitioner_id
 
-        if not patients:
-            raise UserError(_("Cannot create encounter: Patients must be set on the appointment."))
         if not primary_patient:
-            raise UserError(_("Cannot create encounter: Primary patient could not be determined."))
-        if not practitioner_employee:
-            raise UserError(_("Cannot create encounter: Practitioner is not set."))
+            raise UserError(_("Cannot create encounter: Patients must be set on the appointment."))
 
-        return {
-            'appointment_id': self.id,
-            'state': 'draft',
-            'patient_ids': [Command.set(patients.ids)],  # Patients receiving care
-            'practitioner_id': practitioner_employee.id,
-            'partner_id': primary_patient.id,  # Same as primary patient
-            'chief_complaint': self.ths_reason_for_visit,
-        }
+        # Find or create daily encounter
+        encounter_date = self.start.date() if self.start else fields.Date.context_today(self)
+        encounter = self.env['ths.medical.base.encounter']._find_or_create_daily_encounter(
+            primary_patient.id, encounter_date
+        )
 
-    def _create_medical_encounter(self):
-        """ Creates a medical encounter if one doesn't exist for this appointment. """
-        self.ensure_one()
-        Encounter = self.env['ths.medical.base.encounter']
-        if not self.ths_encounter_id:
-            # Double check if exists but not linked
-            existing = Encounter.sudo().search([('appointment_id', '=', self.id)], limit=1)
-            if existing:
-                self.sudo().write({'ths_encounter_id': existing.id})
-            else:
-                try:
-                    encounter_vals = self._prepare_encounter_vals()
-                    new_encounter = Encounter.sudo().create(encounter_vals)
-                    self.sudo().write({'ths_encounter_id': new_encounter.id})
-                    self.message_post(body=_("Medical Encounter %s created.", new_encounter._get_html_link()),
-                                      message_type='comment', subtype_xmlid='mail.mt_note')
-                except Exception as e:
-                    self.message_post(body=_("Failed to create medical encounter: %s", e))
+        # Link appointment to encounter
+        self.encounter_id = encounter.id
+
+        # Add patients to encounter if not already present
+        if patients:
+            existing_patients = encounter.patient_ids
+            new_patients = patients - existing_patients
+            if new_patients:
+                encounter.patient_ids = [Command.link(p.id) for p in new_patients]
+
+        return encounter
+
+    # def _create_medical_encounter(self):
+    #     """ Creates a medical encounter if one doesn't exist for this appointment. """
+    #     self.ensure_one()
+    #     Encounter = self.env['ths.medical.base.encounter']
+    #     if not self.encounter_id:
+    #         # Double check if exists but not linked
+    #         existing = Encounter.sudo().search([('appointment_ids', '=', self.id)], limit=1)
+    #         if existing:
+    #             self.sudo().write({'encounter_id': existing.id})
+    #         else:
+    #             try:
+    #                 encounter_vals = self._prepare_encounter_vals()
+    #                 new_encounter = Encounter.sudo().create(encounter_vals)
+    #                 self.sudo().write({'encounter_id': new_encounter.id})
+    #                 self.message_post(body=_("Medical Encounter %s created.", new_encounter._get_html_link()),
+    #                                   message_type='comment', subtype_xmlid='mail.mt_note')
+    #             except Exception as e:
+    #                 self.message_post(body=_("Failed to create medical encounter: %s", e))
 
     # --- Action to View Encounter ---
     def action_view_encounter(self):
         self.ensure_one()
-        if not self.ths_encounter_id:
+        if not self.encounter_id:
             return False
         action = self.env['ir.actions.actions']._for_xml_id('ths_medical_base.action_ths_medical_encounter')
-        action['domain'] = [('id', '=', self.ths_encounter_id.id)]
-        action['res_id'] = self.ths_encounter_id.id
+        action['domain'] = [('id', '=', self.encounter_id.id)]
+        action['res_id'] = self.encounter_id.id
         action['views'] = [(self.env.ref('ths_medical_base.view_ths_medical_encounter_form').id, 'form')]
         return action
 
@@ -525,3 +497,9 @@ class CalendarEvent(models.Model):
                 )
             except Exception as e:
                 _logger.error("Failed to send reminder for appointment %s: %s", appointment.id, e)
+
+# TODO: Add appointment recurring encounter linking
+# TODO: Implement appointment-encounter sync validation
+# TODO: Add appointment cancellation encounter cleanup
+# TODO: Implement encounter-based appointment rescheduling
+# TODO: Add appointment no-show encounter marking

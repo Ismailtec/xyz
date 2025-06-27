@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from odoo import models, fields, api, _
+from odoo import models, fields, api, _, Command
 from odoo.exceptions import UserError, ValidationError
 
 import logging
@@ -78,6 +78,16 @@ class VetBoardingStay(models.Model):
         ('invoiced', 'Invoiced/Paid'),
         ('cancelled', 'Cancelled')
     ], string='Status', default='draft', index=True, required=True, tracking=True, copy=False)
+
+    encounter_id = fields.Many2one(
+        'ths.medical.base.encounter',
+        string='Daily Encounter',
+        readonly=True,
+        copy=False,
+        index=True,
+        ondelete='set null',
+        help="Daily encounter this boarding stay belongs to"
+    )
 
     # Boarding Information
     vaccination_proof_received = fields.Boolean(string='Vaccination Proof Received?', tracking=True)
@@ -289,16 +299,33 @@ class VetBoardingStay(models.Model):
 
     # Actions
     def action_check_in(self):
-        """Check in the pet"""
+        """Check in the pet and link to daily encounter"""
         for stay in self.filtered(lambda s: s.state in ('draft', 'scheduled')):
             if not stay.vaccination_proof_received:
                 raise UserError(_("Cannot check in without vaccination proof."))
             if not stay.consent_form_signed:
                 raise UserError(_("Cannot check in without signed consent form."))
+
+            # Find or create daily encounter
+            if not stay.encounter_id:
+                check_in_date = stay.check_in_datetime.date() if stay.check_in_datetime else fields.Date.context_today(
+                    stay)
+                encounter = self.env['ths.medical.base.encounter']._find_or_create_daily_encounter(
+                    stay.owner_id.id, check_in_date
+                )
+                stay.encounter_id = encounter.id
+
+                # Add pet to encounter if not already present
+                if stay.pet_id not in encounter.patient_ids:
+                    encounter.patient_ids = [Command.link(stay.pet_id.id)]
+
             stay.write({
                 'state': 'checked_in',
                 'check_in_datetime': fields.Datetime.now()
             })
+
+            stay.message_post(
+                body=_("Boarding check-in completed and linked to encounter %s", stay.encounter_id.name))
 
     def action_check_out(self):
         # Check permissions?
@@ -324,54 +351,34 @@ class VetBoardingStay(models.Model):
         for stay in self.filtered(lambda s: s.state == 'cancelled'):
             stay.write({'state': 'draft'})
 
-    # --- TODO: Billing Logic ---
-    # def _create_boarding_billing_items(self):
-    #    self.ensure_one()
-    #    PendingItem = self.env['ths.pending.pos.item']
-    #    # Find boarding product (e.g., daily rate) - needs configuration
-    #    boarding_product = self.env.ref('some_module.product_boarding_daily', raise_if_not_found=False)
-    #    if not boarding_product: return
-    #    # Calculate qty (days)
-    #    qty = self.duration_days # Or recalculate based on actual checkout?
-    #    if qty <= 0 : return
-    #
-    #    item_vals = {
-    #        'partner_id': self.owner_id.id,
-    #        'patient_id': self.pet_id.id,
-    #        'product_id': boarding_product.id,
-    #        'qty': qty,
-    #        'price_unit': boarding_product.lst_price, # Needs pricelist logic
-    #        'practitioner_id': self.env.user.employee_id.id, # Who gets commission? Maybe specific staff?
-    #        'state': 'pending',
-    #        'company_id': self.company_id.id,
-    #        # Add link back to stay?
-    #        # 'boarding_stay_id': self.id, # Needs field on pending item
-    #    }
-    #    PendingItem.sudo().create(item_vals)
-
+    # --- Billing Logic ---
     def _create_boarding_billing_items(self):
-        """Create pending POS items for boarding stay"""
+        """Create pending POS items for boarding stay and link to encounter"""
         self.ensure_one()
-
-        # Get boarding product
-        # if not self.boarding_product_id:
-        #     # Try to get default from company
-        #     self.boarding_product_id = self.company_id.default_boarding_product_id
 
         if not self.boarding_product_id:
             # Try to find by sub-type
             boarding_product = self.env['product.product'].search([
-                ('ths_product_sub_type_id.code', '=', 'BOARD'),
+                ('ths_product_sub_type_id.code', '=', 'BRD'),
                 ('active', '=', True),
                 ('sale_ok', '=', True)
             ], limit=1)
             if boarding_product:
                 self.boarding_product_id = boarding_product
             else:
-                raise UserError(_("No boarding product configured. Please create a product with sub-type 'BOARD'."))
+                raise UserError(_("No boarding product configured. Please create a product with sub-type 'BRD'."))
 
-        # Create pending item
-        return self.env['ths.pending.pos.item'].sudo().create({
+        # Ensure encounter exists
+        if not self.encounter_id:
+            checkout_date = self.actual_check_out_datetime.date() if self.actual_check_out_datetime else fields.Date.context_today(
+                self)
+            encounter = self.env['ths.medical.base.encounter']._find_or_create_daily_encounter(
+                self.owner_id.id, checkout_date
+            )
+            self.encounter_id = encounter.id
+
+        # Create pending item linked to encounter
+        pending_item = self.env['ths.pending.pos.item'].sudo().create({
             'partner_id': self.owner_id.id,
             'patient_id': self.pet_id.id,
             'product_id': self.boarding_product_id.id,
@@ -383,7 +390,12 @@ class VetBoardingStay(models.Model):
             'state': 'pending',
             'notes': _("Boarding Stay: %(ref)s", ref=self.name),
             'boarding_stay_id': self.id,
+            'encounter_id': self.encounter_id.id,
         })
+
+        self.message_post(
+            body=_("Boarding billing item created and linked to encounter %s", self.encounter_id.name))
+        return pending_item
 
     def action_view_pending_items(self):
         """View related pending POS items"""
@@ -396,3 +408,26 @@ class VetBoardingStay(models.Model):
             'domain': [('boarding_stay_id', '=', self.id)],
             'context': {'create': False}
         }
+
+    def action_view_encounter(self):
+        """View the daily encounter for this boarding stay"""
+        self.ensure_one()
+        if not self.encounter_id:
+            return {}
+
+        return {
+            'name': _('Daily Encounter'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'ths.medical.base.encounter',
+            'view_mode': 'form',
+            'res_id': self.encounter_id.id,
+            'target': 'current'
+        }
+
+# TODO: Add boarding encounter daily care logging
+# TODO: Implement boarding photo upload per encounter
+# TODO: Add boarding feeding schedule integration
+# TODO: Implement boarding exercise tracking
+# TODO: Add boarding medication administration logging
+# TODO: Implement boarding emergency contact notifications
+# TODO: Add boarding pickup reminder system

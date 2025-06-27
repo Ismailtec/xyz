@@ -3,6 +3,7 @@
 
 from odoo import models, fields, api, _
 from datetime import datetime
+from markupsafe import Markup
 import logging
 
 _logger = logging.getLogger(__name__)

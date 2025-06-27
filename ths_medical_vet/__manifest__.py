@@ -5,18 +5,19 @@
     'category': 'Medical/Veterinary',
     'summary': 'Veterinary specific extensions for Techouse Medical modules.',
     'description': """
-Adapts the Techouse Medical Base module for veterinary clinics.
-- Defines "Pet" and "Pet Owner" partner types and relationships.
-- Adds Pet-specific fields (Species, Breed, DOB, etc.) to the Partner model.
-- Modifies Appointment and Encounter screens to handle Pet/Owner distinction.
-    """,
+                   Adapts the Techouse Medical Base module for veterinary clinics.
+                   - Defines "Pet" and "Pet Owner" partner types and relationships.
+                   - Adds Pet-specific fields (Species, Breed, DOB, etc.) to the Partner model.
+                   - Modifies Appointment and Encounter screens to handle Pet/Owner distinction.
+                       """,
     'author': 'Techouse Solutions / Ismail Abdelkhalik',
     'website': 'https://www.techouse.ae',
     'depends': [
-        'ths_medical_base',  # Essential dependency
         'ths_base',
+        'ths_medical_base',  # Essential dependency
         'ths_hr',  # For ths_hr.employee
         'contacts',  # For res.partner
+        'membership',
     ],
     'data': [
         'security/ir.model.access.csv',
@@ -29,7 +30,9 @@ Adapts the Techouse Medical Base module for veterinary clinics.
         'views/medical_summary.xml',
         'views/species.xml',
         'views/vaccination.xml',
+        'views/park.xml',
         'views/res_partner.xml',
+        'views/vet_encounter_reports.xml',
         'views/vet_menus.xml',
         'wizard/species_breed_import_view.xml',
     ],

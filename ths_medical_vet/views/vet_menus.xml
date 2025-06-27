@@ -84,7 +84,6 @@
                   action="action_vet_medical_history_summary"
                   sequence="50"/>
 
-        <!-- Vet Menus -->
         <menuitem id="menu_vet_vaccinations"
                   name="Vaccinations"
                   parent="ths_medical_vet.menu_ths_medical_vet_root"
@@ -101,5 +100,13 @@
                   parent="menu_vet_vaccinations"
                   action="action_vet_vaccine_type"
                   sequence="20"/>
+
+        <menuitem
+                id="menu_vet_park_checkins"
+                name="Park Check-ins"
+                parent="menu_ths_medical_vet_root"
+                action="action_park_checkin"
+                sequence="60"/>
+
     </data>
 </odoo>

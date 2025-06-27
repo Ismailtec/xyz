@@ -150,6 +150,18 @@
                     </t>
                 </li>
             </xpath>
+            <xpath expr="//li[@t-if='context.pos_session_id']" position="replace">
+                <li t-if="context.pos_session_id" class="mt-3">
+                    <button class="btn btn-success btn-sm o_appointment_pay_button"
+                            t-att-data-appointment-id="id"
+                            t-att-data-owner-id="ths_pet_owner_id and ths_pet_owner_id[0]"
+                            t-att-data-pet-ids="ths_patient_ids and ','.join(str(p[0]) for p in ths_patient_ids)"
+                            t-att-data-practitioner-id="ths_practitioner_id and ths_practitioner_id[0]"
+                            t-att-data-encounter-id="encounter_id and encounter_id[0]">
+                        <i class="fa fa-credit-card me-1"/>Pay Now
+                    </button>
+                </li>
+            </xpath>
 
         </field>
     </record>
@@ -189,5 +201,10 @@
             </p>
         </field>
     </record>
+
+    <!-- TODO: Add pet health status warnings in appointment popover -->
+    <!-- TODO: Implement vaccination status alerts in gantt view -->
+    <!-- TODO: Add multi-pet service bundling from gantt -->
+    <!-- TODO: Implement appointment-to-boarding quick conversion -->
 
 </odoo>

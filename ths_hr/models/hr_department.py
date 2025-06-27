@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from odoo import models, fields, api, _
-from odoo.exceptions import UserError, ValidationError
+from odoo import models, fields, api
+#from odoo.exceptions import UserError, ValidationError
 import logging
 import re  # For sanitizing names
 
@@ -183,12 +183,14 @@ class HrDepartment(models.Model):
             _logger.info("Updated operation ID %s", self.ths_transfer_operation_id.id)
 
     # -- Helper Methods --
-    def _sanitize_name(self, name):
+    @staticmethod
+    def _sanitize_name(name):
         """ Sanitize department name for use in related records. """
         name = (name or '').strip()
         return name or 'unnamed-dept'
 
-    def _sanitize_code(self, code):
+    @staticmethod
+    def _sanitize_code(code):
         """ Sanitize department code. """
         code = (code or '').strip().upper()
         # Remove spaces and potentially problematic characters for sequence code

@@ -5,26 +5,13 @@
         <field name="name">ths.medical.base.encounter.list</field>
         <field name="model">ths.medical.base.encounter</field>
         <field name="arch" type="xml">
-            <list string="Medical Encounters" decoration-info="state=='draft'" decoration-muted="state=='cancelled'"
-                  decoration-success="state=='billed'" decoration-warning="state=='ready_for_billing'">
+            <list string="Medical Encounters" decoration-info="state=='in_progress'" decoration-success="state=='done'">
                 <field name="name"/>
-                <field name="appointment_id" optional="show"/>
+                <field name="encounter_date" widget="date"/>
                 <field name="patient_ids" string="Patients" widget="many2many_tags"/>
                 <field name="partner_id" string="Customer" optional="show" options="{'no_open': True}"/>
-                <field name="practitioner_id" optional="show"/>
-                <field name="room_id" optional="show"/>
-                <field name="date_start" widget="datetime" optional="show"/>
-                <field name="date_end" widget="datetime" optional="hide"/>
-                <field name="state" widget="badge" decoration-success="state == 'billed'"
-                       decoration-info="state in ('draft', 'in_progress')"
-                       decoration-warning="state == 'ready_for_billing'"
-                       decoration-danger="state == 'cancelled'"/>
-                <field name="appointment_status" widget="badge" optional="show"
-                       decoration-success="appointment_status == 'billed'"
-                       decoration-info="appointment_status in ('draft', 'confirmed', 'checked_in')"
-                       decoration-warning="appointment_status in ('in_progress', 'completed')"
-                       decoration-danger="appointment_status in ('cancelled_by_patient', 'cancelled_by_clinic', 'no_show')"/>
-                <field name="daily_id" optional="hide"/>
+                <field name="state" widget="badge" decoration-success="state == 'done'"
+                       decoration-info="state == 'in_progress'"/>
             </list>
         </field>
     </record>
@@ -35,22 +22,14 @@
         <field name="arch" type="xml">
             <form string="Medical Encounter">
                 <header>
-                    <button name="action_in_progress" string="Start Encounter" type="object"
-                            class="oe_highlight" invisible="state != 'draft'"/>
-                    <button name="action_ready_for_billing" string="Ready for Billing" type="object"
-                            class="oe_highlight" invisible="state not in ('draft', 'in_progress')"/>
-                    <button name="action_reset_to_draft" string="Reset to Draft" type="object"
-                            invisible="state not in ('cancelled', 'ready_for_billing')"/>
-                    <button name="action_cancel" string="Cancel Encounter" type="object"
-                            invisible="state not in ('draft', 'in_progress', 'ready_for_billing')"/>
                     <field name="state" widget="statusbar" options="{'clickable': '1'}"
-                           statusbar_visible="draft,in_progress,ready_for_billing,billed"/>
+                           statusbar_visible="in_progress,done" readonly="1"/>
                 </header>
                 <sheet>
                     <div class="oe_button_box" name="button_box">
-                        <button name="%(calendar.action_calendar_event)d" type="action" icon="fa-calendar"
-                                invisible="not appointment_id">
-                            <span>Appointment</span>
+                        <button name="action_view_appointments" type="object" icon="fa-calendar"
+                                class="oe_stat_button" invisible="not appointment_ids">
+                            <field name="appointment_ids" widget="statinfo" string="Appointments"/>
                         </button>
                     </div>
 
@@ -69,45 +48,43 @@
                             <field name="name" readonly="1"/>
                         </h1>
                     </div>
-                    <group name="encounter_patient_info">
+                    <group name="encounter_info">
                         <group>
-                            <field name="appointment_id" readonly="1" options="{'no_open': True}"/>
                             <field name="partner_id" string="Patient" readonly="1" options="{'no_open': True}"
                                    help="Patient receiving treatment and responsible for payment"/>
                             <field name="patient_ids" string="Patients" readonly="1" options="{'no_open': True}"
                                    widget="many2many_tags"
-                                   help="Patients receiving treatment (same as above in human medical practice)"/>
+                                   help="Patients receiving treatment"/>
+                            <field name="encounter_date" readonly="1"/>
                         </group>
-                        <group>
-                            <field name="practitioner_id" readonly="1" options="{'no_open': True}"
-                                   string="Practitioner"/>
-                            <field name="room_id" readonly="1" options="{'no_open': True}"
-                                   string="Room" invisible="not room_id"/>
-                            <field name="date_start" readonly="1"/>
-                            <field name="date_end" readonly="1"/>
-                            <field name="daily_id" readonly="1" options="{'no_open': False}"/>
-                        </group>
+                        <group name="col_2"></group>
                     </group>
                     <notebook>
-                        <page string="Services &amp; Products Used" name="service_lines">
-                            <field name="service_line_ids" nolabel="1"
-                                   context="{'default_encounter_id': id, 'default_practitioner_id': practitioner_id, 'default_room_id': room_id}">
+                        <page string="Appointments" name="appointments">
+                            <field name="appointment_ids" nolabel="1" readonly="1">
+                                <list create="false" edit="false">
+                                    <field name="name"/>
+                                    <field name="start" widget="datetime"/>
+                                    <field name="ths_practitioner_id"/>
+                                    <field name="ths_room_id" optional="show"/>
+                                    <field name="appointment_status" widget="badge"/>
+                                    <field name="ths_reason_for_visit" optional="show"/>
+                                </list>
+                            </field>
+                        </page>
+
+                        <page string="Pending Items" name="pending_items">
+                            <field name="service_line_ids" nolabel="1">
                                 <list editable="bottom">
                                     <field name="sequence" widget="handle"/>
                                     <field name="product_id" required="1"/>
                                     <field name="description" optional="show"/>
                                     <field name="quantity"/>
-                                    <field name="price_unit" widget="monetary"
-                                           options="{'currency_field': 'currency_id'}"/>
+                                    <field name="price_unit" widget="monetary"/>
                                     <field name="discount" widget="percentage" optional="show"/>
                                     <field name="practitioner_id" options="{'no_open': True}" required="1"/>
-                                    <field name="room_id" options="{'no_open': True}"/>
                                     <field name="commission_pct" optional="show"/>
                                     <field name="notes" optional="hide"/>
-                                    <field name="encounter_id" column_invisible="True"/>
-                                    <field name="appointment_id" column_invisible="True"/>
-                                    <field name="partner_id" column_invisible="True"/>
-                                    <field name="patient_id" column_invisible="True"/>
                                 </list>
                             </field>
                         </page>
@@ -139,35 +116,21 @@
                         </page>
 
                         <!-- New page to show appointment status relationship -->
-                        <page string="Appointment Sync" name="appointment_sync" groups="base.group_no_one">
-                            <group string="Status Synchronization">
-                                <field name="appointment_status" readonly="1" string="Current Appointment Status"/>
-                                <field name="state" readonly="1" string="Current Encounter State"/>
-                            </group>
-                            <div class="alert alert-info" role="alert">
-                                <h4>Status Sync Rules:</h4>
-                                <ul>
-                                    <li><strong>Checked In</strong> → Encounter moves to "In Progress"</li>
-                                    <li><strong>Completed</strong> → Encounter moves to "Ready for Billing" (if service
-                                        lines exist)</li>
-                                    <li><strong>Cancelled/No Show</strong> → Encounter moves to "Cancelled"</li>
-                                </ul>
-                            </div>
-                        </page>
-
-                        <page string="Pending POS Items" name="pending_pos_items" groups="base.group_no_one">
-                            <field name="service_line_ids" nolabel="1" readonly="1">
-                                <list>
-                                    <field name="product_id"/>
-                                    <field name="quantity"/>
-                                    <field name="price_unit"/>
-                                    <field name="discount"/>
-                                    <field name="practitioner_id"/>
-                                    <field name="room_id"/>
-                                    <field name="notes"/>
-                                </list>
-                            </field>
-                        </page>
+<!--                        <page string="Appointment Sync" name="appointment_sync" groups="base.group_no_one">-->
+<!--                            <group string="Status Synchronization">-->
+<!--                                <field name="appointment_status" readonly="1" string="Current Appointment Status"/>-->
+<!--                                <field name="state" readonly="1" string="Current Encounter State"/>-->
+<!--                            </group>-->
+<!--                            <div class="alert alert-info" role="alert">-->
+<!--                                <h4>Status Sync Rules:</h4>-->
+<!--                                <ul>-->
+<!--                                    <li><strong>Checked In</strong> → Encounter moves to "In Progress"</li>-->
+<!--                                    <li><strong>Completed</strong> → Encounter moves to "Ready for Billing" (if service-->
+<!--                                        lines exist)</li>-->
+<!--                                    <li><strong>Cancelled/No Show</strong> → Encounter moves to "Cancelled"</li>-->
+<!--                                </ul>-->
+<!--                            </div>-->
+<!--                        </page>-->
                     </notebook>
                 </sheet>
                 <!-- Attachment preview -->
@@ -185,21 +148,23 @@
             <search string="Search Medical Encounters">
                 <group expand="0" string="Search">
                     <field name="name" string="Encounter ID"/>
-                    <field name="appointment_id"/>
+                    <field name="encounter_date"/>
+                    <field name="appointment_ids"/>
                     <field name="partner_id"
                            filter_domain="['|', ('partner_id', 'ilike', self), ('patient_ids', 'ilike', self)]"
                            string="Patient"/>
                     <field name="patient_ids" string="Patients"/>
                     <field name="practitioner_id"/>
                     <field name="date_start"/>
-                    <field name="daily_id"/>
-                    <filter string="Draft" name="filter_draft" domain="[('state', '=', 'draft')]"/>
                     <filter string="In Progress" name="filter_in_progress" domain="[('state', '=', 'in_progress')]"/>
-                    <filter string="Ready for Billing" name="filter_ready_billing"
-                            domain="[('state', '=', 'ready_for_billing')]"/>
-                    <filter string="Billed" name="filter_billed" domain="[('state', '=', 'billed')]"/>
-                    <filter string="Cancelled" name="filter_cancelled" domain="[('state', '=', 'cancelled')]"/>
+                    <filter string="Done/Completed" name="filter_billed" domain="[('state', '=', 'done')]"/>
                     <separator/>
+                    <filter string="Today" name="filter_today"
+                            domain="[('encounter_date', '=', context_today())]"/>
+                    <filter string="This Week" name="filter_this_week"
+                            context="{'search_encounter_date_range': 'this_week'}"/>
+                    <filter string="Last Week" name="filter_last_week"
+                            context="{'search_encounter_date_range': 'last_week'}"/>
                     <filter string="Scheduled Appointments" name="filter_apt_scheduled"
                             domain="[('appointment_status', 'in', ['draft', 'confirmed'])]"/>
                     <filter string="Checked In Appointments" name="filter_apt_checked_in"
@@ -211,13 +176,6 @@
                     <filter string="Cancelled Appointments" name="filter_apt_cancelled"
                             domain="[('appointment_status', 'in', ['cancelled_by_patient', 'cancelled_by_clinic', 'no_show'])]"/>
                     <separator/>
-                    <filter string="Today" name="filter_today"
-                            domain="[('date_start', '&gt;=', context_today().strftime('%Y-%m-%d 00:00:00')), ('date_start', '&lt;=', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
-                    <!-- Status mismatch filter for troubleshooting -->
-                    <filter string="Status Sync Issues" name="filter_sync_issues"
-                            domain="['|',
-                                 '&amp;', ('appointment_status', '=', 'checked_in'), ('state', '=', 'draft'),
-                                 '&amp;', ('appointment_status', 'in', ['cancelled_by_patient', 'cancelled_by_clinic']), ('state', '!=', 'cancelled')]"/>
 
                 </group>
                 <group expand="0" string="Group By">
@@ -230,7 +188,6 @@
                             context="{'group_by': 'room_id'}"/>
                     <filter string="Patients" name="groupby_patient" context="{'group_by': 'patient_ids'}"/>
                     <filter string="Status" name="groupby_state" context="{'group_by': 'state'}"/>
-                    <filter string="Daily Record" name="groupby_daily" context="{'group_by': 'daily_id'}"/>
                     <filter string="Appointment Date" name="groupby_date" context="{'group_by': 'date_start:day'}"/>
                 </group>
             </search>
@@ -329,14 +286,21 @@
     </record>
 
     <!-- Cron job for encounter status sync -->
-    <record id="ir_cron_encounter_status_sync" model="ir.cron">
-        <field name="name">Medical: Sync Encounter States with Appointments</field>
-        <field name="model_id" ref="model_ths_medical_base_encounter"/>
-        <field name="state">code</field>
-        <field name="code">model._cron_sync_encounter_states()</field>
-        <field name="interval_number">15</field>
-        <field name="interval_type">minutes</field>
-        <field name="active" eval="True"/>
-    </record>
+    <!--    <record id="ir_cron_encounter_status_sync" model="ir.cron">-->
+    <!--        <field name="name">Medical: Sync Encounter States with Appointments</field>-->
+    <!--        <field name="model_id" ref="model_ths_medical_base_encounter"/>-->
+    <!--        <field name="state">code</field>-->
+    <!--        <field name="code">model._cron_sync_encounter_states()</field>-->
+    <!--        <field name="interval_number">15</field>-->
+    <!--        <field name="interval_type">minutes</field>-->
+    <!--        <field name="active" eval="True"/>-->
+    <!--    </record>-->
+
+    <!-- TODO: Add encounter timeline view showing chronological service order -->
+    <!-- TODO: Implement encounter print templates for patient summaries -->
+    <!-- TODO: Add encounter QR code generation for mobile access -->
+    <!-- TODO: Implement encounter mass operations (bulk state changes) -->
+    <!-- TODO: Add encounter comparison view for repeat patients -->
+    <!-- TODO: Implement encounter search by service combinations -->
 
 </odoo>

@@ -74,6 +74,13 @@
                                 <span class="o_stat_text">Schedule<br/>Reminder</span>
                             </div>
                         </button>
+                        <button name="action_view_encounter" type="object" icon="fa-stethoscope"
+                                class="oe_stat_button" invisible="not encounter_id">
+                            <div class="o_field_widget o_stat_info">
+                                <span class="o_stat_text">Daily</span>
+                                <span class="o_stat_text">Encounter</span>
+                            </div>
+                        </button>
                     </div>
                     <widget name="web_ribbon" title="Expired" bg_color="bg-danger" invisible="not is_expired"/>
                     <widget name="web_ribbon" title="Expires Soon" bg_color="bg-warning"
@@ -92,7 +99,8 @@
                             <field name="veterinarian_id" options="{'no_create': True}"/>
                             <field name="batch_number"/>
                             <field name="clinic_name"/>
-                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="encounter_id" readonly="1" invisible="1"/>
+                            <field name="company_id" groups="base.group_multi_company" invisible="1"/>
                         </group>
                     </group>
                     <group string="Status" invisible="not expiry_date">

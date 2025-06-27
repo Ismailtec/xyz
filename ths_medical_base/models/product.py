@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from odoo import models, fields, api, _
-from odoo.osv import expression
+from odoo import models, fields, api
+#from odoo.osv import expression
 
 import logging
 

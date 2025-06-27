@@ -3,7 +3,7 @@
 /**
  * Button component for accessing pending medical items in POS
  *
- * FIXES APPLIED:
+ * REQUIRED:
  * 1. Proper OWL 3 props validation
  * 2. Defensive notification service loading
  * 3. Better customer checking with proper error messages

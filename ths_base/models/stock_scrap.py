@@ -1,7 +1,7 @@
 # In ths_base/models/stock_scrap.py
 # -*- coding: utf-8 -*-
 
-from odoo import models, fields, api, _
+from odoo import models, fields, api
 from datetime import datetime
 import logging
 

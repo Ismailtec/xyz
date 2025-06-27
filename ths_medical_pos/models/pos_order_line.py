@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from odoo import models, fields, api, _
+from odoo import models, fields, api
 
 import logging
 
@@ -46,6 +46,15 @@ class PosOrderLine(models.Model):
         readonly=True,
         copy=False,
         help="Specific commission percentage for the provider on this line."
+    )
+
+    encounter_id = fields.Many2one(
+        'ths.medical.base.encounter',
+        string='Daily Encounter',
+        related='order_id.encounter_id',
+        store=True,
+        readonly=True,
+        help="Daily encounter this line belongs to"
     )
 
     # --- HUMAN MEDICAL CONSTRAINTS ---
@@ -212,3 +221,38 @@ class PosOrderLine(models.Model):
         """
         # TODO: Future enhancement for medical record integration
         pass
+
+    def get_appointment_context_data(self):
+        """Get appointment context data for POS line pre-filling"""
+        self.ensure_one()
+
+        # Try to get appointment data from encounter
+        if self.encounter_id and self.encounter_id.appointment_ids:
+            appointment = self.encounter_id.appointment_ids[0]  # Get first appointment
+            return {
+                'practitioner_id': appointment.ths_practitioner_id.id if appointment.ths_practitioner_id else False,
+                'patient_ids': appointment.ths_patient_ids.ids if appointment.ths_patient_ids else [],
+                'appointment_ids': appointment.id,
+            }
+
+        return {}
+
+    def apply_appointment_context(self, appointment_data):
+        """Apply appointment context data to POS line"""
+        self.ensure_one()
+
+        vals = {}
+        if appointment_data.get('practitioner_id'):
+            vals['ths_provider_id'] = appointment_data['practitioner_id']
+
+        if appointment_data.get('patient_ids'):
+            # For human medical, take first patient
+            vals['ths_patient_id'] = appointment_data['patient_ids'][0]
+
+        if vals:
+            self.write(vals)
+
+    # TODO: Add line-level encounter service classification
+    # TODO: Implement encounter-based commission calculations
+    # TODO: Add encounter service bundling validation
+    # TODO: Implement encounter inventory allocation

@@ -158,8 +158,7 @@ class CalendarEvent(models.Model):
             if partner_ids:
                 self.partner_ids = [Command.set(partner_ids)]
 
-    # --- SIMPLIFIED CREATE/WRITE ---
-
+    # --- CREATE/WRITE ---
     @api.model_create_multi
     def create(self, vals_list):
         """ handle walk-in and basic vet relationships """
@@ -202,7 +201,6 @@ class CalendarEvent(models.Model):
         return super().write(vals)
 
     # --- SIMPLIFIED DEFAULT_GET ---
-
     @api.model
     def default_get(self, fields_list):
         """Simplified default_get - let onchange methods handle the relationships"""
@@ -240,35 +238,39 @@ class CalendarEvent(models.Model):
     # --- VET-SPECIFIC CONSTRAINTS ---
 
     # --- ENCOUNTER CREATION FOR VET ---
-
-    def _prepare_encounter_vals(self):
-        """
-        Override to use ths_pet_owner_id for billing (partner_id) in encounter
-        This allows encounter to have proper billing customer without maintaining partner_id in appointment
-        """
+    def _find_or_create_encounter(self):
+        """Override for vet-specific encounter creation"""
         self.ensure_one()
-        pets = self.ths_patient_ids
-        owner = self.ths_pet_owner_id
 
-        # Validate vet-specific requirements
-        if not pets:
-            raise UserError(_("Cannot create encounter: No pets selected for the appointment."))
+        # Get pet owner (billing partner) for encounter lookup
+        owner = self.ths_pet_owner_id
+        pets = self.ths_patient_ids
 
         if not owner:
-            raise UserError(_("Cannot create encounter: Pet Owner is not set."))
+            raise UserError(_("Cannot create encounter: Pet Owner must be set."))
+        if not pets:
+            raise UserError(_("Cannot create encounter: Pets must be selected."))
 
-        if not self.ths_practitioner_id:
-            raise UserError(_("Cannot create encounter: Practitioner is not set on the appointment."))
+        # Find or create daily encounter using pet owner
+        encounter_date = self.start.date() if self.start else fields.Date.context_today(self)
+        encounter = self.env['ths.medical.base.encounter']._find_or_create_daily_encounter(
+            owner.id, encounter_date
+        )
 
-        return {
-            'appointment_id': self.id,
-            'state': 'draft',
-            'patient_ids': [Command.set(pets.ids)],  # Pets receiving care
-            'practitioner_id': self.ths_practitioner_id.id,
-            'partner_id': self.ths_pet_owner_id.id,  # Pet owner for billing
-            'ths_pet_owner_id': owner.id,
-            'chief_complaint': self.ths_reason_for_visit,
-        }
+        # Link appointment to encounter
+        self.encounter_id = encounter.id
+
+        # Ensure vet-specific fields are set
+        if not encounter.ths_pet_owner_id:
+            encounter.ths_pet_owner_id = owner.id
+
+        # Add pets to encounter if not already present
+        existing_patients = encounter.patient_ids
+        new_patients = pets - existing_patients
+        if new_patients:
+            encounter.patient_ids = [Command.link(p.id) for p in new_patients]
+
+        return encounter
 
     # --- HELPER METHODS ---
 
@@ -297,3 +299,8 @@ class CalendarEvent(models.Model):
         """Schedule follow-up appointment for pets"""
         # TODO: Implement follow-up scheduling
         pass
+
+# TODO: Add multi-pet appointment splitting into separate encounters
+# TODO: Implement pet-specific appointment templates
+# TODO: Add appointment breed/species validation
+# TODO: Implement pet availability checking for boarding integration

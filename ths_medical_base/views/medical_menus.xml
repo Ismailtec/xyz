@@ -31,14 +31,6 @@
             sequence="10"/>
 
     <menuitem
-            id="menu_ths_daily_encounter"
-            name="Daily Encounters"
-            parent="menu_ths_medical_clinical"
-            action="action_ths_daily_encounter"
-            groups="ths_medical_base.group_medical_user"
-            sequence="10"/>
-
-    <menuitem
             id="menu_ths_medical_encounter"
             name="Encounters"
             parent="menu_ths_medical_clinical"

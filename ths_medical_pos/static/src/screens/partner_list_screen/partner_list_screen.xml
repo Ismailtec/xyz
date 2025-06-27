@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="template" xml:space="preserve">
+
+    <!-- Extend PartnerList to add Search by Encounter button -->
+    <t t-name="point_of_sale.PartnerList" t-inherit="point_of_sale.PartnerList" t-inherit-mode="extension">
+        <!-- Add the Search by Encounter button after the Create button -->
+        <xpath expr="//button[@role='img'][@aria-label='Add a customer']" position="after">
+            <button class="btn btn-secondary btn-lg lh-lg ms-2"
+                    type="button"
+                    t-on-click="openEncounterSelectionPopup"
+                    title="Search partners by medical encounter">
+                <i class="fa fa-search me-1"/>
+                Search by Encounter
+            </button>
+        </xpath>
+
+        <!-- Add Partner Type header to the table -->
+        <xpath expr="//table/thead/tr/th[1]" position="after">
+            <th class="py-2">Partner Type</th>
+        </xpath>
+    </t>
+
+    <!-- Extend PartnerLine to display partner type data -->
+    <t t-name="point_of_sale.PartnerLine" t-inherit="point_of_sale.PartnerLine" t-inherit-mode="extension">
+        <!-- Add partner type data for mobile view (small screens) -->
+        <xpath expr="//div[hasclass('company-field')]" position="after">
+            <div class="partner-type-field text-bg-muted">
+                <t t-if="props.partner.ths_partner_type_id and Array.isArray(props.partner.ths_partner_type_id) and props.partner.ths_partner_type_id.length >= 2">
+                    <small><i class="fa fa-tag me-1"/><t t-esc="props.partner.ths_partner_type_id[1]"/></small>
+                </t>
+                <t t-else="">
+                    <small class="text-muted">No Type</small>
+                </t>
+            </div>
+        </xpath>
+
+        <!-- Add partner type data for desktop view (table row) -->
+        <xpath expr="//tr[@class='partner-line partner-info']/td[1]" position="after">
+            <td class="partner-type-cell">
+                <t t-if="props.partner.ths_partner_type_id and Array.isArray(props.partner.ths_partner_type_id) and props.partner.ths_partner_type_id.length >= 2">
+                    <span class="badge bg-info" t-esc="props.partner.ths_partner_type_id[1]"/>
+                </t>
+                <t t-else="">
+                    <span class="text-muted">
+                        <small>No Type</small>
+                    </span>
+                </t>
+            </td>
+        </xpath>
+    </t>
+
+</templates>

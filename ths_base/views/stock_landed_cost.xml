@@ -12,7 +12,7 @@
                             groups="stock.group_stock_manager,account.group_account_user"
                             invisible="state != 'done' or is_reversed or reversal_lc_id" class="oe_highlight"
                             confirm="You are about to reverse the entry LC, as Odoo standard doesnt allow deleting/cancelling, this action will automatically create a reverse entry to this LC and will neutralize the effect, Are you sure to continue ?"/>
-                    <xpath expr="//button[@name='button_cancel']" position="replace"/>
+                    <xpath expr="//button[@name='button_cancel']" position="move"/>
                 </xpath>
 
                 <xpath expr="//div[@name='button_box']" position="inside">

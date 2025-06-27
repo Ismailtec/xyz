@@ -9,7 +9,6 @@ from . import product_sub_type
 from . import treatment_room
 from . import resource_resource
 from . import appointment_resource
-from . import daily_encounter
 from . import medical_encounter
 from . import pending_pos_item
 from . import appointment_type

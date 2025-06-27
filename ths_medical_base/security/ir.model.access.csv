@@ -8,8 +8,6 @@ access_ths_treatment_room_user,ths.treatment.room.user.read,model_ths_treatment_
 access_ths_treatment_room_manager,ths.treatment.room.manager.write,model_ths_treatment_room,ths_hr.group_ths_hr_manager,1,1,1,1
 access_hr_department_medical_user,hr.department.medical.flag.user.read,model_hr_department,ths_hr.group_ths_hr_user,1,0,0,0
 access_hr_department_medical_manager,hr.department.medical.flag.manager.write,model_hr_department,ths_hr.group_ths_hr_manager,1,1,1,1
-access_ths_daily_encounter_user,ths.daily.encounter.user.read,model_ths_daily_encounter,ths_medical_base.group_medical_user,1,0,0,0
-access_ths_daily_encounter_manager,ths.daily.encounter.manager.write,model_ths_daily_encounter,ths_medical_base.group_medical_user,1,1,1,1
 access_ths_medical_encounter_user,ths.medical.base.encounter.user.read,model_ths_medical_base_encounter,ths_medical_base.group_medical_user,1,0,0,0
 access_ths_medical_encounter_manager,ths.medical.base.encounter.manager.write,model_ths_medical_base_encounter,ths_medical_base.group_medical_user,1,1,1,1
 access_ths_pending_pos_item_user,ths.pending.pos.item.user.read,model_ths_pending_pos_item,ths_medical_base.group_medical_user,1,0,0,0

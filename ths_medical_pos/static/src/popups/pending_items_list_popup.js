@@ -176,7 +176,7 @@ export class PendingItemsListPopup extends Component {
      * as 'processed' when the order is finalized, not when added to cart
      */
     async addItemToOrder(item) {
-        console.log("=== ADDING MEDICAL ITEM TO ORDER (FIXED TRACEABILITY VERSION) ===");
+        console.log("=== ADDING MEDICAL ITEM TO ORDER WITH ENCOUNTER INTEGRATION ===");
         console.log("Item:", item);
 
         const order = this.pos.get_order();
@@ -230,11 +230,11 @@ export class PendingItemsListPopup extends Component {
             await this.setOrderlineNoteSafely(orderline, item.description);
 
             // Update backend status ONLY AFTER successful addition
-            // CHANGED: Do NOT update backend status immediately
+            // Do NOT update backend status immediately
             // Items will be marked as 'processed' only when order is finalized/paid
             console.log("⚠️ NOTE: Item will be marked as 'processed' only when order is paid/finalized");
             //await this.orm.write("ths.pending.pos.item", [item.id], { state: "processed" });
-            this.notification.add(_t("Item added successfully to order"), { type: "success" });
+            this.notification.add(_t("Item added to order and linked to encounter"), { type: "success" });
 
             // Remove from popup
             const index = this.props.items.findIndex(i => i.id === item.id);
@@ -285,4 +285,9 @@ export class PendingItemsListPopup extends Component {
     }
 }
 
-console.log("Loaded ERROR-FREE file - avoids payment method errors:", "pending_items_list_popup.js");
+console.log("Loaded pending_items_list_popup.js", "pending_items_list_popup.js");
+
+// TODO: Add encounter timeline display in pending items popup
+// TODO: Implement pending item grouping by service type
+// TODO: Add pending item batch selection functionality
+// TODO: Implement pending item quick edit from popup

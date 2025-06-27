@@ -125,6 +125,15 @@
                            statusbar_visible="draft,scheduled,checked_in,checked_out,invoiced"/>
                 </header>
                 <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_view_encounter" type="object" icon="fa-stethoscope"
+                                class="oe_stat_button" invisible="not encounter_id">
+                            <div class="o_field_widget o_stat_info">
+                                <span class="o_stat_text">Daily</span>
+                                <span class="o_stat_text">Encounter</span>
+                            </div>
+                        </button>
+                    </div>
                     <div class="oe_title">
                         <h1>
                             <field name="name" readonly="1"/>
@@ -135,13 +144,14 @@
                             <field name="pet_id" required="1" options="{'no_open': True, 'no_create': True}"/>
                             <field name="owner_id" required="1" options="{'no_open': True, 'no_create': True}"/>
                             <field name="cage_id" required="1" options="{'no_open': True, 'no_create': True}"/>
+                            <field name="encounter_id" readonly="1" invisible="1"/>
                         </group>
                         <group>
                             <field name="check_in_datetime" required="1"/>
                             <field name="expected_check_out_datetime" required="1"/>
                             <field name="actual_check_out_datetime" readonly="1"/>
                             <field name="duration_days" readonly="1"/>
-                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="company_id" groups="base.group_multi_company" invisible="1"/>
                         </group>
                     </group>
                     <notebook>

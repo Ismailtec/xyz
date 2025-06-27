@@ -49,7 +49,6 @@
         'views/hr_employee_type_config.xml',
         'views/treatment_room.xml',  # New Treatment Room views
         'views/product_sub_type.xml',  # Views for the NEW sub-type model
-        'views/daily_encounter.xml',  # New Daily Encounter views
         'views/medical_encounter.xml',  # New Encounter views
         'views/pending_pos_item.xml',  # New Pending POS Item views
         'views/medical_menus.xml',  # Menu for Treatment Rooms etc.
@@ -59,6 +58,7 @@
         'views/hr_department.xml',  # Adds medical flag to Department views
         'views/partner_type.xml',
         'views/calendar_event.xml',  # Inherited Calendar Event view
+        'views/encounter_reports.xml',
     ],
     'assets': {
         # Move gantt extension to lazy bundle where gantt renderer lives

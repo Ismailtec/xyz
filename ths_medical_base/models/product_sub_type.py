@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from odoo import models, fields, api, _
-from odoo.exceptions import UserError, ValidationError
+from odoo import models, fields, api
+#from odoo.exceptions import UserError, ValidationError
 import logging
 import re
 
@@ -10,7 +10,7 @@ _logger = logging.getLogger(__name__)
 
 class ThsProductSubType(models.Model):
     """
-    Model to define different sub-types for products, often used for
+    Model to define different subtypes for products, often used for
     classification in specific industries (e.g., medical).
     Includes automatic sequence creation based on code.
     """
@@ -87,7 +87,8 @@ class ThsProductSubType(models.Model):
         return res
 
     # --- Helper Methods ---
-    def _sanitize_code(self, code):
+    @staticmethod
+    def _sanitize_code(code):
         """ Sanitize code for sequence prefix/code. """
         code = (code or '').strip().upper()
         code = re.sub(r'\s+', '_', code)

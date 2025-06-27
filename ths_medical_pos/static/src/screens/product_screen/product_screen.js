@@ -8,33 +8,56 @@
 import { patch } from "@web/core/utils/patch";
 import { ProductScreen } from "@point_of_sale/app/screens/product_screen/product_screen";
 import { PendingItemsButton } from "@ths_medical_pos/components/pending_items_button/pending_items_button";
+import { _t } from "@web/core/l10n/translation";
+import { registry } from "@web/core/registry";
 
 /**
  * Patch ProductScreen to add medical functionality for base medical practices
  * Adds PendingItemsButton component to the ProductScreen interface
  */
+
 patch(ProductScreen, {
-    // REQUIRED: Components must be extended, not replaced, to maintain compatibility
+    // REQUIRED: Components must be extended, not replaced
     components: {
-        ...ProductScreen.components, // Preserve existing components
-        PendingItemsButton, // Add our medical button component
+        ...ProductScreen.components,
+        PendingItemsButton,
     },
 
-    /**
-     * Override setup to add medical-specific initialization
-     * Must call super.setup() to maintain parent functionality
-     */
     setup() {
-        super.setup(); // REQUIRED: Call parent setup first
+        super.setup();
         console.log("Medical POS: ProductScreen patched successfully with medical components");
     },
 
-    /**
-     * Navigate to the appointment screen (for future implementation)
-     * Base method for general medical practices
-     */
-    showAppointmentScreen() {
-        console.log("Medical POS: Navigating to appointment screen");
-        this.pos.showScreen("AppointmentScreen");
+
+    async loadEncounterPendingItems(encounterId) {
+        try {
+            const pendingItems = await this.orm.searchRead(
+                'ths.pending.pos.item',
+                [
+                    ['encounter_id', '=', encounterId],
+                    ['state', '=', 'pending']
+                ],
+                ['product_id', 'qty', 'price_unit', 'description', 'practitioner_id', 'commission_pct'],
+                { limit: 100 }
+            );
+
+            if (pendingItems.length > 0) {
+                this.notification.add(
+                    _t('%d pending items found for this encounter.', pendingItems.length),
+                    { type: 'info' }
+                );
+
+                this.showPendingItems();
+            }
+        } catch (error) {
+            console.error("Error loading encounter pending items:", error);
+        }
     },
+
+    // TODO: Add encounter service history popup in POS
+    // TODO: Implement encounter-based product recommendations
+    // TODO: Add encounter payment plan selection in POS
+    // TODO: Implement encounter insurance validation in POS
+    // TODO: Add encounter mobile POS integration
+    // TODO: Implement encounter offline mode support
 });

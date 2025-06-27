@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from odoo import models, fields, api, _
+from odoo import models, fields, api
 import logging
 
 _logger = logging.getLogger(__name__)
@@ -186,7 +186,7 @@ class ThsTreatmentRoom(models.Model):
         for room in self:
             if room.appointment_resource_id or room.resource_id:
                 # Consider deactivating instead of preventing unlink, or unlinking resources if not used elsewhere
-                # For now, let's just log and allow unlink. Deactivation is handled by active flag or write method.
+                # For now, let's just log and allow un-link. Deactivation is handled by active flag or write method.
                 _logger.info(
                     f"Room '{room.name}' being unlinked had resource links. They will be unlinked by ondelete='set null' or cascade if set.")
         return super(ThsTreatmentRoom, self).unlink()

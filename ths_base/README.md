@@ -24,7 +24,7 @@ This module, developed by Techouse Solutions, provides core enhancements for Odo
    - Adds "Effective Date" (`ths_effective_date`) for accurate accounting date control.
    - Links Landed Costs to Purchase Orders (`purchase_order_id`).
    - Provides dynamic filtering for Vendor Bills and Receipts based on the selected PO.
-   - Auto-populates PO/Receipts/Cost Lines when creating LCs or selecting linked documents.
+   - Autopopulates PO/Receipts/Cost Lines when creating LCs or selecting linked documents.
    - Includes a safe "Cancel" (Reversal) action that creates a reversing LC entry, maintaining audit trail.
    - Adds smart buttons on POs, Bills, and Receipts to easily navigate to related Landed Costs.
    - Automatically creates/updates a draft Landed Cost based on PO confirmation or Bill posting (populating cost lines from products marked as landed costs).

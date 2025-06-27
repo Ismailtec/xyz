@@ -1,28 +1,11 @@
 # -*- coding: utf-8 -*-
 
-from odoo import models, fields, api, _
+from odoo import models, fields, api, _, Command
 from odoo.exceptions import ValidationError
 from dateutil.relativedelta import relativedelta
 import logging
 
 _logger = logging.getLogger(__name__)
-
-
-class VetVaccine(models.Model):
-    _name = 'vet.vaccine'
-    _description = 'Vaccine Type'
-    _order = 'name'
-
-    name = fields.Char(string='Vaccine Name', required=True)
-    code = fields.Char(string='Code', required=True)
-    species_ids = fields.Many2many('ths.species', string='Applicable Species')
-    validity_months = fields.Integer(string='Validity (Months)', default=12)
-    notes = fields.Text(string='Administration Notes')
-    active = fields.Boolean(default=True)
-
-    _sql_constraints = [
-        ('code_uniq', 'unique(code)', 'Vaccine code must be unique!'),
-    ]
 
 
 class VetVaccination(models.Model):
@@ -83,6 +66,16 @@ class VetVaccination(models.Model):
     )
     notes = fields.Text(string='Notes')
 
+    encounter_id = fields.Many2one(
+        'ths.medical.base.encounter',
+        string='Daily Encounter',
+        readonly=True,
+        copy=False,
+        index=True,
+        ondelete='set null',
+        help="Daily encounter this vaccination belongs to"
+    )
+
     # Status tracking
     is_expired = fields.Boolean(
         string='Expired',
@@ -135,6 +128,42 @@ class VetVaccination(models.Model):
             if record.date and record.expiry_date and record.expiry_date <= record.date:
                 raise ValidationError(_("Expiry date must be after vaccination date."))
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        """Override to link vaccinations to daily encounters"""
+        vaccinations = super().create(vals_list)
+
+        for vaccination in vaccinations:
+            # Find or create daily encounter
+            if not vaccination.encounter_id and vaccination.owner_id:
+                encounter = self.env['ths.medical.base.encounter']._find_or_create_daily_encounter(
+                    vaccination.owner_id.id, vaccination.date
+                )
+                vaccination.encounter_id = encounter.id
+
+                # Add pet to encounter if not already present
+                if vaccination.pet_id not in encounter.patient_ids:
+                    encounter.patient_ids = [Command.link(vaccination.pet_id.id)]
+
+                vaccination.message_post(body=_("Vaccination linked to encounter %s", encounter.name))
+
+        return vaccinations
+
+    def action_view_encounter(self):
+        """View the daily encounter for this vaccination"""
+        self.ensure_one()
+        if not self.encounter_id:
+            return {}
+
+        return {
+            'name': _('Daily Encounter'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'ths.medical.base.encounter',
+            'view_mode': 'form',
+            'res_id': self.encounter_id.id,
+            'target': 'current'
+        }
+
     def action_schedule_reminder(self):
         """Schedule activity reminder for vaccination renewal"""
         self.ensure_one()
@@ -171,3 +200,10 @@ class VetVaccineType(models.Model):
     _sql_constraints = [
         ('code_uniq', 'unique (code)', 'Vaccine code must be unique!'),
     ]
+
+    # TODO: Add vaccination encounter batch processing
+    # TODO: Implement vaccination reminder encounter creation
+    # TODO: Add vaccination adverse reaction tracking per encounter
+    # TODO: Implement vaccination certificate generation from encounter
+    # TODO: Add vaccination inventory integration with encounter
+    # TODO: Implement vaccination effectiveness tracking

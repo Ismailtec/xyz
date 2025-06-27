@@ -30,40 +30,40 @@
                             <field name="ths_deceased_date" readonly="1" invisible="not ths_deceased"/>
                         </group>
                     </group>
-<!--                    <notebook>-->
-<!--                        <page string="Recent Visits" name="recent_visits">-->
-<!--                            <field name="ths_encounter_ids" readonly="1" context="{'create': False}">-->
-<!--                                <list limit="10">-->
-<!--                                    <field name="date_start"/>-->
-<!--                                    <field name="practitioner_id"/>-->
-<!--                                    <field name="chief_complaint"/>-->
-<!--                                    <field name="state" widget="badge"/>-->
-<!--                                </list>-->
-<!--                            </field>-->
-<!--                        </page>-->
-<!--                        <page string="Vaccination History" name="vaccinations">-->
-<!--                            <field name="ths_vaccination_ids" readonly="1">-->
-<!--                                <list>-->
-<!--                                    <field name="date"/>-->
-<!--                                    <field name="vaccine_id"/>-->
-<!--                                    <field name="next_due_date"/>-->
-<!--                                    <field name="administered_by"/>-->
-<!--                                </list>-->
-<!--                            </field>-->
-<!--                        </page>-->
-<!--                        <page string="Chronic Conditions" name="conditions">-->
-<!--                            <field name="medical_conditions" readonly="1"/>-->
-<!--                        </page>-->
-<!--                        <page string="Allergies" name="allergies">-->
-<!--                            <field name="allergy_ids" readonly="1">-->
-<!--                                <list>-->
-<!--                                    <field name="name"/>-->
-<!--                                    <field name="severity"/>-->
-<!--                                    <field name="notes"/>-->
-<!--                                </list>-->
-<!--                            </field>-->
-<!--                        </page>-->
-<!--                    </notebook>-->
+                    <!--                    <notebook>-->
+                    <!--                        <page string="Recent Visits" name="recent_visits">-->
+                    <!--                            <field name="encounter_ids" readonly="1" context="{'create': False}">-->
+                    <!--                                <list limit="10">-->
+                    <!--                                    <field name="date_start"/>-->
+                    <!--                                    <field name="practitioner_id"/>-->
+                    <!--                                    <field name="chief_complaint"/>-->
+                    <!--                                    <field name="state" widget="badge"/>-->
+                    <!--                                </list>-->
+                    <!--                            </field>-->
+                    <!--                        </page>-->
+                    <!--                        <page string="Vaccination History" name="vaccinations">-->
+                    <!--                            <field name="ths_vaccination_ids" readonly="1">-->
+                    <!--                                <list>-->
+                    <!--                                    <field name="date"/>-->
+                    <!--                                    <field name="vaccine_id"/>-->
+                    <!--                                    <field name="next_due_date"/>-->
+                    <!--                                    <field name="administered_by"/>-->
+                    <!--                                </list>-->
+                    <!--                            </field>-->
+                    <!--                        </page>-->
+                    <!--                        <page string="Chronic Conditions" name="conditions">-->
+                    <!--                            <field name="medical_conditions" readonly="1"/>-->
+                    <!--                        </page>-->
+                    <!--                        <page string="Allergies" name="allergies">-->
+                    <!--                            <field name="allergy_ids" readonly="1">-->
+                    <!--                                <list>-->
+                    <!--                                    <field name="name"/>-->
+                    <!--                                    <field name="severity"/>-->
+                    <!--                                    <field name="notes"/>-->
+                    <!--                                </list>-->
+                    <!--                            </field>-->
+                    <!--                        </page>-->
+                    <!--                    </notebook>-->
                 </sheet>
             </form>
         </field>

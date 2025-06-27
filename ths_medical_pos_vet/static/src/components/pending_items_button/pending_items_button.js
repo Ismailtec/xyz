@@ -35,7 +35,7 @@ patch(PendingItemsButton.prototype, {
             return;
         }
 
-        const client = order.get_partner(); // This would be the Pet Owner in vet context
+        const client = order.get_partner(); // This is the Pet Owner in vet context
 
         let popupTitle = _t('Pending Medical Items (All Pets)');
         let filterDomain = [['state', '=', 'pending']]; // Base domain from parent
@@ -57,7 +57,7 @@ patch(PendingItemsButton.prototype, {
                 'id', 'display_name', 'encounter_id', 'appointment_id',
                 'partner_id', 'patient_id', 'product_id', 'description', // Core fields
                 'qty', 'price_unit', 'discount', 'practitioner_id',      // Billing fields
-                'commission_pct', 'state',                               // Business fields
+                'commission_pct', 'state', 'notes',                      // Business fields
             ];
 
             console.log("Vet POS: Making RPC call with veterinary domain:", filterDomain);
@@ -119,8 +119,10 @@ patch(PendingItemsButton.prototype, {
 // NOTE: No additional registry registration needed - this patches the existing component
 // The base component is already registered in ths_medical_pos module
 
-// TODO: Consider adding veterinary-specific filtering options in the popup itself
-// TODO: Add support for filtering by pet species or breed if needed
+// TODO: Add vet-specific encounter filtering options
+// TODO: Implement pet species-based service recommendations
+// TODO: Add multi-pet family discount integration
+// TODO: Implement vaccination status warnings in POS
 // TODO: Consider adding pet health status indicators in the pending items display
 
 console.log("Loaded vet button patch - compatible with updated base module:", "pending_items_button.js");

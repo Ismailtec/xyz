@@ -2,6 +2,7 @@
 
 from odoo import models, fields, api
 
+
 class ThsBreed(models.Model):
     _name = 'ths.breed'
     _description = 'Animal Breed'

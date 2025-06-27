@@ -42,7 +42,7 @@ class ThsHrEmployeeTypeConfig(models.Model):
 
     @api.constrains('employee_type_key')
     def _check_employee_type_key(self):
-        """ Validate the key against the actual selection field if possible (best effort). """
+        """ Validate the key against the actual selection field if possible. """
         # This is tricky as the selection is extended in another module (ths_hr)
         # We'll do a basic check for empty string. A more robust check might involve
         # querying ir.model.fields, but that's complex.

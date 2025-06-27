@@ -106,6 +106,13 @@ patch(AppointmentBookingGanttRenderer.prototype, {
             appointment_status_display: this._getStatusDisplayText(record.appointment_status),
             // Human medical context
             is_human_medical: true,  // Flag to indicate human medical context in templates
+            // Encounter information
+            encounter_id: record.encounter_id ? record.encounter_id[0] : false,
+            // Add encounter status display
+            encounter_status: record.encounter_id ? 'Linked' : 'Not Created',
+            encounter_name: record.encounter_id ? record.encounter_id[1] : '',
+            // POS integration
+            pos_session_id: this.env.services.pos ? this.env.services.pos.session_id : false,
         });
 
         return popoverProps;
@@ -148,6 +155,15 @@ patch(AppointmentBookingGanttRenderer.prototype, {
             buttons[0].text = "Save Status & Close";
         }
 
+        // 🔐 Only add Pay button if POS is available (not in backend)
+        if (this.env.services?.pos) {
+            buttons.push({
+                text: "Pay",
+                className: "btn-primary",
+                action: () => this.handlePayButtonClick(record),
+            });
+        }
+
         return buttons;
     },
 
@@ -175,4 +191,39 @@ patch(AppointmentBookingGanttRenderer.prototype, {
             return `${patientNames.slice(0, 2).join(', ')} and ${patientNames.length - 2} more`;
         }
     }
+
+    /**
+    * Handle Pay button click in gantt popover
+    * Opens POS with pre-filled appointment data
+    */
+    handlePayButtonClick(appointmentData) {
+        if (!this.env.services.pos) {
+            console.warn('POS service not available');
+            return;
+        }
+
+        // Pre-fill POS with appointment data
+        const posData = {
+            partner_id: appointmentData.partner_id,
+            practitioner_id: appointmentData.ths_practitioner_id,
+            patient_ids: appointmentData.ths_patient_ids,
+            encounter_id: appointmentData.encounter_id,
+            appointment_id: appointmentData.id,
+        };
+
+        // Navigate to POS with pre-filled data
+        this.env.services.action.doAction({
+            type: 'ir.actions.client',
+            tag: 'point_of_sale.ui',
+            context: {
+                default_appointment_data: posData,
+            }
+        });
+    }
 });
+
+// TODO: Add encounter status color coding in gantt pills
+// TODO: Implement encounter service count display in gantt
+// TODO: Add encounter payment status indicators
+// TODO: Implement drag-and-drop encounter service reordering
+// TODO: Add encounter duplication from gantt context menu

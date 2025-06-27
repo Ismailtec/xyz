@@ -32,8 +32,8 @@
         </field>
     </record>
 
-<!--    <menuitem id="menu_ths_species_root" name="Veterinary"-->
-<!--              sequence="10"/>-->
+    <!--    <menuitem id="menu_ths_species_root" name="Veterinary"-->
+    <!--              sequence="10"/>-->
     <menuitem id="menu_ths_species" name="Species"
               parent="ths_medical_base.menu_ths_medical_config"
               action="action_ths_species" sequence="30"/>

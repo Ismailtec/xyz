@@ -2,6 +2,7 @@
 
 from odoo import models, fields, api
 
+
 class ThsSpecies(models.Model):
     _name = 'ths.species'
     _description = 'Animal Species'
@@ -10,7 +11,6 @@ class ThsSpecies(models.Model):
     color = fields.Integer(string="Color Index", default=10)
 
     _sql_constraints = [('name_uniq', 'unique(name)', 'Species must be unique.')]
-
 
     @api.model_create_multi
     def create(self, vals_list):

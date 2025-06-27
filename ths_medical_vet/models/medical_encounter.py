@@ -19,7 +19,7 @@ class ThsMedicalBaseEncounter(models.Model):
         'patient_id',
         string='Pets',  # Relabeled for veterinary context
         domain="[('ths_partner_type_id.name', '=', 'Pet')]",
-        compute='_compute_pet_from_appointment',
+        # compute='_compute_pet_from_appointment',
         store=True,
         help="Pets receiving veterinary care in this encounter."
     )
@@ -28,7 +28,7 @@ class ThsMedicalBaseEncounter(models.Model):
     ths_pet_owner_id = fields.Many2one(
         'res.partner',
         string='Pet Owner',
-        compute='_compute_pet_owner_from_appointment',
+        # compute='_compute_pet_owner_from_appointment',
         store=True,
         readonly=False,
         domain="[('ths_partner_type_id.name','=','Pet Owner')]",
@@ -80,6 +80,24 @@ class ThsMedicalBaseEncounter(models.Model):
         readonly=True,
         help="Gender of the primary pet in this encounter"
     )
+    boarding_ids = fields.One2many(
+        'vet.boarding.stay',
+        'encounter_id',
+        string='Boarding Stays',
+        help="All boarding stays for this encounter"
+    )
+    vaccination_ids = fields.One2many(
+        'vet.vaccination',
+        'encounter_id',
+        string='Vaccinations',
+        help="All vaccinations for this encounter"
+    )
+    park_checkin_ids = fields.One2many(
+        'park.checkin',
+        'encounter_id',
+        string='Park Check-ins',
+        help="All park visits for this encounter"
+    )
 
     # Multi-pet summary fields
     total_pets_count = fields.Integer(
@@ -130,55 +148,55 @@ class ThsMedicalBaseEncounter(models.Model):
             else:
                 # Show all pets when no owner selected
                 rec.ths_patient_ids_domain = str([('ths_partner_type_id.name', '=', 'Pet')])
-    # --- CORE VET LOGIC: INHERIT PET OWNER FROM APPOINTMENT ---
 
-    @api.depends('appointment_id', 'appointment_id.ths_pet_owner_id')
-    def _compute_pet_owner_from_appointment(self):
+    # --- CORE VET LOGIC: INHERIT PET OWNER FROM PATIENT ---
+    @api.depends('patient_ids.ths_pet_owner_id')
+    def _compute_pet_owner_from_patients(self):
         """
-        Inherit pet owner from appointment's ths_pet_owner_id
-        This ensures proper billing customer without relying on appointment's partner_id
-        """
-        for encounter in self:
-            if encounter.appointment_id and hasattr(encounter.appointment_id, 'ths_pet_owner_id'):
-                encounter.ths_pet_owner_id = encounter.appointment_id.ths_pet_owner_id
-                encounter.partner_id = encounter.ths_pet_owner_id  # Sync billing customer
-            elif not encounter.ths_pet_owner_id:
-                # If no appointment or no owner set, try to infer from pets
-                if encounter.patient_ids:
-                    owners = encounter.patient_ids.mapped('ths_pet_owner_id')
-                    if len(set(owners.ids)) == 1:
-                        encounter.ths_pet_owner_id = owners[0]
-
-    @api.depends('appointment_id', 'appointment_id.ths_patient_ids')
-    def _compute_pet_from_appointment(self):
-        """  Inherit pet from appointment's ths_patient_ids  """
-        for encounter in self:
-            if encounter.appointment_id and hasattr(encounter.appointment_id, 'ths_patient_ids'):
-                encounter.patient_ids = encounter.appointment_id.ths_patient_ids
-            else:
-                encounter.patient_ids = False
-
-    @api.depends('ths_pet_owner_id')
-    def _compute_all_fields(self):
-        """
-        Override base method to sync partner_id with ths_pet_owner_id for billing
+        Compute pet owner from selected pets - ensures consistency
         """
         for encounter in self:
-            # Set billing customer from pet owner
-            encounter.partner_id = encounter.ths_pet_owner_id
+            if encounter.patient_ids:
+                owners = encounter.patient_ids.mapped('ths_pet_owner_id')
+                unique_owners = list(set(owners.ids)) if owners else []
 
-            # Inherit practitioner and room from appointment (base logic)
-            appointment = encounter.appointment_id
-            if appointment:
-                encounter.practitioner_id = (appointment.ths_practitioner_id
-                                             if hasattr(appointment, 'ths_practitioner_id')
-                                             else False)
-                encounter.room_id = (appointment.ths_room_id
-                                     if hasattr(appointment, 'ths_room_id')
-                                     else False)
+                if len(unique_owners) == 1:
+                    encounter.ths_pet_owner_id = owners[0]
+                    encounter.partner_id = owners[0]  # Sync billing customer
+                elif len(unique_owners) > 1:
+                    # Multiple owners - clear to force manual selection
+                    encounter.ths_pet_owner_id = False
+                else:
+                    encounter.ths_pet_owner_id = False
+
+    @api.model
+    def _find_or_create_daily_encounter(self, partner_id, encounter_date=None):
+        """Override for vet-specific encounter creation"""
+        if not encounter_date:
+            encounter_date = fields.Date.context_today(self)
+
+        # Search for existing encounter (partner_id = pet owner)
+        encounter = self.search([
+            ('partner_id', '=', partner_id),
+            ('encounter_date', '=', encounter_date)
+        ], limit=1)
+
+        if encounter:
+            return encounter
+
+        # Create new encounter for vet context
+        # partner = self.env['res.partner'].browse(partner_id)
+        encounter_vals = {
+            'partner_id': partner_id,  # Pet owner
+            'ths_pet_owner_id': partner_id,  # Same as partner for vet
+            'encounter_date': encounter_date,
+            'state': 'in_progress'
+            # patient_ids will be set when services are added
+        }
+
+        return self.create(encounter_vals)
 
     # --- PET DETAILS COMPUTATION ---
-
     @api.depends('patient_ids')
     def _compute_primary_pet_details(self):
         """Compute details from first/primary pet for backward compatibility"""
@@ -222,7 +240,6 @@ class ThsMedicalBaseEncounter(models.Model):
                 encounter.all_pets_species = ', '.join(unique_species) if unique_species else ""
 
     # --- ONCHANGE FOR MANUAL ADJUSTMENTS ---
-
     @api.onchange('ths_pet_owner_id')
     def _onchange_pet_owner_sync_billing(self):
         """When pet owner changes manually, sync with billing customer"""
@@ -256,6 +273,28 @@ class ThsMedicalBaseEncounter(models.Model):
     #     for rec in self:
     #         rec.pet_names_display = ', '.join(rec.patient_ids.mapped('name')) if rec.patient_ids else ''
 
+    @api.constrains('patient_ids', 'ths_pet_owner_id', 'state')
+    def _check_vet_encounter_consistency(self):
+        """Validate vet encounter consistency - relaxed for in_progress state"""
+        for encounter in self:
+            # Only strict validation for done encounters
+            if encounter.state == 'done' and encounter.patient_ids and encounter.ths_pet_owner_id:
+                wrong_owner_pets = encounter.patient_ids.filtered(
+                    lambda p: p.ths_pet_owner_id != encounter.ths_pet_owner_id
+                )
+                if wrong_owner_pets:
+                    raise ValidationError(_(
+                        "All pets must belong to the same owner. "
+                        "Pets %s belong to different owners.",
+                        ', '.join(wrong_owner_pets.mapped('name'))
+                    ))
+
+            # Ensure billing customer is set for encounters with pets
+            if encounter.patient_ids and not encounter.partner_id:
+                raise ValidationError(_(
+                    "Pet Owner (billing customer) must be set for encounters with pets."
+                ))
+
     @api.depends('patient_ids')
     def _compute_pet_badge_display(self):
         for rec in self:
@@ -279,29 +318,28 @@ class ThsMedicalBaseEncounter(models.Model):
 
     # --- VET-SPECIFIC CONSTRAINTS ---
 
-    @api.constrains('patient_ids', 'ths_pet_owner_id')
-    def _check_vet_encounter_consistency(self):
-        """Validate vet encounter consistency - but allow changes if not billed"""
-        for encounter in self:
-            # ONLY enforce constraint if encounter is billed
-            if encounter.state == 'billed':
-                if encounter.patient_ids and encounter.ths_pet_owner_id:
-                    wrong_owner_pets = encounter.patient_ids.filtered(
-                        lambda p: p.ths_pet_owner_id != encounter.ths_pet_owner_id
-                    )
-                    if wrong_owner_pets:
-                        raise ValidationError(_(
-                            "Cannot change pets after billing. Encounter is already billed."
-                        ))
-
-            # Ensure billing customer is set
-            if encounter.patient_ids and not encounter.partner_id:
-                raise ValidationError(_(
-                    "Billing customer (Pet Owner) must be set for encounters with pets."
-                ))
+    # @api.constrains('patient_ids', 'ths_pet_owner_id')
+    # def _check_vet_encounter_consistency(self):
+    #     """Validate vet encounter consistency - but allow changes if not billed"""
+    #     for encounter in self:
+    #         # ONLY enforce constraint if encounter is billed
+    #         if encounter.state == 'billed':
+    #             if encounter.patient_ids and encounter.ths_pet_owner_id:
+    #                 wrong_owner_pets = encounter.patient_ids.filtered(
+    #                     lambda p: p.ths_pet_owner_id != encounter.ths_pet_owner_id
+    #                 )
+    #                 if wrong_owner_pets:
+    #                     raise ValidationError(_(
+    #                         "Cannot change pets after billing. Encounter is already billed."
+    #                     ))
+    #
+    #         # Ensure billing customer is set
+    #         if encounter.patient_ids and not encounter.partner_id:
+    #             raise ValidationError(_(
+    #                 "Billing customer (Pet Owner) must be set for encounters with pets."
+    #             ))
 
     # --- VET-SPECIFIC BUSINESS METHODS ---
-
     def _get_primary_pet(self):
         """Get the primary/first pet for this encounter"""
         self.ensure_one()
@@ -330,6 +368,30 @@ class ThsMedicalBaseEncounter(models.Model):
             }
         }
 
+    def action_view_boarding_stays(self):
+        """View boarding stays for this encounter"""
+        self.ensure_one()
+        return {
+            'name': _('Boarding Stays'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'vet.boarding.stay',
+            'view_mode': 'list,form',
+            'domain': [('encounter_id', '=', self.id)],
+            'context': {'create': False}
+        }
+
+    def action_view_vaccinations(self):
+        """View vaccinations for this encounter"""
+        self.ensure_one()
+        return {
+            'name': _('Vaccinations'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'vet.vaccination',
+            'view_mode': 'list,form',
+            'domain': [('encounter_id', '=', self.id)],
+            'context': {'create': False}
+        }
+
     # TODO: Add vet-specific encounter methods
     def action_create_vaccination_records(self):
         """Create vaccination records for pets in this encounter"""
@@ -345,3 +407,12 @@ class ThsMedicalBaseEncounter(models.Model):
         """Create treatment plan for pets"""
         # TODO: Implement treatment plan creation
         pass
+
+# TODO: Add breed-specific service recommendations
+# TODO: Implement multi-pet family discount calculations
+# TODO: Add pet weight/size tracking per encounter
+# TODO: Implement species-specific treatment protocols
+# TODO: Add pet photo capture integration per encounter
+# TODO: Implement vaccination reminder system based on encounter history
+# TODO: Add pet behavioral notes tracking
+# TODO: Implement cross-pet medical history analysis

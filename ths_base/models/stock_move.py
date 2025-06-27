@@ -1,8 +1,8 @@
 # In ths_base/models/stock_move.py (Added Move Line Date Update)
 # -*- coding: utf-8 -*-
 
-from odoo import models, fields, api, _
-from odoo.exceptions import UserError
+from odoo import models, fields
+#from odoo.exceptions import UserError
 from datetime import datetime
 import logging
 

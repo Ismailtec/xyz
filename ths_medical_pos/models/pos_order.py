@@ -19,6 +19,13 @@ class PosOrder(models.Model):
         readonly=True,
         copy=False
     )
+    encounter_id = fields.Many2one(
+        'ths.medical.base.encounter',
+        string='Daily Encounter',
+        index=True,
+        readonly=True,
+        help="Daily encounter this order belongs to"
+    )
 
     # --- Overrides ---
 
@@ -72,6 +79,15 @@ class PosOrder(models.Model):
             _logger.error(f"Failed to browse POS Order {order_id} after creation.")
             return order_id
 
+        # Find or create encounter for this order
+        if pos_order.partner_id and not pos_order.encounter_id:
+            encounter_date = pos_order.date_order.date()
+            encounter = self.env['ths.medical.base.encounter']._find_or_create_daily_encounter(
+                pos_order.partner_id.id, encounter_date
+            )
+            pos_order.encounter_id = encounter.id
+            _logger.info(f"Linked POS Order {pos_order.name} to encounter {encounter.name}")
+
         lines_to_update_vals = {}
         pending_items_to_link = {}  # Changed: only link, don't mark as processed yet
 
@@ -115,6 +131,10 @@ class PosOrder(models.Model):
                 if commission_pct is not None:
                     line_update_vals['ths_commission_pct'] = commission_pct
 
+                # Link line to encounter
+                if pos_order.encounter_id:
+                    line_update_vals['encounter_id'] = pos_order.encounter_id.id
+
                 if line_update_vals:
                     lines_to_update_vals[line.id] = line_update_vals
 
@@ -157,68 +177,34 @@ class PosOrder(models.Model):
 
         return order_id
 
-    # --- NEW: Override action_pos_order_paid to mark pending items as processed ---
+    # --- Override action_pos_order_paid to mark pending items as processed ---
     def action_pos_order_paid(self):
         """
-        Override to mark linked pending items as 'processed' only when order is paid/finalized.
-        This fixes the traceability issue where items were marked as processed before payment.
+        Override to update encounter payment status when order is paid
         """
         res = super(PosOrder, self).action_pos_order_paid()
 
         for order in self:
-            # Find pending items linked to this order's lines
+            # Update encounter payment status
+            if order.encounter_id:
+                order.encounter_id._compute_payment_status()
+                _logger.info(
+                    f"Updated encounter {order.encounter_id.name} payment status after order {order.name} paid")
+
+            # Mark linked pending items as processed
             pending_items = self.env['ths.pending.pos.item'].sudo().search([
                 ('pos_order_line_id', 'in', order.lines.ids),
-                ('state', '=', 'pending')  # Only process items still marked as pending
+                ('state', '=', 'pending')
             ])
 
             if pending_items:
-                encounter_ids_to_check = set()
-
                 try:
-                    # NOW mark them as processed since order is paid
                     pending_items.write({'state': 'processed'})
-                    _logger.info(
-                        f"POS Order {order.name}: Marked {len(pending_items)} pending items as 'processed' after payment.")
-
-                    # Update the traceability link
                     order.write({'ths_processed_pending_item_ids': [(4, item.id) for item in pending_items]})
-
-                    # Collect encounters to check for billing state update
-                    for item in pending_items:
-                        if item.encounter_id:
-                            encounter_ids_to_check.add(item.encounter_id.id)
-
-                    # Post message on order
                     order.message_post(body=_("Processed %d medical pending items.", len(pending_items)))
-
+                    _logger.info(f"Marked {len(pending_items)} pending items as processed for order {order.name}")
                 except Exception as e:
                     _logger.error(f"Failed to mark pending items as processed for order {order.name}: {e}")
-                    order.note = (order.note or '') + f"\nError processing pending items: {e}"
-
-                # --- Check encounters for billing state update ---
-                if encounter_ids_to_check:
-                    _logger.info(
-                        f"POS Order {order.name}: Checking encounters {list(encounter_ids_to_check)} for update to 'billed' state.")
-                    Encounter = self.env['ths.medical.base.encounter']
-                    PendingItem = self.env['ths.pending.pos.item']
-                    encounters = Encounter.sudo().browse(list(encounter_ids_to_check))
-
-                    for encounter in encounters:
-                        # Check if ALL pending items for this encounter are now processed
-                        remaining_pending = PendingItem.sudo().search_count([
-                            ('encounter_id', '=', encounter.id),
-                            ('state', '=', 'pending')
-                        ])
-                        if remaining_pending == 0:
-                            if encounter.state != 'billed':
-                                _logger.info(f"Updating Encounter {encounter.name} state to 'billed'.")
-                                try:
-                                    encounter.write({'state': 'billed'})
-                                except Exception as e:
-                                    _logger.error(f"Failed to update Encounter {encounter.name} state: {e}")
-                                    order.note = (
-                                                         order.note or '') + f"\nError updating encounter {encounter.name}: {e}"
 
         return res
 
@@ -276,18 +262,18 @@ class PosOrder(models.Model):
             encounters = Encounter.sudo().browse(list(encounters_to_check))
             for encounter in encounters:
                 # If encounter was billed, check if it now has pending items again
-                if encounter.state == 'billed':
+                if encounter.state == 'done':
                     has_pending_now = self.env['ths.pending.pos.item'].sudo().search_count([
                         ('encounter_id', '=', encounter.id),
                         ('state', '=', 'pending')
                     ])
                     if has_pending_now > 0:
                         _logger.info(
-                            f"Encounter {encounter.name} now has pending items after refund. Resetting state to 'Ready For Billing'.")
+                            f"Encounter {encounter.name} now has pending items after refund. Resetting state to 'In Progress'.")
                         try:
-                            encounter.write({'state': 'ready_for_billing'})
+                            encounter.write({'state': 'in_progress'})
                             encounter.message_post(
-                                body=_("Encounter status reset to 'Ready For Billing' due to POS Order refund."))
+                                body=_("Encounter status reset to 'In Progress' due to POS Order refund."))
                         except Exception as e:
                             _logger.error(f"Failed to reset encounter {encounter.name} state after refund: {e}")
                             refund_order.note = (
@@ -304,7 +290,7 @@ class PosOrder(models.Model):
         self.ensure_one()
         return self.state in ('paid', 'done', 'invoiced')
 
-    # --- NEW: Method to manually sync pending items (for data recovery) ---
+    # --- Method to manually sync pending items (for data recovery) ---
     def action_sync_pending_items_state(self):
         """
         Manual action to sync pending items state based on order status.
@@ -331,3 +317,25 @@ class PosOrder(models.Model):
                         f"Manually reset {len(items_to_reset)} items to pending for non-finalized order {order.name}")
 
         return True
+
+    def action_view_encounter(self):
+        """View the daily encounter for this order"""
+        self.ensure_one()
+        if not self.encounter_id:
+            return {}
+
+        return {
+            'name': _('Daily Encounter'),
+            'type': 'ir.actions.act_window',
+            'res_model': 'ths.medical.base.encounter',
+            'view_mode': 'form',
+            'res_id': self.encounter_id.id,
+            'target': 'current'
+        }
+
+    # TODO: Add encounter-based POS order grouping
+    # TODO: Implement encounter payment plan integration
+    # TODO: Add encounter insurance claim generation
+    # TODO: Implement encounter loyalty point calculations
+    # TODO: Add encounter receipt customization
+    # TODO: Implement encounter automatic receipt email

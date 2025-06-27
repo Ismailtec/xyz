@@ -4,196 +4,191 @@ from odoo import models
 
 
 class PosSession(models.Model):
-    _inherit = 'pos.session'
+	_inherit = 'pos.session'
 
-    def _loader_params_res_partner(self):
-        """ Inherit to add medical/vet fields """
-        params = super()._loader_params_res_partner()
-        fields_to_load = params['search_params']['fields']
-        # Ensure fields for vet/membership/etc are included
-        fields_to_load.extend([
-            'ths_partner_type_id',
-            'is_patient',  # Boolean field for filtering patients
-            'ths_pet_owner_id',
-            'ref',  # Patient file number
-            'mobile',  # Patient contact
-            'membership_state',
-            'membership_start',
-            'membership_stop'
-        ])
-        params['search_params']['fields'] = list(set(fields_to_load))
-        return params
+	def _load_pos_data_models(self, config_id):
+		"""Override to add medical models to POS loading"""
+		models = super()._load_pos_data_models(config_id)
 
-    def _loader_params_hr_employee(self):
-        """ Inherit to add medical fields and filter for practitioners """
-        params = super()._loader_params_hr_employee()
-        fields_to_load = params['search_params']['fields']
-        fields_to_load.extend([
-            'ths_is_medical',
-            'resource_id',
-            'department_id',  # Might be useful for medical department filtering
-            # Add other fields if needed for display/filtering in POS
-            'name',
-            'id'
-        ])
-        params['search_params']['fields'] = list(set(fields_to_load))
-        # Define the domain to load only active medical staff with resources
-        employee_domain = params['search_params'].get('domain', [])
-        employee_domain.extend([
-            ('resource_id', '!=', False),
-            ('ths_is_medical', '=', True),
-            ('active', '=', True)  # Only active employees
-        ])
-        params['search_params']['domain'] = employee_domain
-        return params
+		# Add medical models using the standard Odoo 18 approach
+		medical_models = [
+			'ths.partner.type',
+			'ths.medical.base.encounter',
+			'ths.treatment.room',
+			'appointment.resource',  # For practitioners and rooms
+		]
 
-    # Add Loader for ths.treatment.room
-    def _loader_params_ths_treatment_room(self):
-        """ Define fields and domain for loading rooms into POS """
-        return {
-            'search_params': {
-                'domain': [
-                    ('resource_id', '!=', False),  # Must be a schedulable resource
-                    ('active', '=', True)  # Must be active
-                ],
-                'fields': ['id', 'name', 'resource_id'],  # Load ID, name, and resource link
-            },
-        }
+		# Add medical models to the standard loading list
+		for model in medical_models:
+			if model not in models:
+				models.append(model)
 
-    # Override _pos_ui_models_to_load to include ths.treatment.room
-    def _pos_ui_models_to_load(self):
-        """ Add ths.treatment.room to the list of models loaded by POS """
-        models_to_load = super()._pos_ui_models_to_load()
-        # Add our custom models if they aren't already included via dependencies/other modules
-        medical_models = [
-            'ths.treatment.room',
-            'ths.pending.pos.item',  # For pending items functionality
-        ]
+		print(f"POS Models to load (including medical): {models}")
+		return models
 
-        for model in medical_models:
-            if model not in models_to_load:
-                models_to_load.append(model)
+	# =========================
+	# PARTNER TYPE LOADER
+	# =========================
 
-        return models_to_load
+	def _loader_params_ths_partner_type(self):
+		"""Loader params for partner types"""
+		return {
+			'search_params': {
+				'domain': [('active', '=', True)],
+				'fields': ['id', 'name', 'is_patient', 'is_employee'],
+			},
+		}
 
-    # Optional: Define how partner types are loaded if not done elsewhere
-    # def _loader_params_ths_partner_type(self):
-    #     return {'search_params': {'fields': ['id', 'name', 'is_patient', 'is_employee']}}
+	# =========================
+	# ENCOUNTER LOADER
+	# =========================
 
-    # Add loader for pending POS items
-    def _loader_params_ths_pending_pos_item(self):
-        """ Define fields and domain for loading pending POS items """
-        return {
-            'search_params': {
-                'domain': [('state', '=', 'pending')],  # Only load pending items
-                'fields': [
-                    'id', 'name', 'encounter_id', 'appointment_id',
-                    'partner_id', 'patient_id', 'product_id', 'description',
-                    'qty', 'price_unit', 'discount', 'practitioner_id',
-                    'commission_pct', 'state', 'notes'
-                ],
-                'order': 'create_date desc',  # Show newest first
-                'limit': 1000,  # Reasonable limit for POS performance
-            },
-        }
+	def _loader_params_ths_medical_base_encounter(self):
+		"""Loader params for medical encounters"""
+		return {
+			'search_params': {
+				'domain': [
+					('partner_id', '!=', False),
+					('state', 'in', ['draft', 'in_progress', 'done'])
+				],
+				'fields': [
+					'id', 'name', 'encounter_date', 'partner_id',
+					'patient_ids', 'practitioner_id', 'room_id', 'state'
+				],
+				'order': 'encounter_date desc',
+				'limit': 100,
+			},
+		}
 
-    # Add get_pos_ui_ths_treatment_room method for loading
-    def get_pos_ui_ths_treatment_room(self, params):
-        """ Method called by POS UI to load treatment rooms """
-        return self.env['ths.treatment.room'].search_read(**params['search_params'])
+	# =========================
+	# APPOINTMENT RESOURCE LOADER
+	# =========================
 
-    def get_pos_ui_ths_pending_pos_item(self, params):
-        """ Method called by POS UI to load pending POS items """
-        return self.env['ths.pending.pos.item'].search_read(**params['search_params'])
+	def _loader_params_appointment_resource(self):
+		"""Loader params for appointment resources (practitioners and rooms)"""
+		return {
+			'search_params': {
+				'domain': [('active', '=', True)],
+				'fields': ['id', 'name', 'ths_resource_category'],
+			},
+		}
 
-    # Override get_pos_ui_hr_employee to use the modified loader params
-    # This ensures our domain/fields are used when POS loads employees
-    def get_pos_ui_hr_employee(self, params):
-        """ Method called by POS UI to load employees """
-        # Note: This method name might vary slightly based on Odoo version / other modules
-        # Verify the exact method name used by your POS version to load employees if issues arise.
-        # For v17+, using the loader_params dictionary might be sufficient without needing this explicit override.
-        # However, explicit override guarantees usage.
-        loader_params = self._loader_params_hr_employee()
-        return self.env['hr.employee'].search_read(**loader_params['search_params'])
+	# =========================
+	# OVERRIDE RES.PARTNER LOADER TO INCLUDE PARTNER TYPES
+	# =========================
 
-    # Override get_pos_ui_res_partner if needed to ensure vet fields load
-    def get_pos_ui_res_partner(self, params):
-        loader_params = self._loader_params_res_partner()
-        return self.env['res.partner'].search_read(**loader_params['search_params'])
+	def _loader_params_res_partner(self):
+		"""Override to include medical fields"""
+		params = super()._loader_params_res_partner()
 
-    # --- HUMAN MEDICAL SPECIFIC METHODS ---
-    def _get_patients_for_pos(self):
-        """
-        Get patients that should be available in POS for human medical practice
-        """
-        return self.env['res.partner'].search([
-            ('ths_partner_type_id.is_patient', '=', True),
-            ('active', '=', True)
-        ])
+		# Check what fields exist on res.partner model
+		partner_model = self.env['res.partner']
+		available_fields = list(partner_model._fields.keys())
 
-    def _get_medical_staff_for_pos(self):
-        """
-        Get medical staff that should be available in POS
-        """
-        return self.env['hr.employee'].search([
-            ('ths_is_medical', '=', True),
-            ('resource_id', '!=', False),
-            ('active', '=', True)
-        ])
+		print(f"Available fields on res.partner: {[f for f in available_fields if 'ths' in f or 'partner_type' in f]}")
 
-    def _get_pending_items_count(self):
-        """
-        Get count of pending medical items for dashboard/monitoring
-        """
-        return self.env['ths.pending.pos.item'].search_count([
-            ('state', '=', 'pending')
-        ])
+		# Add medical fields to partner loading (check if they exist first)
+		medical_fields = [
+			'ths_partner_type_id',
+			'is_patient',
+			'ths_pet_owner_id',
+			'ref',
+			'mobile',
+			'membership_state',
+			'membership_start',
+			'membership_stop'
+		]
 
-    # --- HELPER METHODS FOR POS MEDICAL INTEGRATION ---
-    def _validate_medical_pos_setup(self):
-        """
-        Validate that medical POS setup is correct
-        Returns list of warnings/errors for medical POS configuration
-        """
-        issues = []
+		# Only add fields that actually exist on the model
+		existing_medical_fields = [f for f in medical_fields if f in available_fields]
+		print(f"Medical fields that exist: {existing_medical_fields}")
 
-        # Check if medical staff exists
-        medical_staff_count = self.env['hr.employee'].search_count([
-            ('ths_is_medical', '=', True),
-            ('active', '=', True)
-        ])
-        if medical_staff_count == 0:
-            issues.append("No active medical staff found. Add medical practitioners to use medical POS features.")
+		# Extend existing fields
+		params['search_params']['fields'].extend(existing_medical_fields)
+		# Remove duplicates
+		params['search_params']['fields'] = list(set(params['search_params']['fields']))
 
-        # Check if treatment rooms exist
-        treatment_rooms_count = self.env['ths.treatment.room'].search_count([
-            ('active', '=', True)
-        ])
-        if treatment_rooms_count == 0:
-            issues.append(
-                "No active treatment rooms found. Consider adding treatment rooms for better appointment management.")
+		print(f"Final partner fields to load: {params['search_params']['fields']}")
+		return params
 
-        # Check if patient types are configured
-        patient_types_count = self.env['ths.partner.type'].search_count([
-            ('is_patient', '=', True)
-        ])
-        if patient_types_count == 0:
-            issues.append("No patient partner types configured. Set up partner types for proper patient management.")
+	# =========================
+	# CUSTOM DATA LOADING METHODS
+	# =========================
 
-        return issues
+	def get_pos_ui_ths_partner_type(self, params):
+		"""Load partner types for POS"""
+		return self.env['ths.partner.type'].search_read(**params['search_params'])
 
-    # TODO: Add methods for real-time updates and monitoring
-    def _get_real_time_pending_items(self):
-        """
-        Get real-time count of pending items for POS dashboard
-        """
-        # TODO: Could be enhanced with real-time notifications
-        return self._get_pending_items_count()
+	def get_pos_ui_appointment_resource(self, params):
+		"""Load appointment resources for POS"""
+		return self.env['appointment.resource'].search_read(**params['search_params'])
 
-    def _refresh_medical_data_in_pos(self):
-        """
-        Refresh medical data in active POS sessions
-        """
-        # TODO: Implement real-time data refresh for medical information
-        pass
+	def get_pos_ui_ths_medical_base_encounter(self, params):
+		"""Load encounters with properly formatted data"""
+		# Get encounters using search_read with proper field formatting
+		encounters = self.env['ths.medical.base.encounter'].search_read(**params['search_params'])
+
+		# Manually format Many2one and Many2many fields to [id, name] format
+		for encounter in encounters:
+			# Format partner_id (Many2one)
+			if encounter.get('partner_id'):
+				if isinstance(encounter['partner_id'], (list, tuple)) and len(encounter['partner_id']) >= 2:
+					# Already in [id, name] format, keep as is
+					pass
+				else:
+					# Raw ID, convert to [id, name]
+					partner_id = encounter['partner_id']
+					partner = self.env['res.partner'].browse(partner_id)
+					encounter['partner_id'] = [partner.id, partner.name] if partner.exists() else False
+
+			# Format practitioner_id (Many2one to appointment.resource)
+			if encounter.get('practitioner_id'):
+				if isinstance(encounter['practitioner_id'], (list, tuple)) and len(encounter['practitioner_id']) >= 2:
+					pass
+				else:
+					practitioner_id = encounter['practitioner_id']
+					practitioner = self.env['appointment.resource'].browse(practitioner_id)
+					encounter['practitioner_id'] = [practitioner.id,
+					                                practitioner.name] if practitioner.exists() else False
+
+			# Format room_id (Many2one to appointment.resource)
+			if encounter.get('room_id'):
+				if isinstance(encounter['room_id'], (list, tuple)) and len(encounter['room_id']) >= 2:
+					pass
+				else:
+					room_id = encounter['room_id']
+					room = self.env['appointment.resource'].browse(room_id)
+					encounter['room_id'] = [room.id, room.name] if room.exists() else False
+
+			# Format patient_ids (Many2many to res.partner)
+			if encounter.get('patient_ids'):
+				if encounter['patient_ids'] and isinstance(encounter['patient_ids'][0], (int)):
+					# Raw IDs like [50, 51], convert to [[50, "Name"], [51, "Name"]]
+					patient_ids = encounter['patient_ids']
+					patients = self.env['res.partner'].browse(patient_ids)
+					encounter['patient_ids'] = [[p.id, p.name] for p in patients if p.exists()]
+			# If already in correct format, keep as is
+
+		print(f"Loaded {len(encounters)} encounters with formatted data")
+		return encounters
+
+	def get_pos_ui_res_partner(self, params):
+		"""Override to ensure partner type data is loaded correctly"""
+		partners = self.env['res.partner'].search_read(**params['search_params'])
+
+		# Ensure partner type data is properly formatted
+		for partner in partners:
+			if partner.get('ths_partner_type_id'):
+				if isinstance(partner['ths_partner_type_id'], (list, tuple)) and len(
+						partner['ths_partner_type_id']) >= 2:
+					# Already in [id, name] format
+					pass
+				else:
+					# Raw ID, convert to [id, name]
+					type_id = partner['ths_partner_type_id']
+					partner_type = self.env['ths.partner.type'].browse(type_id)
+					partner['ths_partner_type_id'] = [partner_type.id,
+					                                  partner_type.name] if partner_type.exists() else False
+
+		print(f"Loaded {len(partners)} partners with partner type data")
+		return partners
