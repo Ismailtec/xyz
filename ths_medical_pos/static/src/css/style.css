@@ -1,4 +1,80 @@
-/* ths_medical_pos/static/src/css/medical_pos.css */
+/* ths_medical_pos/static/src/css/style.css - BASE MEDICAL MODULE */
+
+/* === ENCOUNTER SELECTION POPUP STYLES === */
+
+.encounter-card {
+    transition: all 0.2s ease-in-out !important;
+    cursor: pointer !important;
+    min-height: 200px !important;
+}
+
+.encounter-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15) !important;
+    border-color: #007bff !important;
+    transform: translateY(-2px) !important;
+}
+
+.encounter-card .card-body {
+    padding: 1rem !important;
+}
+
+.encounter-card .card-title {
+    font-size: 0.95rem !important;
+    font-weight: 600 !important;
+    margin-bottom: 0.5rem !important;
+    color: #007bff !important;
+}
+
+/* Fix text selection and hover issues */
+.encounter-card * {
+    pointer-events: none !important;
+}
+
+.encounter-card {
+    pointer-events: all !important;
+}
+
+/* Ensure text is selectable for copying if needed */
+.encounter-card .card-body {
+    user-select: text !important;
+}
+
+/* === PARTNER TYPE STYLING === */
+
+.partner-type-field strong,
+.partner-type-cell strong {
+    font-weight: 700 !important;
+    color: #007bff !important;
+    font-size: 0.9rem !important;
+}
+
+/* === RESPONSIVE GRID FOR ENCOUNTERS === */
+
+@media (min-width: 1200px) {
+    .encounter-card {
+        height: 100% !important;
+        min-height: 180px !important;
+    }
+}
+
+@media (max-width: 1199px) {
+    .encounter-card {
+        min-height: 160px !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .encounter-card {
+        min-height: 140px !important;
+    }
+
+    /* Stack encounters 1 per row on mobile */
+    .encounter-grid .col-12 {
+        margin-bottom: 0.75rem !important;
+    }
+}
+
+/* === GENERAL MEDICAL POS STYLES === */
 
 .medical-controls {
     background-color: #f8f9fa;
@@ -39,7 +115,8 @@
     background-color: #218838;
 }
 
-/* Medical Appointments Button in POS Navbar */
+/* === MEDICAL APPOINTMENTS BUTTON === */
+
 .medical-appointments-btn {
     background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
     color: white;
@@ -65,4 +142,44 @@
 
 .medical-appointments-btn .fa-stethoscope {
     color: inherit;
+}
+
+/* === PATIENT DISPLAY FIXES (GENERIC) === */
+
+.patients-display {
+    font-size: 0.9rem !important;
+    font-weight: normal !important;
+    line-height: 1.4 !important;
+}
+
+.patients-display .patient-name {
+    display: inline !important;
+}
+
+.patients-display .patient-separator {
+    margin: 0 0.25rem !important;
+}
+
+/* === DIALOG AND POPUP IMPROVEMENTS === */
+
+.modal-dialog {
+    max-width: 95vw !important;
+}
+
+.modal-body {
+    max-height: 70vh !important;
+    overflow-y: auto !important;
+    padding: 1.5rem !important;
+}
+
+/* === SEARCH BUTTON IMPROVEMENTS === */
+
+.btn-secondary.btn-lg {
+    font-weight: 500 !important;
+    letter-spacing: 0.025em !important;
+}
+
+.btn-secondary.btn-lg:hover {
+    background-color: #5a6268 !important;
+    border-color: #545b62 !important;
 }

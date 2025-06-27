@@ -28,13 +28,21 @@ Extends the Techouse Medical POS Integration for veterinary specifics.
             'calendar/static/src/views/widgets/**/*',
             'calendar/static/src/views/calendar_form/**/*',
             # Patches should load after the original components they patch
-            # === PATCH FILE ===
-            'ths_medical_pos_vet/static/src/popups/pending_items_list_popup.xml',
+            # 1. Partner list screen vet extension
+            'ths_medical_pos_vet/static/src/screens/partner_list_screen/partner_list_screen.js',
+
+            # 2. Encounter selection popup vet extension
+            'ths_medical_pos_vet/static/src/popups/encounter_selection_popup.xml',
+
+            # 3. Pending items button vet extension
             'ths_medical_pos_vet/static/src/components/pending_items_button/pending_items_button.js',
-            # === MEMBERSHIP DISPLAY PATCHES ===
+
+            # 4. Product screen vet extension
             'ths_medical_pos_vet/static/src/screens/product_screen/product_screen.xml',
             'ths_medical_pos_vet/static/src/screens/product_screen/product_screen.js',
-            # === END ===
+
+            # 5. Vet-specific styling (extends base style.css)
+            'ths_medical_pos_vet/static/src/css/style.css',
         ],
     },
     'installable': True,

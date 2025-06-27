@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="template" xml:space="preserve">
+
+    <!-- Veterinary-specific encounter selection popup -->
+    <t t-inherit="ths_medical_pos.EncounterSelectionPopup" t-inherit-mode="extension">
+
+        <!-- Update the patient display for veterinary context -->
+        <xpath expr="//div[hasclass('d-flex align-items-start')]//span[@style='font-size: 0.9rem; font-weight: normal;']"
+               position="replace">
+            <!-- FIXED: Veterinary pets display with species and commas -->
+            <span style="font-size: 0.9rem; font-weight: normal;">
+                <t t-foreach="encounter.patient_ids" t-as="patient" t-key="patient[0]">
+                    <!-- Display pet name with species if available -->
+                    <t t-if="patient.length >= 3 and patient[2]">
+                        <t t-esc="patient[1]"/> (<t t-esc="patient[2][1] or 'Unknown Species'"/>)
+                    </t>
+                    <t t-else="">
+                        <t t-esc="patient[1]"/>
+                    </t>
+                    <!-- Add comma if not last pet -->
+                    <t t-if="!patient_last">, </t>
+                </t>
+            </span>
+        </xpath>
+
+        <!-- Add membership status indicator for pet owners -->
+        <xpath expr="//div[hasclass('d-flex justify-content-end mt-2')]" position="before">
+            <!-- VET: Membership status for pet owners -->
+            <t t-if="encounter.vet_context and encounter.vet_context.is_veterinary">
+                <div class="d-flex align-items-center mb-1">
+                    <i class="fa fa-star me-2 text-secondary" style="width: 14px;"/>
+                    <small style="font-size: 0.8rem;">
+                        <span class="text-muted">Membership: </span>
+                        <span t-attf-class="badge {{ encounter.partner_id and encounter.partner_id[0] ? 'bg-success' : 'bg-warning' }}"
+                              style="font-size: 0.7rem;">
+                            Active <!-- This would be dynamic based on membership data -->
+                        </span>
+                    </small>
+                </div>
+            </t>
+        </xpath>
+
+        <!-- Update the pets label for veterinary context -->
+        <xpath expr="//small[@class='text-muted'][text()='Patients: ']" position="attributes">
+            <attribute name="text">Pets: </attribute>
+        </xpath>
+
+    </t>
+
+</templates>

@@ -4,7 +4,7 @@ import { patch } from "@web/core/utils/patch";
 import { PartnerList } from "@point_of_sale/app/screens/partner_list/partner_list";
 import { usePos } from "@point_of_sale/app/store/pos_hook";
 import { useService } from "@web/core/utils/hooks";
-import { EncounterSelectionPopup } from "@ths_medical_pos/components/encounter_selection_popup/encounter_selection_popup";
+import { EncounterSelectionPopup } from "@ths_medical_pos/popups/encounter_selection_popup";
 import { _t } from "@web/core/l10n/translation";
 
 patch(PartnerList.prototype, {

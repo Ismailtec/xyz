@@ -20,13 +20,16 @@
         </xpath>
     </t>
 
-    <!-- Extend PartnerLine to display partner type data -->
+    <!-- Extend PartnerLine to display partner type data with proper styling -->
     <t t-name="point_of_sale.PartnerLine" t-inherit="point_of_sale.PartnerLine" t-inherit-mode="extension">
         <!-- Add partner type data for mobile view (small screens) -->
         <xpath expr="//div[hasclass('company-field')]" position="after">
-            <div class="partner-type-field text-bg-muted">
+            <div class="partner-type-field">
                 <t t-if="props.partner.ths_partner_type_id and Array.isArray(props.partner.ths_partner_type_id) and props.partner.ths_partner_type_id.length >= 2">
-                    <small><i class="fa fa-tag me-1"/><t t-esc="props.partner.ths_partner_type_id[1]"/></small>
+                    <strong class="text-primary">
+                        <i class="fa fa-tag me-1"/>
+                        <t t-esc="props.partner.ths_partner_type_id[1]"/>
+                    </strong>
                 </t>
                 <t t-else="">
                     <small class="text-muted">No Type</small>
@@ -34,11 +37,13 @@
             </div>
         </xpath>
 
-        <!-- Add partner type data for desktop view (table row) -->
+        <!-- Add partner type data for desktop view (table row) with bold styling -->
         <xpath expr="//tr[@class='partner-line partner-info']/td[1]" position="after">
             <td class="partner-type-cell">
                 <t t-if="props.partner.ths_partner_type_id and Array.isArray(props.partner.ths_partner_type_id) and props.partner.ths_partner_type_id.length >= 2">
-                    <span class="badge bg-info" t-esc="props.partner.ths_partner_type_id[1]"/>
+                    <strong class="text-primary fw-bold">
+                        <t t-esc="props.partner.ths_partner_type_id[1]"/>
+                    </strong>
                 </t>
                 <t t-else="">
                     <span class="text-muted">

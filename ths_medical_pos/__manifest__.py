@@ -12,7 +12,7 @@
         
         Features:
         - Appointment management directly from POS
-        - Patient and pet management integration
+        - Patient management integration
         - Pending medical items handling
         - Medical practitioner assignment
         - Treatment room booking
@@ -49,10 +49,13 @@
 
     'assets': {
         'point_of_sale._assets_pos': [
-            'ths_medical_pos/static/src/screens/partner_list_screen/debug_pos_models.js',
-            'ths_medical_pos/static/src/screens/partner_list_screen/test_partner_types.js',
-            'ths_medical_pos/static/src/screens/partner_list_screen/simple_partner_fix.js',
-            'ths_medical_pos/static/src/screens/partner_list_screen/simple_encounter_fix.js',
+            # === DEBUG FILES  ===
+            # 'ths_medical_pos/static/src/debug/debug_pos_models.js',
+            # 'ths_medical_pos/static/src/debug/test_partner_types.js',
+            # 'ths_medical_pos/static/src/debug/simple_partner_fix.js',
+            # 'ths_medical_pos/static/src/debug/simple_encounter_fix.js',
+            # 'ths_medical_pos/static/src/debug/partner_debug.js',
+
             # 1. Base popup component (no dependencies on other medical components)
             'ths_medical_pos/static/src/popups/pending_items_list_popup.js',
             'ths_medical_pos/static/src/popups/pending_items_list_popup.xml',
@@ -62,11 +65,12 @@
             'ths_medical_pos/static/src/components/pending_items_button/pending_items_button.xml',
 
             # 3. Screen patches (depend on button component)
-            'ths_medical_pos/static/src/components/encounter_selection_popup/encounter_selection_popup.js',
-            'ths_medical_pos/static/src/components/encounter_selection_popup/encounter_selection_popup.xml',
-            #'ths_medical_pos/static/src/screens/partner_list_screen/partner_list_screen.js',
+            'ths_medical_pos/static/src/popups/encounter_selection_popup.js',
+            'ths_medical_pos/static/src/popups/encounter_selection_popup.xml',
+
+            # Main partner list screen files
+            'ths_medical_pos/static/src/screens/partner_list_screen/partner_list_screen.js',
             'ths_medical_pos/static/src/screens/partner_list_screen/partner_list_screen.xml',
-            'ths_medical_pos/static/src/screens/partner_list_screen/partner_debug.js',
             'ths_medical_pos/static/src/screens/product_screen/product_screen.js',
             'ths_medical_pos/static/src/screens/product_screen/product_screen.xml',
 
@@ -75,13 +79,12 @@
             'ths_medical_pos/static/src/screens/appointment_screen/appointment_screen.js',
 
             # 5. Additional widgets and styling (no dependencies)
-
             'ths_medical_pos/static/src/components/calendar_widget/calendar_widget.js',
             'ths_medical_pos/static/src/css/style.css',
         ],
     },
     'installable': True,
-    'application': False,
+    'application': True,
     'auto_install': False,
     'license': 'OPL-1',
 }
