@@ -103,6 +103,11 @@ class ResPartner(models.Model):
         help="Emergency contact person if pet owner is unavailable."
     )
 
+    pet_membership_count = fields.Integer(
+        compute='_compute_pet_membership_count',
+        string="# Memberships"
+    )
+
     # --- CORE COMPUTED METHODS ---
 
     @api.depends('ths_partner_type_id')
@@ -123,6 +128,16 @@ class ResPartner(models.Model):
                 partner.ths_pet_count = len(partner.ths_pet_ids.filtered('active'))
             else:
                 partner.ths_pet_count = 0
+
+    @api.depends('ths_pet_ids')
+    def _compute_pet_membership_count(self):
+        for partner in self:
+            if partner.is_pet_owner:
+                partner.pet_membership_count = self.env['vet.pet.membership'].search_count([
+                    ('partner_id', '=', partner.id)
+                ])
+            else:
+                partner.pet_membership_count = 0
 
     @api.depends('name', 'is_pet', 'ths_pet_owner_id', 'ths_pet_owner_id.name')
     def _compute_display_name(self):
@@ -313,6 +328,18 @@ class ResPartner(models.Model):
             'view_mode': 'calendar,list,form',
             'domain': domain,
             'context': context,
+        }
+
+    def action_view_pet_memberships(self):
+        """View memberships for this pet owner"""
+        self.ensure_one()
+        return {
+            'name': _('Pet Memberships for %s') % self.name,
+            'type': 'ir.actions.act_window',
+            'res_model': 'vet.pet.membership',
+            'view_mode': 'list,form',
+            'domain': [('partner_id', '=', self.id)],
+            'context': {'default_partner_id': self.id}
         }
 
     # --- HELPER METHODS ---

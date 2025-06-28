@@ -2,6 +2,7 @@
 
 import { patch } from "@web/core/utils/patch";
 import { PartnerList } from "@point_of_sale/app/screens/partner_list/partner_list";
+import { registerModel } from "@point_of_sale/app/store/pos_model";
 import { _t } from "@web/core/l10n/translation";
 
 /**
@@ -11,6 +12,15 @@ import { _t } from "@web/core/l10n/translation";
  * Veterinary-specific extension of PartnerList
  * Extends the medical base functionality with vet-specific features
  */
+
+registerModel({
+    model: 'ths.species',
+    fields: ['name', 'color'],
+    loaded(models, species) {
+        return species;
+    },
+});
+
 patch(PartnerList.prototype, {
 
     async loadAndApplyPartnerTypes() {

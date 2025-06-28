@@ -108,5 +108,12 @@
                 action="action_park_checkin"
                 sequence="60"/>
 
+        <menuitem
+                id="menu_vet_pet_memberships"
+                name="Pet Memberships"
+                parent="menu_ths_medical_vet_root"
+                action="action_vet_pet_membership"
+                sequence="65"/>
+
     </data>
 </odoo>

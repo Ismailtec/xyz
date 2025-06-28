@@ -17,7 +17,6 @@
         'ths_medical_base',  # Essential dependency
         'ths_hr',  # For ths_hr.employee
         'contacts',  # For res.partner
-        'membership',
     ],
     'data': [
         'security/ir.model.access.csv',
@@ -30,6 +29,8 @@
         'views/medical_summary.xml',
         'views/species.xml',
         'views/vaccination.xml',
+        'views/product.xml',
+        'views/pet_membership.xml',
         'views/park.xml',
         'views/res_partner.xml',
         'views/vet_encounter_reports.xml',

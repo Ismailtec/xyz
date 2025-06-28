@@ -18,3 +18,5 @@ access_vet_vaccine_type_manager,vet.vaccine.type.manager,model_vet_vaccine_type,
 access_vet_medical_history_summary,vet.medical.history.summary.user,ths_medical_vet.model_vet_medical_history_summary,ths_medical_base.group_medical_user,1,0,0,0
 access_park_checkin_medical_user,access_park_checkin_medical_user,model_park_checkin,ths_medical_base.group_medical_user,1,1,1,1
 access_park_checkin_medical_manager,access_park_checkin_medical_manager,model_park_checkin,ths_medical_base.group_medical_manager,1,1,1,1
+access_vet_pet_membership_user,vet.pet.membership.user,model_vet_pet_membership,ths_medical_base.group_medical_user,1,1,1,0
+access_vet_pet_membership_manager,vet.pet.membership.manager,model_vet_pet_membership,ths_medical_base.group_medical_manager,1,1,1,1

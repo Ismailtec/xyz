@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="template" xml:space="preserve">
+    <t t-name="ths_medical_pos_vet.PetSelectionPopup">
+        <Dialog title="props.title">
+            <div class="pet-selection-popup p-3">
+
+                <!-- Pet Selection Section -->
+                <div class="mb-4">
+                    <h5 class="mb-3">
+                        <i class="fa fa-paw me-2"/>Select Pets
+                    </h5>
+                    <div class="row g-2">
+                        <t t-foreach="state.ownerPets" t-as="pet" t-key="pet.id">
+                            <div class="col-md-6">
+                                <div class="card pet-card"
+                                     t-attf-class="{{isPetSelected(pet.id) ? 'border-primary bg-primary-subtle' : ''}}"
+                                     t-on-click="() => this.togglePetSelection(pet.id)"
+                                     style="cursor: pointer;">
+                                    <div class="card-body p-2">
+                                        <div class="d-flex align-items-center">
+                                            <i class="fa fa-paw me-2"/>
+                                            <div>
+                                                <strong t-esc="pet.name"/>
+                                                <br/>
+                                                <small class="text-muted"
+                                                       t-if="pet.ths_species_id"
+                                                       t-esc="pet.ths_species_id[1]"/>
+                                            </div>
+                                            <i t-if="isPetSelected(pet.id)"
+                                               class="fa fa-check-circle text-primary ms-auto"/>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </t>
+                    </div>
+                </div>
+
+                <!-- Practitioner Selection -->
+                <div class="mb-3">
+                    <label class="form-label">
+                        <i class="fa fa-user-md me-2"/>Service Provider
+                    </label>
+                    <select class="form-select" t-model="state.selectedPractitioner">
+                        <option value="">-- Select Practitioner --</option>
+                        <t t-foreach="state.practitioners" t-as="practitioner" t-key="practitioner.id">
+                            <option t-att-value="practitioner.id" t-esc="practitioner.name"/>
+                        </t>
+                    </select>
+                </div>
+
+                <!-- Room Selection -->
+                <div class="mb-3">
+                    <label class="form-label">
+                        <i class="fa fa-home me-2"/>Room/Location
+                    </label>
+                    <select class="form-select" t-model="state.selectedRoom">
+                        <option value="">-- Select Room --</option>
+                        <t t-foreach="state.rooms" t-as="room" t-key="room.id">
+                            <option t-att-value="room.id" t-esc="room.name"/>
+                        </t>
+                    </select>
+                </div>
+
+            </div>
+
+            <t t-set-slot="footer">
+                <button class="btn btn-secondary" t-on-click="cancel">
+                    <i class="fa fa-times me-1"/>Cancel
+                </button>
+                <button class="btn btn-primary" t-on-click="confirm">
+                    <i class="fa fa-check me-1"/>Continue
+                </button>
+            </t>
+        </Dialog>
+    </t>
+</templates>

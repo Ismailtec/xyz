@@ -129,7 +129,7 @@ export class PendingItemsListPopup extends Component {
 
         try {
             // Method 1: Try direct property setting first (least reactive)
-            if (orderline.note !== undefined) {
+            if (!orderline.note !== undefined) {
                 orderline.note = description;
                 console.log("✅ Set note via direct property");
                 return;

@@ -29,13 +29,12 @@
         </xpath>
 
         <!-- Replace pets display with many2many badge style -->
-        <xpath expr="//span[@style='font-size: 0.9rem; font-weight: normal;']" position="replace">
+        <xpath expr="//span[@style='font-size: 0.9rem; font-weight: bold;']" position="replace">
             <div class="pets-many2many-display">
-                <t t-foreach="encounter.patient_ids" t-as="patient" t-key="patient_index">
+                <t t-foreach="encounter.patient_display" t-as="patient_name" t-key="patient_name">
                     <span class="badge bg-primary me-1 mb-1 pet-tag" style="font-size: 0.8rem; padding: 0.4rem 0.6rem;">
                         <i class="fa fa-paw me-1" style="font-size: 0.7rem;"/>
-                        <t t-if="patient and patient.length >= 2" t-esc="patient[1]"/>
-                        <t t-elif="patient" t-esc="patient"/>
+                        <t t-esc="patient_name"/>
                         <t t-else="">Unknown Pet</t>
                         <!-- Show species as sub-badge if available -->
                         <t t-if="patient and patient.length >= 3 and patient[2]">

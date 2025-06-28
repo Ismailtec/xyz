@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="template" xml:space="preserve">
+
+    <t t-name="ths_medical_pos_vet.NewOrderSelectionPopup">
+        <Dialog title="props.title" footer="false">
+            <div class="new-order-selection-popup">
+
+                <!-- Loading State -->
+                <t t-if="state.isLoading">
+                    <div class="text-center p-4">
+                        <i class="fa fa-spinner fa-spin fa-2x text-primary"/>
+                        <p class="mt-2">Setting up your order...</p>
+                    </div>
+                </t>
+
+                <!-- Main Content -->
+                <t t-else="">
+                    <!-- Pet Owner Info -->
+                    <div class="alert alert-info mb-3">
+                        <h5 class="mb-1">
+                            <i class="fa fa-user me-2"/>
+                            Pet Owner: <strong t-esc="props.partner_name"/>
+                        </h5>
+                        <small>
+                            <t t-if="props.existing_encounter">
+                                Found existing encounter for today - fields are pre-filled
+                            </t>
+                            <t t-else="">
+                                No encounter found for today - new encounter will be created
+                            </t>
+                        </small>
+                    </div>
+
+                    <!-- Pets Selection -->
+                    <div class="form-group mb-3">
+                        <label class="form-label">
+                            <i class="fa fa-paw me-2"/>
+                            Select Pets (Optional)
+                        </label>
+                        <small class="form-text text-muted d-block mb-2">
+                            Choose which pets will receive services today
+                        </small>
+
+                        <t t-if="props.pets.length === 0">
+                            <div class="alert alert-warning">
+                                <i class="fa fa-exclamation-triangle me-2"/>
+                                No pets found for this owner
+                            </div>
+                        </t>
+                        <t t-else="">
+                            <div class="pets-selection">
+                                <t t-foreach="props.pets" t-as="pet" t-key="pet.id">
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input"
+                                               type="checkbox"
+                                               t-att-id="'pet_' + pet.id"
+                                               t-att-checked="isPetSelected(pet.id)"
+                                               t-on-change="() => this.togglePetSelection(pet.id)"/>
+                                        <label class="form-check-label" t-att-for="'pet_' + pet.id">
+                                            <span class="badge bg-primary me-2">
+                                                <i class="fa fa-paw me-1"/>
+                                                <t t-esc="getPetDisplayName(pet)"/>
+                                            </span>
+                                        </label>
+                                    </div>
+                                </t>
+                            </div>
+                        </t>
+                    </div>
+
+                    <!-- Practitioner Selection -->
+                    <div class="form-group mb-3">
+                        <label class="form-label">
+                            <i class="fa fa-user-md me-2"/>
+                            Service Provider (Optional)
+                        </label>
+                        <small class="form-text text-muted d-block mb-2">
+                            Choose the practitioner who will provide services
+                        </small>
+
+                        <select class="form-select"
+                                t-model="state.selectedPractitioner"
+                                t-on-change="(ev) => this.selectPractitioner(parseInt(ev.target.value) || false)">
+                            <option value="">-- Select Service Provider --</option>
+                            <t t-foreach="props.practitioners" t-as="practitioner" t-key="practitioner.id">
+                                <option t-att-value="practitioner.id"
+                                        t-att-selected="state.selectedPractitioner === practitioner.id">
+                                    <t t-esc="practitioner.name"/>
+                                </option>
+                            </t>
+                        </select>
+                    </div>
+
+                    <!-- Room Selection -->
+                    <div class="form-group mb-3">
+                        <label class="form-label">
+                            <i class="fa fa-home me-2"/>
+                            Treatment Room (Optional)
+                        </label>
+                        <small class="form-text text-muted d-block mb-2">
+                            Choose the room where services will be provided
+                        </small>
+
+                        <select class="form-select"
+                                t-model="state.selectedRoom"
+                                t-on-change="(ev) => this.selectRoom(parseInt(ev.target.value) || false)">
+                            <option value="">-- Select Room --</option>
+                            <t t-foreach="props.rooms" t-as="room" t-key="room.id">
+                                <option t-att-value="room.id"
+                                        t-att-selected="state.selectedRoom === room.id">
+                                    <t t-esc="room.name"/>
+                                </option>
+                            </t>
+                        </select>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="d-flex justify-content-between gap-2 mt-4">
+                        <!-- Cancel Button -->
+                        <button type="button"
+                                class="btn btn-secondary"
+                                t-on-click="cancel"
+                                t-att-disabled="state.isLoading">
+                            <i class="fa fa-times me-2"/>
+                            Cancel
+                        </button>
+
+                        <!-- Skip Button -->
+                        <button type="button"
+                                class="btn btn-outline-primary"
+                                t-on-click="skip"
+                                t-att-disabled="state.isLoading">
+                            <i class="fa fa-forward me-2"/>
+                            Skip Setup
+                        </button>
+
+                        <!-- Confirm Button -->
+                        <button type="button"
+                                class="btn btn-primary"
+                                t-on-click="confirm"
+                                t-att-disabled="state.isLoading">
+                            <i class="fa fa-check me-2"/>
+                            <t t-if="props.existing_encounter">Update &amp; Continue</t>
+                            <t t-else="">Create &amp; Continue</t>
+                        </button>
+                    </div>
+
+                    <!-- Help Text -->
+                    <div class="alert alert-light mt-3">
+                        <small>
+                            <i class="fa fa-info-circle me-2"/>
+                            <strong>Note:</strong> All fields are optional. You can skip this setup and configure the
+                            encounter later, or proceed with your current selections.
+                        </small>
+                    </div>
+                </t>
+            </div>
+        </Dialog>
+    </t>
+
+</templates>

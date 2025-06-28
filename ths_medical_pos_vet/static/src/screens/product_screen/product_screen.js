@@ -1,113 +1,92 @@
-/** @odoo-module */
-
 import { patch } from "@web/core/utils/patch";
-import { formatDateTime, formatDate } from "@web/core/l10n/dates";
-import { OrderWidget } from "@point_of_sale/app/generic_components/order_widget/order_widget";
+import { ProductScreen } from "@point_of_sale/app/screens/product_screen/product_screen";
+import { PetSelectionPopup } from "@ths_medical_pos_vet/popups/pet_selection_popup";
+import { makeAwaitable } from "@point_of_sale/app/store/make_awaitable_dialog";
 
-/**
- * IMPORTANT: This follows Odoo 18 OWL 3 component patching methodology for veterinary extensions.
- * This is the LATEST approach for extending POS screen components with vet-specific functionality.
- * Patches the OrderWidget to add membership status display for pet owners.
- *
- * Veterinary-specific enhancement of OrderWidget
- * Adds membership status display for pet owners in the POS interface
- * Extends base medical functionality with veterinary membership features
- */
-patch(OrderWidget.prototype, {
-    /**
-     * Helper function to format membership dates for veterinary display
-     * Updated to use Odoo 18's latest date formatting utilities properly
-     *
-     * @param {string} dateString - Date string from backend (usually 'YYYY-MM-DD' format)
-     * @returns {string} - Formatted date string for UI display
-     */
-    formatMembershipDate(dateString) {
-        if (!dateString) {
-            return "";
+patch(ProductScreen.prototype, {
+
+    async _onPartnerChanged(partner) {
+        // Call parent logic first
+        if (super._onPartnerChanged) {
+            await super._onPartnerChanged(partner);
         }
 
+        // Trigger pet selection popup for vet context
+        if (partner && partner.ths_partner_type_id?.[1] === 'Pet Owner') {
+            await this.showPetSelectionPopup(partner);
+        }
+    },
+
+    async showPetSelectionPopup(partner) {
         try {
-            // Enhanced date parsing to handle various backend formats
-            let date;
-            if (typeof dateString === 'string') {
-                // Handle 'YYYY-MM-DD' format from backend
-                date = new Date(dateString + 'T00:00:00'); // Add time to avoid timezone issues
-            } else if (dateString instanceof Date) {
-                date = dateString;
-            } else {
-                console.warn("Vet POS: Invalid membership date type:", typeof dateString, dateString);
-                return dateString.toString();
+            // Check for existing encounter
+            const encounter = await this.loadDailyEncounter(partner.id);
+
+            const result = await makeAwaitable(this.dialog, PetSelectionPopup, {
+                title: _t("Select Pets and Service Details"),
+                partner: partner,
+                encounter: encounter,
+            });
+
+            if (result.confirmed) {
+                await this.applyPetSelectionToOrder(result.payload);
             }
 
-            // Check if date is valid to prevent display errors
-            if (isNaN(date.getTime())) {
-                console.warn("Vet POS: Invalid membership date format:", dateString);
-                return dateString.toString(); // Return original string if invalid
-            }
-
-            // Use Odoo 18's formatDate utility for consistent formatting
-            return formatDate(date);
         } catch (error) {
-            console.error("Vet POS: Error formatting membership date:", error);
-            return dateString.toString(); // Fallback to string representation on error
+            console.error("Error in pet selection popup:", error);
         }
     },
 
-    /**
-     * Enhanced setup method for veterinary-specific initialization
-     * Updated to work with the latest OWL 3 component lifecycle
-     * Maintains parent functionality while adding vet-specific features
-     */
-    setup() {
-        super.setup(); // REQUIRED: Call parent setup to maintain base functionality
-        console.log("Vet POS: OrderWidget enhanced with veterinary membership features for Odoo 18");
+    async loadDailyEncounter(partnerId) {
+        const today = new Date().toISOString().split('T')[0];
+        const encounters = await this.orm.searchRead(
+            'ths.medical.base.encounter',
+            [
+                ('partner_id', '=', partnerId),
+                ('encounter_date', '=', today)
+            ],
+            ['id', 'patient_ids', 'practitioner_id', 'room_id'],
+            { limit: 1 }
+        );
 
-        // Initialize any veterinary-specific reactive state if needed
-        // This ensures proper reactivity with OWL 3's updated system
-        try {
-            // Any additional setup for vet-specific features can go here
-            this.vetEnhancementsLoaded = true;
-        } catch (error) {
-            console.error("Vet POS: Error during veterinary setup:", error);
-            this.vetEnhancementsLoaded = false;
+        return encounters.length > 0 ? encounters[0] : null;
+    },
+
+    async applyPetSelectionToOrder(selectionData) {
+        const order = this.pos.get_order();
+
+        // Set medical context on order
+        order.medical_context = {
+            patient_ids: selectionData.patient_ids,
+            practitioner_id: selectionData.practitioner_id,
+            room_id: selectionData.room_id,
+        };
+
+        // Load pending items for this encounter
+        await this.loadAndApplyPendingItems(selectionData);
+    },
+
+    async loadAndApplyPendingItems(selectionData) {
+        // Load pending items for the encounter
+        const partner = this.pos.get_order().get_partner();
+        if (!partner) return;
+
+        const pendingItems = await this.orm.searchRead(
+            'ths.pending.pos.item',
+            [
+                ('partner_id', '=', partner.id),
+                ('state', '=', 'pending')
+            ],
+            ['id', 'product_id', 'qty', 'price_unit', 'description']
+        );
+
+        // Auto-add pending items to order
+        for (const item of pendingItems) {
+            // Use the existing pending items methodology to add products
+            // This should follow the same logic as in pending_items_list_popup.js
         }
-    },
-
-    /**
-     * Get membership status color for visual indicators
-     * Provides consistent color coding for different membership states
-     *
-     * @param {string} membershipState - The membership state from backend
-     * @returns {string} - CSS class name for styling
-     */
-    getMembershipStatusColor(membershipState) {
-        const colorMap = {
-            'paid': 'text-success',
-            'free': 'text-success',
-            'invoiced': 'text-warning',
-            'canceled': 'text-danger',
-            'old': 'text-muted'
-        };
-        return colorMap[membershipState] || 'text-muted';
-    },
-
-    /**
-     * Get membership status display text
-     * Provides user-friendly text for membership states
-     *
-     * @param {string} membershipState - The membership state from backend
-     * @returns {string} - Display text for the membership state
-     */
-    getMembershipStatusText(membershipState) {
-        const textMap = {
-            'paid': 'Active Member',
-            'free': 'Active Member',
-            'invoiced': 'Member (Pending Payment)',
-            'canceled': 'Membership Cancelled',
-            'old': 'Membership Expired'
-        };
-        return textMap[membershipState] || `Membership: ${membershipState}`;
     }
-});
 
-console.log("Loaded vet product screen JS - compatible with Odoo 18 OWL 3:", "product_screen.js");
+    // TODO: Add encounter creation integration
+    // TODO: Add pending items auto-population
+});

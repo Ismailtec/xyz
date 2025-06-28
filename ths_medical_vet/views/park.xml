@@ -13,7 +13,7 @@
                 <field name="checkin_time" widget="datetime"/>
                 <field name="checkout_time" widget="datetime"/>
                 <field name="duration_hours" widget="float_time"/>
-                <field name="membership_state" widget="badge"/>
+                <field name="membership_valid" widget="boolean_toggle"/>
                 <field name="state" widget="badge"/>
                 <field name="company_id" groups="base.group_multi_company" optional="hide"/>
             </list>
@@ -58,7 +58,6 @@
                             <field name="checkout_time" readonly="state == 'checked_in'"/>
                         </group>
                         <group>
-                            <field name="membership_state" readonly="1"/>
                             <field name="membership_valid" readonly="1" widget="boolean_toggle"/>
                             <field name="duration_hours" readonly="1" widget="float_time"/>
                             <field name="company_id" groups="base.group_multi_company" invisible="1"/>
@@ -100,8 +99,6 @@
                 <group expand="0" string="Group By">
                     <filter string="Pet Owner" name="groupby_owner" context="{'group_by': 'partner_id'}"/>
                     <filter string="Status" name="groupby_state" context="{'group_by': 'state'}"/>
-                    <filter string="Membership Status" name="groupby_membership"
-                            context="{'group_by': 'membership_state'}"/>
                     <filter string="Check-in Date" name="groupby_checkin_date"
                             context="{'group_by': 'checkin_time:day'}"/>
                 </group>

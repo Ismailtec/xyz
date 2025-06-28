@@ -25,6 +25,12 @@
                     <field name="ths_pet_count" widget="statinfo" string="Pets"/>
                 </button>
 
+                <button name="action_view_pet_memberships" type="object"
+                        class="oe_stat_button" icon="fa-star"
+                        invisible="not is_pet_owner">
+                    <field name="pet_membership_count" widget="statinfo" string="Memberships"/>
+                </button>
+
                 <!-- Medical History for Pets -->
                 <button class="oe_stat_button"
                         type="object"
