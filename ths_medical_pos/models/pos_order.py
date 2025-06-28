@@ -11,35 +11,14 @@ _logger = logging.getLogger(__name__)
 class PosOrder(models.Model):
     _inherit = 'pos.order'
 
-    # === BASE MEDICAL FIELDS ===
-
-    # Many2many field to hold patients for this order
-    patient_ids = fields.Many2many(
-        'res.partner',
-        'pos_order_patient_rel',
-        'order_id',
-        'patient_id',
-        string='Patients',
-        domain="[('ths_partner_type_id.is_patient', '=', True)]",
-        help="Patients receiving services in this order"
+    # Optional: Link back to all pending items processed in this order
+    # Useful for traceability, but requires Many2many field and logic to populate.
+    ths_processed_pending_item_ids = fields.Many2many(
+        'ths.pending.pos.item',
+        string='Processed Pending Items (Trace)',
+        readonly=True,
+        copy=False
     )
-
-    # Practitioner and room fields for medical context
-    practitioner_id = fields.Many2one(
-        'appointment.resource',
-        string='Service Provider',
-        domain="[('ths_resource_category', '=', 'practitioner')]",
-        help="Medical practitioner providing services"
-    )
-
-    room_id = fields.Many2one(
-        'appointment.resource',
-        string='Treatment Room',
-        domain="[('ths_resource_category', '=', 'location')]",
-        help="Room where services are provided"
-    )
-
-    # Link to daily encounter
     encounter_id = fields.Many2one(
         'ths.medical.base.encounter',
         string='Daily Encounter',
@@ -48,17 +27,8 @@ class PosOrder(models.Model):
         help="Daily encounter this order belongs to"
     )
 
-    # Processed pending items tracking
-    ths_processed_pending_item_ids = fields.Many2many(
-        'ths.pending.pos.item',
-        string='Processed Pending Items (Trace)',
-        readonly=True,
-        copy=False
-    )
-
-    # === ENCOUNTER INTEGRATION METHODS ===
-
     # --- Overrides ---
+
     @api.model
     def _order_fields(self, ui_order):
         """ Include necessary data from the UI order. """
@@ -96,7 +66,6 @@ class PosOrder(models.Model):
         """
         Override to link pending items but DON'T mark them as processed yet.
         Items are only marked as processed when order is finalized/paid.
-        Override to integrate with medical encounters
         """
         ui_order_lines_data = {line[2]['uuid']: line[2] for line in order.get('lines', []) if
                                len(line) > 2 and 'uuid' in line[2]}
@@ -110,9 +79,6 @@ class PosOrder(models.Model):
             _logger.error(f"Failed to browse POS Order {order_id} after creation.")
             return order_id
 
-        # Process medical context from UI
-        medical_context = order.get('medical_context', {})
-
         # Find or create encounter for this order
         if pos_order.partner_id and not pos_order.encounter_id:
             encounter_date = pos_order.date_order.date()
@@ -120,32 +86,6 @@ class PosOrder(models.Model):
                 pos_order.partner_id.id, encounter_date
             )
             pos_order.encounter_id = encounter.id
-            _logger.info(f"Linked POS Order {pos_order.name} to encounter {encounter.name}")
-
-            # Update encounter with order context
-            encounter_vals = {}
-            if medical_context.get('patient_ids') and not encounter.patient_ids:
-                patient_ids = medical_context['patient_ids']
-                # Extract IDs from [id, name] format
-                if patient_ids and isinstance(patient_ids[0], list):
-                    patient_ids = [p[0] for p in patient_ids if p and len(p) >= 1]
-                encounter_vals['patient_ids'] = [(6, 0, patient_ids)]
-
-            if medical_context.get('practitioner_id') and not encounter.practitioner_id:
-                practitioner_id = medical_context['practitioner_id']
-                if isinstance(practitioner_id, list):
-                    practitioner_id = practitioner_id[0]
-                encounter_vals['practitioner_id'] = practitioner_id
-
-            if medical_context.get('room_id') and not encounter.room_id:
-                room_id = medical_context['room_id']
-                if isinstance(room_id, list):
-                    room_id = room_id[0]
-                encounter_vals['room_id'] = room_id
-
-            if encounter_vals:
-                encounter.write(encounter_vals)
-
             _logger.info(f"Linked POS Order {pos_order.name} to encounter {encounter.name}")
 
         lines_to_update_vals = {}
@@ -235,84 +175,13 @@ class PosOrder(models.Model):
                     _logger.warning(
                         f"Pending Item {item.id} state is '{item.state}', expected 'pending'. Skipping linking.")
 
-        # Process order lines medical data
-        self._process_medical_lines_data(pos_order, ui_order_lines_data, medical_context)
-
         return order_id
-
-    def _process_medical_lines_data(self, pos_order, ui_order_lines_data, medical_context):
-        """Process medical data for order lines"""
-        lines_to_update_vals = {}
-        pending_items_to_link = {}
-
-        for line in pos_order.lines:
-            line_uuid = line.uuid
-            ui_line_data = ui_order_lines_data.get(line_uuid)
-
-            if not ui_line_data:
-                continue
-
-            line_extras = ui_line_data.get('extras', {})
-            if not line_extras:
-                continue
-
-            line_update_vals = {}
-            pending_item_id = line_extras.get('ths_pending_item_id')
-            patient_id = line_extras.get('ths_patient_id')
-            provider_id = line_extras.get('ths_provider_id')
-            commission_pct = line_extras.get('ths_commission_pct')
-
-            if pending_item_id:
-                line_update_vals['ths_pending_item_id'] = pending_item_id
-                pending_items_to_link[pending_item_id] = {'line_id': line.id}
-
-            if patient_id:
-                line_update_vals['ths_patient_id'] = patient_id
-
-            if provider_id:
-                line_update_vals['ths_provider_id'] = provider_id
-
-            if commission_pct is not None:
-                line_update_vals['ths_commission_pct'] = commission_pct
-
-            # Link line to encounter
-            if pos_order.encounter_id:
-                line_update_vals['encounter_id'] = pos_order.encounter_id.id
-
-            if line_update_vals:
-                lines_to_update_vals[line.id] = line_update_vals
-
-        # Update lines with medical data
-        if lines_to_update_vals:
-            PosOrderLine = self.env['pos.order.line']
-            for line_id, vals in lines_to_update_vals.items():
-                try:
-                    PosOrderLine.browse(line_id).sudo().write(vals)
-                except Exception as e:
-                    _logger.error(f"Failed to write medical data to POS Order Line {line_id}: {e}")
-
-        # Link pending items
-        if pending_items_to_link:
-            self._link_pending_items(pending_items_to_link)
-
-    def _link_pending_items(self, pending_items_to_link):
-        """Link pending items to order lines"""
-        pending_item_ids = list(pending_items_to_link.keys())
-        PendingItem = self.env['ths.pending.pos.item']
-        pending_items = PendingItem.sudo().search([('id', 'in', pending_item_ids)])
-
-        for item in pending_items:
-            if item.state == 'pending':
-                try:
-                    item.write({
-                        'pos_order_line_id': pending_items_to_link[item.id]['line_id'],
-                    })
-                except Exception as e:
-                    _logger.error(f"Failed to link Pending Item {item.id}: {e}")
 
     # --- Override action_pos_order_paid to mark pending items as processed ---
     def action_pos_order_paid(self):
-        """  Override to update encounter payment status when order is paid  """
+        """
+        Override to update encounter payment status when order is paid
+        """
         res = super(PosOrder, self).action_pos_order_paid()
 
         for order in self:

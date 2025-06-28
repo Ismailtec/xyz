@@ -56,36 +56,32 @@
             # 'ths_medical_pos/static/src/debug/simple_encounter_fix.js',
             # 'ths_medical_pos/static/src/debug/partner_debug.js',
 
-            # 1. Base popup components (no dependencies)
+            # 1. Base popup component (no dependencies on other medical components)
             'ths_medical_pos/static/src/popups/pending_items_list_popup.js',
             'ths_medical_pos/static/src/popups/pending_items_list_popup.xml',
 
-            # 2. Button components (depends on popup)
+            # 2. Button component (depends on popup component)
             'ths_medical_pos/static/src/components/pending_items_button/pending_items_button.js',
             'ths_medical_pos/static/src/components/pending_items_button/pending_items_button.xml',
 
-            # 3. Screen patches and encounter popups
+            # 3. Screen patches (depend on button component)
             'ths_medical_pos/static/src/popups/encounter_selection_popup.js',
             'ths_medical_pos/static/src/popups/encounter_selection_popup.xml',
 
-            # 4. Control buttons encounter functionality (moved from partner list)
+            # Main partner list screen files
             'ths_medical_pos/static/src/screens/product_screen/control_buttons_encounter.js',
             'ths_medical_pos/static/src/screens/product_screen/control_buttons_encounter.xml',
-
-            # 5. Partner list enhancements with customer filtering
             'ths_medical_pos/static/src/screens/partner_list_screen/partner_list_customer_filter.js',
             'ths_medical_pos/static/src/screens/partner_list_screen/partner_list_screen.js',
             'ths_medical_pos/static/src/screens/partner_list_screen/partner_list_screen.xml',
-
-            # 6. Product screen enhancements
             'ths_medical_pos/static/src/screens/product_screen/product_screen.js',
             'ths_medical_pos/static/src/screens/product_screen/product_screen.xml',
 
-            # 7. Appointment screen functionality
+            # 4. Appointment screen functionality
             'ths_medical_pos/static/src/screens/appointment_screen/appointment_screen.xml',
             'ths_medical_pos/static/src/screens/appointment_screen/appointment_screen.js',
 
-            # 8. Calendar widget and styling (no dependencies)
+            # 5. Additional widgets and styling (no dependencies)
             'ths_medical_pos/static/src/components/calendar_widget/calendar_widget.js',
             'ths_medical_pos/static/src/css/style.css',
         ],

@@ -12,6 +12,7 @@ export class EncounterSelectionPopup extends Component {
         title: String,
         encounters: Array,
         close: Function,
+        // Add callback function to handle partner selection in parent
         onPartnerSelected: { type: Function, optional: true },
     };
     static components = { Dialog };
@@ -20,72 +21,30 @@ export class EncounterSelectionPopup extends Component {
         this.dialog = useService("dialog");
         this.cancelLabel = _t("Cancel");
         this.notification = useService("notification");
-        this.pos = usePos();
+        this.pos = usePos(); // Correct Odoo 18 POS hook usage
 
-        // CRITICAL FIX: Clean encounter data to prevent duplicate keys
-        this.cleanedEncounters = this.cleanEncounterData(this.props.encounters);
+        // Debug: Log the encounters data structure
+        console.log("EncounterSelectionPopup - Encounters received:", this.props.encounters);
+        if (this.props.encounters.length > 0) {
+            console.log("Sample encounter structure:", this.props.encounters[0]);
 
-        console.log("EncounterSelectionPopup - Cleaned encounters:", this.cleanedEncounters);
-    }
-
-    cleanEncounterData(encounters) {
-        return encounters.map((encounter, encounterIndex) => {
-            // Create a clean copy of the encounter
-            const cleanEncounter = { ...encounter };
-
-            // CRITICAL FIX: Ensure patient_ids have unique keys and no undefined values
-            if (cleanEncounter.patient_ids && Array.isArray(cleanEncounter.patient_ids)) {
-                const uniquePatients = [];
-                const seenIds = new Set();
-
-                cleanEncounter.patient_ids.forEach((patient, index) => {
-                    let patientId, patientName;
-
-                    if (Array.isArray(patient) && patient.length >= 2) {
-                        patientId = patient[0];
-                        patientName = patient[1];
-                    } else if (typeof patient === 'number') {
-                        patientId = patient;
-                        patientName = `Patient #${patient}`;
-                    } else {
-                        // Fallback for undefined/null patients
-                        patientId = `fallback_${encounterIndex}_${index}`;
-                        patientName = 'Unknown Patient';
-                    }
-
-                    // Ensure unique patient ID
-                    if (!seenIds.has(patientId)) {
-                        seenIds.add(patientId);
-                        uniquePatients.push([patientId, patientName]);
-                    }
-                });
-
-                cleanEncounter.patient_ids = uniquePatients;
-            } else {
-                cleanEncounter.patient_ids = [];
-            }
-
-            // Ensure all other fields are properly formatted
-            if (!cleanEncounter.partner_id || !Array.isArray(cleanEncounter.partner_id)) {
-                cleanEncounter.partner_id = [0, 'No Partner'];
-            }
-
-            if (!cleanEncounter.practitioner_id || !Array.isArray(cleanEncounter.practitioner_id)) {
-                cleanEncounter.practitioner_id = null;
-            }
-
-            if (!cleanEncounter.room_id || !Array.isArray(cleanEncounter.room_id)) {
-                cleanEncounter.room_id = null;
-            }
-
-            return cleanEncounter;
-        });
+            // Debug each encounter's structure
+            this.props.encounters.forEach((encounter, index) => {
+                console.log(`Encounter ${index + 1} (${encounter.name}):`);
+                console.log(`  ID: ${encounter.id}`);
+                console.log(`  partner_id:`, encounter.partner_id);
+                console.log(`  patient_ids:`, encounter.patient_ids);
+                console.log(`  practitioner_id:`, encounter.practitioner_id);
+                console.log(`  room_id:`, encounter.room_id);
+                console.log(`  state:`, encounter.state);
+            });
+        }
     }
 
     confirmSelection = (encounter) => {
         console.log("confirmSelection called with encounter:", encounter);
 
-        // Validate partner data
+        // Handle partner_id - should now come properly formatted
         if (!encounter.partner_id || !Array.isArray(encounter.partner_id) || encounter.partner_id.length < 2) {
             console.warn("Invalid partner data:", encounter.partner_id);
             this.notification.add(_t("No partner found for this encounter."), { type: 'warning' });
@@ -96,7 +55,7 @@ export class EncounterSelectionPopup extends Component {
         const partnerName = encounter.partner_id[1];
         console.log("Extracted partner ID:", partnerId, "Name:", partnerName);
 
-        // Get partner from POS models
+        // Get partner from POS models using correct Odoo 18 API
         const partner = this.pos.models["res.partner"].get(partnerId);
         console.log("Partner found in POS models:", partner);
 
@@ -112,13 +71,13 @@ export class EncounterSelectionPopup extends Component {
             type: 'success',
         });
 
-        // Close popup with partner data
+        // Close this popup and send partner data back to parent
         this.props.close({
             confirmed: true,
             payload: {
                 encounter_id: encounter.id,
                 encounter_name: encounter.name,
-                partner: partner,
+                partner: partner,  // Pass the actual partner object
                 patient_ids: encounter.patient_ids,
                 practitioner_id: encounter.practitioner_id,
                 room_id: encounter.room_id,
@@ -128,10 +87,5 @@ export class EncounterSelectionPopup extends Component {
 
     cancel() {
         this.props.close({ confirmed: false });
-    }
-
-    // Getter for template to access cleaned encounters
-    get encounters() {
-        return this.cleanedEncounters;
     }
 }
