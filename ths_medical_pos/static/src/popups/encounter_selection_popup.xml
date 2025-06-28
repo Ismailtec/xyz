@@ -5,9 +5,10 @@
       <!-- Encounters grid layout - 4 per row with proper spacing -->
         <div class="container-fluid">
         <div class="row g-3" style="max-height: 500px; overflow-y: auto;">
-          <t t-foreach="props.encounters" t-as="encounter" t-key="encounter.id">
+          <!-- FIXED: Use encounters getter to access cleaned data -->
+            <t t-foreach="encounters" t-as="encounter" t-key="encounter.id">
             <!-- Each encounter card takes 3 columns (4 per row on large screens) -->
-              <div class="col-lg-3 col-md-4 col-sm-6 col-12">
+                <div class="col-lg-3 col-md-4 col-sm-6 col-12">
               <div class="card h-100 encounter-card"
                    t-attf-class="state-{{ encounter.state }}"
                    style="cursor: pointer; border: 1px solid #dee2e6; border-radius: 8px; transition: all 0.2s ease-in-out;"
@@ -37,14 +38,14 @@
                     </div>
                   </div>
 
-                    <!-- Patient information with FIXED keys to prevent duplicates -->
+                    <!-- Patient information with FIXED unique keys -->
                     <t t-if="encounter.patient_ids and encounter.patient_ids.length">
                     <div class="mb-2">
                       <div class="d-flex align-items-start">
                         <i class="fa fa-users me-2 text-secondary mt-1" style="width: 14px;"/>
                           <div style="flex: 1;">
                           <small class="text-muted" style="font-size: 0.8rem;">Patients: </small>
-                              <!-- FIXED: Use index-based keys to prevent duplicates -->
+                              <!-- CRITICAL FIX: Use array index as key to prevent duplicates -->
                               <span style="font-size: 0.9rem; font-weight: normal;">
                             <t t-foreach="encounter.patient_ids" t-as="patient" t-key="patient_index">
                               <t t-if="patient and patient.length >= 2" t-esc="patient[1]"/>
@@ -97,7 +98,7 @@
           </t>
 
             <!-- No encounters message -->
-            <div t-if="!props.encounters.length" class="col-12">
+            <div t-if="!encounters.length" class="col-12">
             <div class="text-center p-4 text-muted">
               <i class="fa fa-info-circle fa-2x mb-2"/>
                 <p>No medical encounters found</p>
@@ -110,7 +111,7 @@
         <t t-set-slot="footer">
         <button class="btn btn-secondary" t-on-click="cancel">
           <i class="fa fa-times me-1"/>
-            <t t-esc="this.cancelLabel"/>
+            Cancel
         </button>
       </t>
     </Dialog>
