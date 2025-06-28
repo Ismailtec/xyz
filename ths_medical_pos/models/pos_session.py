@@ -35,7 +35,7 @@ class PosSession(models.Model):
 		return {
 			'search_params': {
 				'domain': [('active', '=', True)],
-				'fields': ['id', 'name', 'is_patient', 'is_employee'],
+				'fields': ['id', 'name', 'is_patient', 'is_customer'],
 			},
 		}
 
@@ -90,10 +90,9 @@ class PosSession(models.Model):
 		# Add medical fields to partner loading (check if they exist first)
 		medical_fields = [
 			'ths_partner_type_id',
-			#'ths_pet_owner_id',  # For vet: pet -> owner relationship
 			'ref',
 			'mobile',
-			'membership_state',  # For vet: membership status
+			'membership_state',
 			'membership_start',
 			'membership_stop'
 		]
@@ -188,18 +187,6 @@ class PosSession(models.Model):
 					partner_type = self.env['ths.partner.type'].browse(type_id)
 					partner['ths_partner_type_id'] = [partner_type.id,
 					                                  partner_type.name] if partner_type.exists() else False
-
-			# Format pet owner relationship for vet
-			# if partner.get('ths_pet_owner_id'):
-			# 	if isinstance(partner['ths_pet_owner_id'], (list, tuple)) and len(
-			# 			partner['ths_pet_owner_id']) >= 2:
-			# 		# Already in [id, name] format
-			# 		pass
-			# 	else:
-			# 		# Raw ID, convert to [id, name]
-			# 		owner_id = partner['ths_pet_owner_id']
-			# 		owner = self.env['res.partner'].browse(owner_id)
-			# 		partner['ths_pet_owner_id'] = [owner.id, owner.name] if owner.exists() else False
 
 		print(f"Loaded {len(partners)} partners with partner type data")
 		return partners

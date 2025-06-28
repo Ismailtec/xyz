@@ -4,15 +4,15 @@
     <!-- Extend PartnerList to add Search by Encounter button -->
     <t t-name="point_of_sale.PartnerList" t-inherit="point_of_sale.PartnerList" t-inherit-mode="extension">
         <!-- Add the Search by Encounter button after the Create button -->
-        <xpath expr="//button[@role='img'][@aria-label='Add a customer']" position="after">
-            <button class="btn btn-secondary btn-lg lh-lg ms-2"
-                    type="button"
-                    t-on-click="openEncounterSelectionPopup"
-                    title="Search partners by medical encounter">
-                <i class="fa fa-search me-1"/>
-                Search by Encounter
-            </button>
-        </xpath>
+        <!--        <xpath expr="//button[@role='img'][@aria-label='Add a customer']" position="after">-->
+        <!--            <button class="btn btn-secondary btn-lg lh-lg ms-2"-->
+        <!--                    type="button"-->
+        <!--                    t-on-click="openEncounterSelectionPopup"-->
+        <!--                    title="Search partners by medical encounter">-->
+        <!--                <i class="fa fa-search me-1"/>-->
+        <!--                Search by Encounter-->
+        <!--            </button>-->
+        <!--        </xpath>-->
 
         <!-- Add Partner Type header to the table -->
         <xpath expr="//table/thead/tr/th[1]" position="after">

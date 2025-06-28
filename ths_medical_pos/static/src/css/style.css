@@ -1,4 +1,4 @@
-/* ths_medical_pos/static/src/css/style.css - BASE MEDICAL MODULE */
+/* ths_medical_pos/static/src/css/style.css - BASE MEDICAL MODULE ONLY */
 
 /* === ENCOUNTER SELECTION POPUP STYLES === */
 
@@ -23,6 +23,25 @@
     font-weight: 600 !important;
     margin-bottom: 0.5rem !important;
     color: #007bff !important;
+}
+
+/* === ENCOUNTER CARD BACKGROUND COLORS === */
+
+.encounter-card.state-in-progress {
+    background-color: #ffffff !important; /* White background for in-progress */
+    border-color: #007bff !important;
+}
+
+.encounter-card.state-done {
+    background-color: #f8f9fa !important; /* Light grey background for done */
+    border-color: #6c757d !important;
+}
+
+/* === BOLD VALUES IN ENCOUNTER CARDS === */
+
+.encounter-card .card-body strong,
+.encounter-card .card-body span:not(.text-muted):not(.badge) {
+    font-weight: 600 !important; /* Make all value fields bold */
 }
 
 /* Fix text selection and hover issues */

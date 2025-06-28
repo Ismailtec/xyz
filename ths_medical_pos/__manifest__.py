@@ -69,6 +69,9 @@
             'ths_medical_pos/static/src/popups/encounter_selection_popup.xml',
 
             # Main partner list screen files
+            'ths_medical_pos/static/src/screens/product_screen/control_buttons_encounter.js',
+            'ths_medical_pos/static/src/screens/product_screen/control_buttons_encounter.xml',
+            'ths_medical_pos/static/src/screens/partner_list_screen/partner_list_customer_filter.js',
             'ths_medical_pos/static/src/screens/partner_list_screen/partner_list_screen.js',
             'ths_medical_pos/static/src/screens/partner_list_screen/partner_list_screen.xml',
             'ths_medical_pos/static/src/screens/product_screen/product_screen.js',

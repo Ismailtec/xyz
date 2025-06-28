@@ -38,10 +38,13 @@ Extends the Techouse Medical POS Integration for veterinary specifics.
             'ths_medical_pos_vet/static/src/components/pending_items_button/pending_items_button.js',
 
             # 4. Product screen vet extension
+            'ths_medical_pos_vet/static/src/screens/product_screen/order_widget_pets.xml',
             'ths_medical_pos_vet/static/src/screens/product_screen/product_screen.xml',
             'ths_medical_pos_vet/static/src/screens/product_screen/product_screen.js',
 
             # 5. Vet-specific styling (extends base style.css)
+            'ths_medical_pos_vet/static/src/js/membership_display.js',
+            'ths_medical_pos_vet/static/src/js/species_loading_fix.js',
             'ths_medical_pos_vet/static/src/css/style.css',
         ],
     },

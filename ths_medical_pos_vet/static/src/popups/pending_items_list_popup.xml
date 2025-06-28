@@ -23,7 +23,7 @@
                  <th>Product/Service</th>  <!-- Preserved from base -->
                  <th>Qty</th>              <!-- Preserved from base -->
                  <th>Unit Price</th>       <!-- Preserved from base -->
-                 <th>Provider</th>         <!-- Preserved from base -->
+                 <th>Service Provider</th>         <!-- Preserved from base -->
                  <th>Encounter</th>        <!-- Preserved from base -->
                  <th>Action</th>           <!-- Preserved from base -->
             </tr>
