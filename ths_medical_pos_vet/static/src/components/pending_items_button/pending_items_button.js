@@ -20,7 +20,6 @@ patch(PendingItemsButton.prototype, {
      * Override onClick method to add veterinary-specific behavior
      * Enhanced to work with the updated base medical functionality
      * Adds Pet/Owner context for veterinary practices
-     * Removed dynamic import that was causing module resolution errors
      */
     async onClick() {
         console.log("Vet POS: Pending Items Button Clicked - Enhanced for Veterinary");
@@ -38,44 +37,24 @@ patch(PendingItemsButton.prototype, {
         const client = order.get_partner(); // This is the Pet Owner in vet context
 
         let popupTitle = _t('Pending Medical Items (All Pets)');
-        let filterDomain = [['state', '=', 'pending']]; // Base domain from parent
+        let pendingItems = [];
 
         // Veterinary-specific filtering: Filter by Pet Owner if selected
         if (client?.id) {
             console.log(`Vet POS: Filtering pending items for Pet Owner: ${client.name} (ID: ${client.id})`);
-            // In vet context, partner_id refers to the Pet Owner who pays the bills
-            const ownerFilter = ['partner_id', '=', client.id];
-            filterDomain = [...filterDomain, ownerFilter];
+            // Use the enhanced vet method for filtering
+            pendingItems = this.pos.getPendingItems(client.id);
             popupTitle = _t("Pending Items for %(ownerName)s's Pets", {ownerName: client.name});
         } else {
             console.log("Vet POS: No Pet Owner selected, fetching all pending items for all pets.");
+            pendingItems = this.pos.getPendingItems();
         }
 
         try {
-            // Veterinary-specific fields - includes both Pet and Owner information
-            const fieldsToFetch = [
-                'id', 'display_name', 'encounter_id', 'appointment_id',
-                'partner_id', 'patient_id', 'product_id', 'description', // Core fields
-                'qty', 'price_unit', 'discount', 'practitioner_id',      // Billing fields
-                'commission_pct', 'state', 'notes',                      // Business fields
-            ];
-
-            console.log("Vet POS: Making RPC call with veterinary domain:", filterDomain);
-
-            const pendingItems = await this.orm.searchRead(
-                'ths.pending.pos.item',
-                filterDomain,
-                fieldsToFetch,
-                {context: this.pos.user.context}
-            );
-
-            console.log("Vet POS: RPC call successful. Pending items fetched:", pendingItems);
-
             if (pendingItems && pendingItems.length > 0) {
-                console.log('Vet POS: Attempting to open PendingItemsListPopup with veterinary adaptations');
+                console.log('Vet POS: Opening PendingItemsListPopup with veterinary adaptations');
 
-                // Use statically imported makeAwaitable and PendingItemsListPopup
-                // Removed dynamic import that was causing module resolution errors
+                // Use the imported PendingItemsListPopup from base module
                 const payload = await makeAwaitable(this.dialog, PendingItemsListPopup, {
                     title: popupTitle, // Veterinary-specific title
                     items: pendingItems,

@@ -12,10 +12,6 @@ import {_t} from "@web/core/l10n/translation";
  * Patch ControlButtons to add encounter search functionality
  * Moves encounter search from partner list to control buttons area
  */
-/**
- * Patch ControlButtons to add encounter search functionality
- * Moves encounter search from partner list to control buttons area
- */
 patch(ControlButtons.prototype, {
     setup() {
         super.setup();
@@ -39,9 +35,9 @@ patch(ControlButtons.prototype, {
             console.log("Loading encounters from preloaded data...");
 
             // Get encounters from preloaded data
-            const encounters = this.pos.models["ths.medical.base.encounter"].getAll().filter(enc =>
+            const encounters = this.pos.models["ths.medical.base.encounter"]?.getAll().filter(enc =>
                 enc.partner_id && enc.state && ['in_progress', 'done'].includes(enc.state)
-            );
+            ) || [];
 
             console.log("Raw encounters from preloaded data:", encounters);
 
@@ -49,12 +45,30 @@ patch(ControlButtons.prototype, {
             this.state.formattedEncounters = encounters.map(encounter => {
                 console.log(`Formatting encounter ${encounter.name}:`, encounter);
 
-                // Create a copy to avoid modifying original data
                 const formattedEncounter = {...encounter};
 
-                // patient_ids should already be formatted as [id, name] pairs from patient_name method
-                // If not, use the original patient_ids
-                formattedEncounter.patient_ids = encounter.patient_ids || [];
+                // Format patient names for display
+                if (encounter.patient_ids) {
+                    formattedEncounter.patient_ids = this.pos.formatPatientIds(encounter.patient_ids);
+                }
+
+                // Add partner name for display
+                if (encounter.partner_id && Array.isArray(encounter.partner_id)) {
+                    formattedEncounter.partner_name = encounter.partner_id[1];
+                }
+
+                // Add practitioner name for display
+                if (encounter.practitioner_id && Array.isArray(encounter.practitioner_id)) {
+                    formattedEncounter.practitioner_name = encounter.practitioner_id[1];
+                }
+
+                // Add room name for display
+                if (encounter.room_id && Array.isArray(encounter.room_id)) {
+                    formattedEncounter.room_name = encounter.room_id[1];
+                }
+
+                // Add state display
+                formattedEncounter.state_display = encounter.state === 'done' ? 'Done' : 'In Progress';
 
                 return formattedEncounter;
             });

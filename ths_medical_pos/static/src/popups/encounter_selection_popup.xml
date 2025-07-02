@@ -20,14 +20,18 @@
                         <t t-esc="encounter.encounter_date"/>
                       </small>
                     </div>
+
+                      <!-- Partner Information -->
                       <div class="mb-2">
                       <div class="d-flex align-items-center">
-                        <i class="fa fa-users me-2 text-secondary"/>
+                        <i class="fa fa-user me-2 text-secondary"/>
                           <strong style="font-size: 0.9rem;">
                           <t t-esc="encounter.partner_name"/>
                         </strong>
                       </div>
                     </div>
+
+                      <!-- Patient Information (Base Medical) -->
                       <t t-if="encounter.patient_ids?.length">
                       <div class="mb-2">
                         <div class="d-flex align-items-start">
@@ -41,6 +45,8 @@
                         </div>
                       </div>
                     </t>
+
+                      <!-- Practitioner Information -->
                       <t t-if="encounter.practitioner_name">
                       <div class="mb-2">
                         <div class="d-flex align-items-center">
@@ -52,6 +58,8 @@
                         </div>
                       </div>
                     </t>
+
+                      <!-- Room Information -->
                       <t t-if="encounter.room_name">
                       <div class="mb-2">
                         <div class="d-flex align-items-center">
@@ -63,6 +71,8 @@
                         </div>
                       </div>
                     </t>
+
+                      <!-- Status Badge -->
                       <div class="d-flex justify-content-end mt-2">
                       <span t-attf-class="badge {{ encounter.state === 'done' ? 'bg-success' : encounter.state === 'in_progress' ? 'bg-warning text-dark' : 'bg-secondary' }}"
                             style="font-size: 0.7rem; font-weight: bold;">

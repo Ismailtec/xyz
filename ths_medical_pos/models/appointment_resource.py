@@ -20,14 +20,16 @@ class AppointmentResource(models.Model):
 	@api.model
 	def _load_pos_data(self, data):
 		"""Load appointment resources data for POS"""
-		domain = self._load_pos_data_domain(data)
-		model_fields = self._load_pos_data_fields(data.get('pos.config', {}).get('data', [{}])[0].get('id'))
-		resources = self.search_read(domain, model_fields, load=False)
-
-		return {
-			'data': resources,
-			'fields': model_fields
-		}
+		try:
+			domain = self._load_pos_data_domain(data)
+			model_fields = self._load_pos_data_fields(None)
+			return {
+				'data': self.search_read(domain, model_fields, load=False),
+				'fields': model_fields
+			}
+		except Exception as e:
+			print(f"Error in appointment_resource _load_pos_data: {e}")
+			return {'data': [], 'fields': []}
 
 	def _trigger_pos_sync(self, operation='update'):
 		"""Trigger POS sync for appointment resource updates - PERIODIC MODEL"""

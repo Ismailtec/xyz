@@ -136,16 +136,16 @@ class PosOrderLine(models.Model):
 	#
 	# 	return line_data
 
-	@api.model
-	def _load_pos_data_fields(self, config_id):
-		"""  Override to include medical-specific fields in POS data export  """
-		line_data = super()._load_pos_data_fields(config_id)
-		# Add medical-specific fields to the export
-		line_data.extend([
-			'ths_pending_item_id', 'patient_ids', 'practitioner_id', 'room_id', 'ths_commission_pct',
-			'encounter_id'
-		])
-		return line_data
+	# @api.model
+	# def _load_pos_data_fields(self, config_id):
+	# 	"""  Override to include medical-specific fields in POS data export  """
+	# 	line_data = super()._load_pos_data_fields(config_id)
+	# 	# Add medical-specific fields to the export
+	# 	line_data.extend([
+	# 		'ths_pending_item_id', 'patient_ids', 'practitioner_id', 'room_id', 'ths_commission_pct',
+	# 		'encounter_id'
+	# 	])
+	# 	return line_data
 
 	# --- HELPER METHODS FOR MEDICAL ---
 	def _get_medical_context_summary(self):

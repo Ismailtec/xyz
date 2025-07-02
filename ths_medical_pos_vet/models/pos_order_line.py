@@ -31,12 +31,12 @@ class PosOrderLine(models.Model):
 		help="The owner of the pet receiving this service."
 	)
 
-	@api.model
-	def _load_pos_data_fields(self, config_id):
-		"""  Override to include medical-specific fields in POS data export  """
-		line_data = super()._load_pos_data_fields(config_id)
-		# Add medical-specific fields to the export
-		line_data.extend([
-			'ths_pet_owner_id',
-		])
-		return line_data
+	# @api.model
+	# def _load_pos_data_fields(self, config_id):
+	# 	"""  Override to include medical-specific fields in POS data export  """
+	# 	line_data = super()._load_pos_data_fields(config_id)
+	# 	# Add medical-specific fields to the export
+	# 	line_data.extend([
+	# 		'ths_pet_owner_id',
+	# 	])
+	# 	return line_data

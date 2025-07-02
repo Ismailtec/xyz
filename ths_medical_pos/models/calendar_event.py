@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from odoo import models, api, _
+from odoo import models, fields, api, _
+import datetime
 
 import logging
 
@@ -117,3 +118,31 @@ class CalendarEvent(models.Model):
 			'views': [(self.env.ref('ths_medical_base.view_calendar_event_form_inherit_ths_medical').id, 'form')],
 			'res_id': self.id,
 		}
+
+	@api.model
+	def get_daily_appointments_for_pos(self, appointment_date=None):
+		"""Get formatted appointment data for POS daily view"""
+		if not appointment_date:
+			appointment_date = fields.Date.context_today(self)
+
+		appointments = self.search([
+			('start', '>=', fields.Datetime.combine(appointment_date, datetime.time.min)),
+			('start', '<=', fields.Datetime.combine(appointment_date, datetime.time.max)),
+			('appointment_status', 'not in', ['cancelled_by_patient', 'cancelled_by_clinic'])
+		])
+
+		result = []
+		for appointment in appointments:
+			formatted_data = {
+				'id': appointment.id,
+				'name': appointment.name,
+				'start_time': appointment.start.strftime('%H:%M') if appointment.start else '',
+				'partner_name': appointment.partner_id.name if appointment.partner_id else '',
+				'practitioner_name': appointment.ths_practitioner_id.name if appointment.ths_practitioner_id else '',
+				'room_name': appointment.ths_room_id.name if appointment.ths_room_id else '',
+				'status': appointment.appointment_status,
+				'encounter_id': appointment.encounter_id.id if appointment.encounter_id else False,
+			}
+			result.append(formatted_data)
+
+		return result

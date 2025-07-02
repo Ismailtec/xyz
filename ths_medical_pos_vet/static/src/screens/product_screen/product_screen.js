@@ -1,77 +1,10 @@
 /** @odoo-module */
 
-import { patch } from "@web/core/utils/patch";
-import { formatDateTime, formatDate } from "@web/core/l10n/dates";
-//import { OrderWidget } from "@point_of_sale/app/generic_components/order_widget/order_widget";
-import { ProductScreen } from "@point_of_sale/app/screens/product_screen/product_screen";
-import { _t } from "@web/core/l10n/translation";
-import { makeAwaitable } from "@point_of_sale/app/store/make_awaitable_dialog";
-import { PetSelectionPopup } from "@ths_medical_pos_vet/popups/pet_selection_popup";
-
-/**
- * Veterinary-specific enhancement of OrderWidget for membership display
- */
-//patch(OrderWidget.prototype, {
-//    formatMembershipDate(dateString) {
-//        if (!dateString) {
-//            return "";
-//        }
-//
-//        try {
-//            let date;
-//            if (typeof dateString === 'string') {
-//                date = new Date(dateString + 'T00:00:00');
-//            } else if (dateString instanceof Date) {
-//                date = dateString;
-//            } else {
-//                console.warn("Vet POS: Invalid membership date type:", typeof dateString, dateString);
-//                return dateString.toString();
-//            }
-//
-//            if (isNaN(date.getTime())) {
-//                console.warn("Vet POS: Invalid membership date format:", dateString);
-//                return dateString.toString();
-//            }
-//
-//            return formatDate(date);
-//        } catch (error) {
-//            console.error("Vet POS: Error formatting membership date:", error);
-//            return dateString.toString();
-//        }
-//    },
-//
-//    setup() {
-//        super.setup();
-//        console.log("Vet POS: OrderWidget enhanced with veterinary membership features for Odoo 18");
-//
-//        try {
-//            this.vetEnhancementsLoaded = true;
-//        } catch (error) {
-//            console.error("Vet POS: Error during veterinary setup:", error);
-//            this.vetEnhancementsLoaded = false;
-//        }
-//    },
-//
-//    getMembershipStatusColor(membershipState) {
-//        const colorMap = {
-//            'running': 'text-success',    // New model uses 'running'
-//            'draft': 'text-warning',
-//            'expired': 'text-danger',
-//            'none': 'text-muted'
-//        };
-//        return colorMap[membershipState] || 'text-muted';
-//    },
-//
-//    getMembershipStatusText(membershipState) {
-//        const textMap = {
-//            'running': 'Active Member',   // New model terminology
-//            'draft': 'Membership Pending',
-//            'expired': 'Membership Expired',
-//            'none': 'No Membership'
-//        };
-//        return textMap[membershipState] || `Membership: ${membershipState}`;
-//    }
-//});
+import {patch} from "@web/core/utils/patch";
+import {ProductScreen} from "@point_of_sale/app/screens/product_screen/product_screen";
+import {_t} from "@web/core/l10n/translation";
+import {makeAwaitable} from "@point_of_sale/app/store/make_awaitable_dialog";
+import {PetSelectionPopup} from "@ths_medical_pos_vet/popups/pet_selection_popup";
 
 /**
  * Veterinary-specific enhancement of ProductScreen for pet selection
@@ -80,13 +13,14 @@ patch(ProductScreen.prototype, {
 
     setup() {
         super.setup();
-        this._originalOnPartnerChanged = this._onPartnerChanged;
+        // FIX A: Store reference more safely for PyCharm
+        this.originalOnPartnerChanged = this._onPartnerChanged || null;
     },
 
     async _onPartnerChanged(partner) {
-        // Call parent logic first if it exists
-        if (this._originalOnPartnerChanged) {
-            await this._originalOnPartnerChanged(partner);
+        // FIX A: Check method existence more safely
+        if (typeof super._onPartnerChanged === 'function') {
+            await super._onPartnerChanged(partner);
         }
 
         // Trigger pet selection popup for vet context
@@ -100,25 +34,25 @@ patch(ProductScreen.prototype, {
 
     _isVetPetOwner(partner) {
         return partner.ths_partner_type_id &&
-               Array.isArray(partner.ths_partner_type_id) &&
-               partner.ths_partner_type_id[1] === 'Pet Owner';
+            Array.isArray(partner.ths_partner_type_id) &&
+            partner.ths_partner_type_id[1] === 'Pet Owner';
     },
 
     _isVetPet(partner) {
         return partner.ths_partner_type_id &&
-               Array.isArray(partner.ths_partner_type_id) &&
-               partner.ths_partner_type_id[1] === 'Pet';
+            Array.isArray(partner.ths_partner_type_id) &&
+            partner.ths_partner_type_id[1] === 'Pet';
     },
 
     async handleDirectPetSelection(pet) {
         if (!pet.ths_pet_owner_id) {
-            this.notification.add(_t("Pet has no owner assigned"), { type: 'warning' });
+            this.notification.add(_t("Pet has no owner assigned"), {type: 'warning'});
             return;
         }
 
         const owner = this.pos.models["res.partner"].get(pet.ths_pet_owner_id[0]);
         if (!owner) {
-            this.notification.add(_t("Pet owner not found in POS"), { type: 'danger' });
+            this.notification.add(_t("Pet owner not found in POS"), {type: 'danger'});
             return;
         }
 
@@ -148,32 +82,25 @@ patch(ProductScreen.prototype, {
 
         } catch (error) {
             console.error("Error in pet selection popup:", error);
-            this.notification.add(_t("Error opening pet selection"), { type: 'danger' });
+            this.notification.add(_t("Error opening pet selection"), {type: 'danger'});
         }
     },
 
     async loadDailyEncounter(partnerId) {
         try {
             const today = new Date().toISOString().split('T')[0];
-            const encounters = await this.orm.searchRead(
-                'ths.medical.base.encounter',
-                [
-                    ('partner_id', '=', partnerId),
-                    ('encounter_date', '=', today)
-                ],
-                ['id', 'name', 'patient_ids', 'practitioner_id', 'room_id'],
-                { limit: 1 }
-            );
 
-            if (encounters.length > 0) {
-                const encounter = encounters[0];
-                // Format patient_ids using new helper method
-                const formattedPatients = await this.pos.data.call(
-                    'ths.medical.base.encounter',
-                    'get_formatted_patients_for_encounter_list',
-                    [[encounter.id]]
-                );
-                encounter.patient_ids = formattedPatients[encounter.id] || [];
+            // Use preloaded encounter data instead of RPC
+            const encounters = this.pos.models["ths.medical.base.encounter"]?.getAll() || [];
+            const todayEncounters = encounters.filter(enc => {
+                return enc.partner_id && enc.partner_id[0] === partnerId &&
+                    enc.encounter_date === today;
+            });
+
+            if (todayEncounters.length > 0) {
+                const encounter = todayEncounters[0];
+                // Format patient_ids for display
+                encounter.patient_ids_formatted = this.pos.formatPatientIds(encounter.patient_ids);
                 return encounter;
             }
 
@@ -201,34 +128,65 @@ patch(ProductScreen.prototype, {
 
         console.log("Applied pet selection to order:", selectionData);
 
-        // Load pending items for this encounter
-        await this.loadAndApplyPendingItems(selectionData);
+        // Load pending items for this context
+        await this.loadAndNotifyPendingItems(selectionData);
     },
 
-    async loadAndApplyPendingItems(selectionData) {
+    async loadAndNotifyPendingItems(selectionData) {
         try {
             const partner = this.pos.get_order().get_partner();
             if (!partner) return;
 
-            const pendingItems = await this.orm.searchRead(
-                'ths.pending.pos.item',
-                [
-                    ('partner_id', '=', partner.id),
-                    ('state', '=', 'pending')
-                ],
-                ['id', 'encounter_id', 'product_id', 'qty', 'price_unit', 'description', 'patient_id', 'practitioner_id', 'commission_pct', 'room_id'],
-                { limit: 50 }
-            );
+            // Use preloaded pending items instead of RPC
+            const pendingItems = this.pos.getPendingItems(partner.id);
 
             if (pendingItems.length > 0) {
                 this.notification.add(
                     _t('%d pending items found. Please use the Pending Items button to add them.', pendingItems.length),
-                    { type: 'info' }
+                    {type: 'info'}
                 );
             }
         } catch (error) {
             console.error("Error loading pending items:", error);
         }
+    },
+
+    // Override base medical context methods for vet display
+    getMedicalContext() {
+        const order = this.pos.get_order();
+        return order ? order.medical_context || {} : {};
+    },
+
+    hasMedicalContext() {
+        const context = this.getMedicalContext();
+        return !!(context.encounter_id || context.patient_ids?.length);
+    },
+
+    formatMedicalContextDisplay() {
+        const context = this.getMedicalContext();
+        const display = {
+            encounter_name: context.encounter_name || '',
+            patient_names: [],
+            practitioner_name: '',
+            room_name: ''
+        };
+
+        // Format patient names with species info for vet display
+        if (context.patient_ids) {
+            display.patient_names = this.pos.formatPatientIds(context.patient_ids);
+        }
+
+        // Format practitioner name
+        if (context.practitioner_id && Array.isArray(context.practitioner_id)) {
+            display.practitioner_name = context.practitioner_id[1];
+        }
+
+        // Format room name
+        if (context.room_id && Array.isArray(context.room_id)) {
+            display.room_name = context.room_id[1];
+        }
+
+        return display;
     }
 });
 

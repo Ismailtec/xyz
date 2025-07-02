@@ -9,4 +9,5 @@ class PendingPOSItem(models.Model):
 	@api.model
 	def _load_pos_data_fields(self, config_id):
 		base_fields = super()._load_pos_data_fields(config_id)
-		return base_fields + ['ths_pet_owner_id']
+		vet_fields = ['ths_pet_owner_id']
+		return base_fields + vet_fields

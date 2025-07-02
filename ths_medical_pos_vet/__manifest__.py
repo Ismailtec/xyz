@@ -28,10 +28,6 @@ Extends the Techouse Medical POS Integration for veterinary specifics.
             'calendar/static/src/views/calendar_form/**/*',
             # Patches should load after the original components they patch
 
-            # New order selection popup for pet owners
-            'ths_medical_pos_vet/static/src/popups/new_order_selection_popup.js',
-            'ths_medical_pos_vet/static/src/popups/new_order_selection_popup.xml',
-
             # 1. Partner list screen vet extension
             'ths_medical_pos_vet/static/src/screens/partner_list_screen/partner_list_screen.js',
             'ths_medical_pos_vet/static/src/screens/partner_list_screen/partner_list_screen.xml',
@@ -45,8 +41,6 @@ Extends the Techouse Medical POS Integration for veterinary specifics.
 
             # 4. Product screen vet extension
             'ths_medical_pos_vet/static/src/screens/product_screen/order_widget_pets.xml',
-            'ths_medical_pos_vet/static/src/popups/pet_selection_popup.js',
-            'ths_medical_pos_vet/static/src/popups/pet_selection_popup.xml',
             'ths_medical_pos_vet/static/src/screens/product_screen/product_screen.xml',
             'ths_medical_pos_vet/static/src/screens/product_screen/product_screen.js',
 

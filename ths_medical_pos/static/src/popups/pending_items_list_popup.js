@@ -50,8 +50,10 @@ export class PendingItemsListPopup extends Component {
             console.log("Order lines before:", order.get_orderlines().length);
 
             const OrderLineModel = this.pos.models['pos.order.line'];
+            // FIX A: Handle error without throwing locally caught exception
             if (!OrderLineModel) {
-                throw new Error("pos.order.line model not found");
+                console.error("pos.order.line model not found");
+                return null;
             }
 
             // Prepare complete orderline data - keep what works
@@ -85,11 +87,13 @@ export class PendingItemsListPopup extends Component {
                 }
             }
 
-            throw new Error("OrderLineModel.create() did not add line to order as expected");
+            // FIX A: Log error instead of throwing locally caught exception
+            console.error("OrderLineModel.create() did not add line to order as expected");
+            return null;
 
         } catch (error) {
             console.error("❌ ERROR in addProductToOrder:", error);
-            throw error;
+            return null;
         }
     }
 
@@ -131,22 +135,29 @@ export class PendingItemsListPopup extends Component {
         console.log("Item:", item);
 
         const order = this.pos.get_order();
-        const product = this.getProductById(item.product_id?.[0]);
+
+        // Extract product ID from the array format [id, name]
+        const productId = Array.isArray(item.product_id) ? item.product_id[0] : item.product_id;
+        const product = this.getProductById(productId);
 
         if (!product) {
+            const productName = Array.isArray(item.product_id) ? item.product_id[1] : "Unknown";
             this.notification.add(
-                _t("Product %s not found in POS", item.product_id?.[1] || "Unknown"),
+                _t("Product %s not found in POS", productName),
                 {type: "danger"}
             );
             return;
         }
 
-        // Check customer
+        // Check customer consistency
         const currentPartner = order.get_partner();
-        if (currentPartner && currentPartner.id !== item.partner_id?.[0]) {
+        const itemPartnerId = Array.isArray(item.partner_id) ? item.partner_id[0] : item.partner_id;
+
+        if (currentPartner && currentPartner.id !== itemPartnerId) {
+            const itemPartnerName = Array.isArray(item.partner_id) ? item.partner_id[1] : "Unknown";
             this.notification.add(
                 _t("Item is for %s, current customer is %s. Proceeding anyway.",
-                    item.partner_id?.[1], currentPartner.name),
+                    itemPartnerName, currentPartner.name),
                 {type: "warning"}
             );
         }
@@ -158,25 +169,32 @@ export class PendingItemsListPopup extends Component {
                 discount: item.discount || 0,
                 extras: {
                     ths_pending_item_id: item.id,
-                    ths_patient_id: item.patient_id?.[0],
-                    ths_provider_id: item.practitioner_id?.[0],
+                    ths_patient_id: Array.isArray(item.patient_ids) ? item.patient_ids[0]?.[0] : item.patient_ids,
+                    ths_provider_id: Array.isArray(item.practitioner_id) ? item.practitioner_id[0] : item.practitioner_id,
                     ths_commission_pct: item.commission_pct || 0,
-                    encounter_id: item.encounter_id?.[0],
+                    encounter_id: Array.isArray(item.encounter_id) ? item.encounter_id[0] : item.encounter_id,
                 },
             });
 
+            // FIX A: Check result instead of throwing locally caught exception
             if (!orderline) {
-                throw new Error("Failed to create orderline");
+                console.error("Failed to create orderline");
+                this.notification.add(
+                    _t("Could not add item to order: Failed to create order line"),
+                    {type: "danger"}
+                );
+                return;
             }
 
             // Update order header with encounter data if not already set
-            if (item.encounter_id?.[0] && !order.encounter_id) {
-                order.encounter_id = item.encounter_id[0];
+            const encounterId = Array.isArray(item.encounter_id) ? item.encounter_id[0] : item.encounter_id;
+            if (encounterId && !order.encounter_id) {
+                order.encounter_id = encounterId;
 
                 // Get encounter data from preloaded data
-                const encounter = this.pos.models["ths.medical.base.encounter"].get(item.encounter_id[0]);
+                const encounter = this.pos.models["ths.medical.base.encounter"]?.get(encounterId);
                 if (encounter) {
-                    order.patient_ids = encounter.patient_ids_formatted || [];
+                    order.patient_ids = encounter.patient_ids || [];
                     order.practitioner_id = encounter.practitioner_id || null;
                     order.room_id = encounter.room_id || null;
                 }
@@ -188,7 +206,7 @@ export class PendingItemsListPopup extends Component {
             this.notification.add(_t("Item added to order and linked to encounter"), {type: "success"});
 
             // Remove from popup - update preloaded data
-            this.pos.models["ths.pending.pos.item"].delete(item.id);
+            this.pos.models["ths.pending.pos.item"]?.delete(item.id);
             const index = this.props.items.findIndex(i => i.id === item.id);
             if (index !== -1) {
                 this.props.items.splice(index, 1);
@@ -202,7 +220,7 @@ export class PendingItemsListPopup extends Component {
         } catch (error) {
             console.error("❌ ERROR adding item to order:", error);
             this.notification.add(
-                _t("Could not add item to order: %s", error.message),
+                _t("Could not add item to order: %s", error.message || 'Unknown error'),
                 {type: "danger"}
             );
         }
@@ -222,24 +240,31 @@ export class PendingItemsListPopup extends Component {
 
     formatCurrency(amount) {
         try {
-            if (this.pos && this.pos.format_currency_no_symbol) {
-                return this.pos.currency.symbol + " " + this.pos.format_currency_no_symbol(amount);
-            } else if (this.pos && this.pos.currency) {
-                const formattedAmount = parseFloat(amount || 0).toFixed(this.pos.currency.decimal_places || 2);
-                return this.pos.currency.symbol + " " + formattedAmount;
+            // FIX D: Ensure amount is properly typed
+            const numAmount = parseFloat(String(amount || 0));
+
+            // FIX B & C: Use proper Odoo 18 POS currency formatting
+            if (this.pos && this.pos.currency) {
+                const decimalPlaces = this.pos.currency.decimal_places || 2;
+                const formattedAmount = numAmount.toFixed(decimalPlaces);
+                const symbol = this.pos.currency.symbol || '';
+
+                // Use Odoo's position setting if available
+                if (this.pos.currency.position === 'before') {
+                    return symbol + formattedAmount;
+                } else {
+                    return formattedAmount + symbol;
+                }
             } else {
-                return parseFloat(amount || 0).toFixed(2);
+                // Fallback formatting
+                return numAmount.toFixed(2);
             }
         } catch (error) {
             console.error("Error formatting currency:", error);
-            return parseFloat(amount || 0).toFixed(2);
+            // FIX D: Ensure proper type conversion
+            return parseFloat(String(amount || 0)).toFixed(2);
         }
     }
 }
 
 console.log("Loaded pending_items_list_popup.js", "pending_items_list_popup.js");
-
-// TODO: Add encounter timeline display in pending items popup
-// TODO: Implement pending item grouping by service type
-// TODO: Add pending item batch selection functionality
-// TODO: Implement pending item quick edit from popup

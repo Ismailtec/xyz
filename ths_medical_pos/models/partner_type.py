@@ -19,12 +19,16 @@ class ThsPartnerType(models.Model):
 	@api.model
 	def _load_pos_data(self, data):
 		"""Load partner types data for POS"""
-		domain = self._load_pos_data_domain(data)
-		fields = self._load_pos_data_fields(data.get('pos.config', {}).get('data', [{}])[0].get('id'))
-		return {
-			'data': self.search_read(domain, fields, load=False),
-			'fields': fields
-		}
+		try:
+			domain = self._load_pos_data_domain(data)
+			model_fields = self._load_pos_data_fields(None)
+			return {
+				'data': self.search_read(domain, model_fields, load=False),
+				'fields': model_fields
+			}
+		except Exception as e:
+			print(f"Error in partner_type _load_pos_data: {e}")
+			return {'data': [], 'fields': []}
 
 	def _trigger_pos_sync(self, operation='update'):
 		"""Trigger POS sync for partner type updates - STATIC MODEL"""

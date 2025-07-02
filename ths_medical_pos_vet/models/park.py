@@ -22,13 +22,24 @@ class ParkCheckin(models.Model):
 
 	@api.model
 	def _load_pos_data(self, data):
-		fields = self._load_pos_data_fields(None)
-		result = []
-		for rec in self.search([]):
-			entry = rec.read(fields)[0]
-			entry['patient_ids'] = rec.patient_ids.patient_name('patient_ids')
-			result.append(entry)
-		return {'data': result, 'fields': fields}
+		try:
+			model_fields = self._load_pos_data_fields(None)
+			records = self.search([])
+			result = []
+
+			for rec in records:
+				entry = rec.read(model_fields)[0]
+				# Safe patient_ids formatting
+				if rec.patient_ids:
+					entry['patient_ids'] = [[p.id, p.name] for p in rec.patient_ids]
+				else:
+					entry['patient_ids'] = []
+				result.append(entry)
+
+			return {'data': result, 'fields': model_fields}
+		except Exception as e:
+			print(f"Error in park _load_pos_data: {e}")
+			return {'data': [], 'fields': []}
 
 	def _trigger_pos_sync(self, operation='update'):
 		"""Trigger POS sync for park checkin updates"""

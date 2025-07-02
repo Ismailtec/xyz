@@ -6,28 +6,6 @@ from odoo import models, api
 class PosSession(models.Model):
 	_inherit = 'pos.session'
 
-	# @api.model
-	# def _load_pos_data_models(self, config_id):
-	# 	"""Add vet-specific models to POS"""
-	# 	original_models = super()._load_pos_data_models(config_id)
-	#
-	# 	medical_models = [
-	# 		'ths.species',
-	# 		# 'res.partner',
-	# 		# 'ths.medical.base.encounter',
-	# 		'vet.pet.membership',
-	# 		'park.checkin',
-	# 	]
-	#
-	# 	existing_models = [entry['model'] for entry in original_models if 'model' in entry]
-	#
-	# 	for model_name in medical_models:
-	# 		if model_name not in existing_models:
-	# 			original_models.append({'model': model_name})
-	#
-	# 	print(f"POS Vet Models to load : {original_models}")
-	# 	return original_models
-
 	@api.model
 	def _load_pos_data_models(self, config_id):
 		"""Add vet-specific models to POS with tier classification"""
@@ -57,9 +35,9 @@ class PosSession(models.Model):
 
 				original_models.append(model_entry)
 
-		# Extend the parent class tier definitions
-		parent_critical = getattr(super(), 'CRITICAL_MODELS', [])
-		parent_periodic = getattr(super(), 'PERIODIC_MODELS', [])
+		# FIXED: Extend the parent class tier definitions properly
+		parent_critical = getattr(self.__class__.__bases__[0], 'CRITICAL_MODELS', [])
+		parent_periodic = getattr(self.__class__.__bases__[0], 'PERIODIC_MODELS', [])
 		self.CRITICAL_MODELS = parent_critical + vet_critical_models
 		self.PERIODIC_MODELS = parent_periodic + vet_periodic_models
 

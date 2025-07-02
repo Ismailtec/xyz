@@ -44,25 +44,40 @@ class PosSession(models.Model):
 		"""Add base medical models to POS with tier classification"""
 		original_models = super()._load_pos_data_models(config_id)
 
+		# Define data tiers for synchronization
+		critical_models = ['res.partner', 'ths.medical.base.encounter', 'ths.pending.pos.item', 'calendar.event']
+		periodic_models = ['ths.treatment.room', 'appointment.resource']
+		static_models = ['ths.partner.type']
+
 		# Combine all medical models
-		all_medical_models = self.CRITICAL_MODELS + self.PERIODIC_MODELS + self.STATIC_MODELS
+		all_medical_models = critical_models + periodic_models + static_models
 
 		existing_models = [entry['model'] for entry in original_models if 'model' in entry]
 
 		for model_name in all_medical_models:
 			if model_name not in existing_models:
-				model_entry = {'model': model_name}
+				# Check if model exists before adding
+				try:
+					model_obj = self.env[model_name]
+					if hasattr(model_obj, '_load_pos_data'):
+						model_entry = {'model': model_name}
 
-				# Add tier classification for frontend
-				if model_name in self.CRITICAL_MODELS:
-					model_entry['sync_type'] = 'bus'
-				elif model_name in self.PERIODIC_MODELS:
-					model_entry['sync_type'] = 'periodic'
-				else:
-					model_entry['sync_type'] = 'static'
+						# Add tier classification for frontend
+						if model_name in critical_models:
+							model_entry['sync_type'] = 'bus'
+						elif model_name in periodic_models:
+							model_entry['sync_type'] = 'periodic'
+						else:
+							model_entry['sync_type'] = 'static'
 
-				original_models.append(model_entry)
+						original_models.append(model_entry)
+						print(f"✅ POS: Added model {model_name}")
+					else:
+						print(f"❌ POS: Model {model_name} has no _load_pos_data method")
+				except Exception as e:
+					print(f"❌ POS: Error with model {model_name}: {e}")
 
+		print(f"POS Models to load (base medical): {[m['model'] for m in original_models if 'model' in m]}")
 		return original_models
 
 	@api.model

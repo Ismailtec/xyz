@@ -72,7 +72,7 @@ patch(PosStore.prototype, {
 
     // Base helper method to get pending items for partner
     getPendingItems(partnerId = null) {
-        const allItems = this.models["ths.pending.pos.item"].getAll();
+        const allItems = this.models["ths.pending.pos.item"]?.getAll() || [];
 
         if (partnerId) {
             return allItems.filter(item =>
@@ -82,6 +82,44 @@ patch(PosStore.prototype, {
         }
 
         return allItems.filter(item => item.state === 'pending');
+    },
+
+    // Helper method to get encounters for partner
+    getEncountersForPartner(partnerId = null) {
+        const allEncounters = this.models["ths.medical.base.encounter"]?.getAll() || [];
+
+        if (partnerId) {
+            return allEncounters.filter(encounter =>
+                encounter.partner_id && encounter.partner_id[0] === partnerId
+            );
+        }
+
+        return allEncounters;
+    },
+
+    // Helper method to get appointments for encounter
+    getAppointmentsForEncounter(encounterId) {
+        const allAppointments = this.models["calendar.event"]?.getAll() || [];
+        return allAppointments.filter(appointment =>
+            appointment.encounter_id && appointment.encounter_id[0] === encounterId
+        );
+    },
+
+    // Helper method to format patient display names
+    formatPatientIds(patientIds) {
+        if (!patientIds || !Array.isArray(patientIds)) {
+            return [];
+        }
+
+        // Handle both formats: [{id: x, name: y}, ...] and [[id, name], ...]
+        return patientIds.map(patient => {
+            if (Array.isArray(patient) && patient.length >= 2) {
+                return patient[1]; // [id, name] format
+            } else if (patient && typeof patient === 'object' && patient.name) {
+                return patient.name; // {id: x, name: y} format
+            }
+            return 'Unknown Patient';
+        });
     }
 });
 

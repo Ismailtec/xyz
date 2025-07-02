@@ -33,7 +33,7 @@ class ThsPendingPosItem(models.Model):
 			entry = rec.read(model_fields)[0]
 			entry['patient_ids'] = rec.patient_ids.patient_name('patient_ids')
 			result.append(entry)
-		return {'data': result, 'fields': fields}
+		return {'data': result, 'fields': model_fields}
 
 	def _trigger_pos_sync(self, operation='update'):
 		"""Trigger POS sync for pending item updates"""

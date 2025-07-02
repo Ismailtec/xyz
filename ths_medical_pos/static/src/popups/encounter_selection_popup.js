@@ -9,6 +9,12 @@ export class EncounterSelectionPopup extends Component {
     static template = "ths_medical_pos.EncounterSelectionPopup";
     static components = {Dialog};
 
+    static props = {
+        title: {type: String, optional: true},
+        encounters: {type: Array, optional: true},
+        close: Function,
+    };
+
     setup() {
         // Access the POS service using OWL 3 composable
         this.pos = usePos();
@@ -16,21 +22,31 @@ export class EncounterSelectionPopup extends Component {
 
     confirmSelection(encounter) {
         console.log("Encounter selected:", encounter);
-        const partner = this.pos.models["res.partner"]?.get(encounter.partner_id[0]) || null;
+
+        // Get partner from preloaded data
+        const partnerId = Array.isArray(encounter.partner_id) ? encounter.partner_id[0] : encounter.partner_id;
+        const partner = this.pos.models["res.partner"]?.get(partnerId) || null;
 
         console.log("Resolved partner:", partner);
 
-        this.props.resolve({
+        // Format encounter data for payload - BASE MEDICAL ONLY
+        const payload = {
+            partner,
+            encounter_id: encounter.id,
+            encounter_name: encounter.name,
+            patient_ids: encounter.patient_ids || [],
+            practitioner_id: encounter.practitioner_id || null,
+            room_id: encounter.room_id || null,
+        };
+
+        this.props.close({
             confirmed: true,
-            payload: {
-                partner,
-                encounter_id: encounter.id,
-                encounter_name: encounter.name,
-                patient_ids: encounter.patient_ids,
-                practitioner_id: encounter.practitioner_id,
-                room_id: encounter.room_id,
-            },
+            payload: payload,
         });
+    }
+
+    cancel() {
+        this.props.close({confirmed: false});
     }
 }
 
