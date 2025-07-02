@@ -39,12 +39,6 @@
                            readonly="1"
                            help="Billing customer (automatically synced)"/>
 
-                    <field name="room_id"
-                           readonly="1"
-                           options="{'no_open': True}"
-                           string="Treatment Room"
-                           invisible="not room_id"/>
-
                     <field name="total_pending_amount" readonly="1" widget="monetary"/>
                     <field name="total_paid_amount" readonly="1" widget="monetary"/>
                     <field name="has_pending_payments" readonly="1" widget="boolean_toggle"/>
@@ -58,6 +52,7 @@
                             <field name="name"/>
                             <field name="date_order" widget="datetime"/>
                             <field name="partner_id"/>
+                            <field name="patient_ids" widget="many2many_tags" options="{'no_create': True}"/>
                             <field name="amount_total" widget="monetary"/>
                             <field name="state" widget="badge"/>
                         </list>

@@ -1,14 +1,15 @@
-/** @odoo-module */
+/** @odoo-module **/
 
 import { Component, useState } from "@odoo/owl";
 import { Dialog } from "@web/core/dialog/dialog";
 import { _t } from "@web/core/l10n/translation";
-import { useService } from "@web/core/utils/hooks";
 import { usePos } from "@point_of_sale/app/store/pos_hook";
+import { useService } from "@web/core/utils/hooks";
 
 export class PetSelectionPopup extends Component {
     static template = "ths_medical_pos_vet.PetSelectionPopup";
     static components = { Dialog };
+
     static props = {
         title: String,
         partner: Object,
@@ -18,7 +19,6 @@ export class PetSelectionPopup extends Component {
 
     setup() {
         this.pos = usePos();
-        this.orm = useService("orm");
         this.notification = useService("notification");
 
         this.state = useState({
@@ -33,48 +33,24 @@ export class PetSelectionPopup extends Component {
         this.loadInitialData();
     }
 
-    async loadInitialData() {
-        try {
-            // Load owner's pets
-            if (this.props.partner) {
-                const pets = await this.orm.searchRead(
-                    'res.partner',
-                    [
-                        ('ths_pet_owner_id', '=', this.props.partner.id),
-                        ('ths_partner_type_id.name', '=', 'Pet')
-                    ],
-                    ['id', 'name', 'ths_species_id']
-                );
-                this.state.ownerPets = pets;
-            }
+    loadInitialData() {
+        const allPartners = this.pos.models["res.partner"].getAll();
+        const allResources = this.pos.models["appointment.resource"].getAll();
 
-            // Load practitioners and rooms
-            const [practitioners, rooms] = await Promise.all([
-                this.orm.searchRead(
-                    'appointment.resource',
-                    [('ths_resource_category', '=', 'practitioner')],
-                    ['id', 'name']
-                ),
-                this.orm.searchRead(
-                    'appointment.resource',
-                    [('ths_resource_category', '=', 'location')],
-                    ['id', 'name']
-                )
-            ]);
+        if (this.props.partner) {
+            this.state.ownerPets = allPartners.filter(p =>
+                p.ths_pet_owner_id?.[0] === this.props.partner.id &&
+                p.ths_partner_type_id?.[1] === "Pet"
+            );
+        }
 
-            this.state.practitioners = practitioners;
-            this.state.rooms = rooms;
+        this.state.practitioners = allResources.filter(r => r.ths_resource_category === "practitioner");
+        this.state.rooms = allResources.filter(r => r.ths_resource_category === "location");
 
-            // Pre-fill from encounter if provided
-            if (this.props.encounter) {
-                this.state.selectedPets = this.props.encounter.patient_ids || [];
-                this.state.selectedPractitioner = this.props.encounter.practitioner_id?.[0] || null;
-                this.state.selectedRoom = this.props.encounter.room_id?.[0] || null;
-            }
-
-        } catch (error) {
-            console.error("Error loading pet selection data:", error);
-            this.notification.add(_t("Error loading selection data"), { type: 'danger' });
+        if (this.props.encounter) {
+            this.state.selectedPets = this.props.encounter.patient_ids || [];
+            this.state.selectedPractitioner = this.props.encounter.practitioner_id?.[0] || null;
+            this.state.selectedRoom = this.props.encounter.room_id?.[0] || null;
         }
     }
 
@@ -91,17 +67,15 @@ export class PetSelectionPopup extends Component {
         return this.state.selectedPets.includes(petId);
     }
 
-    async confirm() {
-        const result = {
+    confirm() {
+        this.props.close({
             confirmed: true,
             payload: {
                 patient_ids: this.state.selectedPets,
                 practitioner_id: this.state.selectedPractitioner,
                 room_id: this.state.selectedRoom,
             }
-        };
-
-        this.props.close(result);
+        });
     }
 
     cancel() {

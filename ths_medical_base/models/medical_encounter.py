@@ -67,14 +67,12 @@ class ThsMedicalEncounter(models.Model):
 	)
 
 	# TODO: Add computed fields for primary patient info for backward compatibility
-	patient_ref = fields.Char(string="Patient File", related='patient_ids.ref', store=False, readonly=True)
-	patient_mobile = fields.Char(string="Patient Mobile", related='patient_ids.mobile', store=False, readonly=True)
+	patient_mobile = fields.Char(string="Partner Mobile", related='partner_id.mobile', store=False, readonly=True)
 
 	practitioner_id = fields.Many2one(
 		'appointment.resource',
 		string='Service Provider',
 		domain="[('ths_resource_category', '=', 'practitioner')]",
-		# related='appointment_id.ths_practitioner_id',
 		store=True,
 		index=True,
 		readonly=True
@@ -82,10 +80,15 @@ class ThsMedicalEncounter(models.Model):
 	room_id = fields.Many2one(
 		'appointment.resource',
 		string='Room',
-		related='appointment_ids.ths_room_id',
+		domain="[('ths_resource_category', '=', 'location')]",
 		store=True,
 		index=True,
-		# readonly=True
+		readonly=False
+	)
+	room_id_domain = fields.Char(
+		compute='_compute_room_id_domain',
+		store=False,
+		help="Domain for selecting the room based on the practitioner."
 	)
 	date_start = fields.Datetime(
 		string='Start Time',
@@ -112,11 +115,10 @@ class ThsMedicalEncounter(models.Model):
 		('done', 'Done')
 	], string='Status', default='in_progress', index=True, tracking=True, copy=False)
 
-	# Lines representing services/items used in the encounter
-	service_line_ids = fields.One2many(
-		'ths.medical.encounter.service',
+	pending_pos_items = fields.One2many(
+		'ths.pending.pos.item',
 		'encounter_id',
-		string='Services & Products Used',
+		string='POS Pending Items',
 		copy=True
 	)
 
@@ -141,6 +143,18 @@ class ThsMedicalEncounter(models.Model):
 	ths_lab_orders_text = fields.Text(string="Lab Orders Summary", help="Summary of laboratory tests ordered.")
 	ths_radiology_orders_text = fields.Text(string="Radiology Orders Summary",
 	                                        help="Summary of radiology exams ordered.")
+
+	@api.depends('practitioner_id')
+	def _compute_room_id_domain(self):
+		""" Compute domain for room_id based on practitioner_id """
+		for record in self:
+			if record.practitioner_id and record.practitioner_id.ths_department_id:
+				record.room_id_domain = str([
+					('ths_resource_category', '=', 'location'),
+					('ths_department_id', '=', record.practitioner_id.ths_department_id.id)
+				])
+			else:
+				record.room_id_domain = str([('ths_resource_category', '=', 'location')])
 
 	@api.model
 	def _get_encounter_domain_by_context(self):
@@ -260,6 +274,7 @@ class ThsMedicalEncounter(models.Model):
 			'domain': [('encounter_id', '=', self.id)],
 			'context': {'create': False}
 		}
+
 
 	def add_service_to_encounter(self, service_model, service_id):
 		"""Generic method to link any service to this encounter"""

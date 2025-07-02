@@ -28,9 +28,14 @@
                         <field name="practitioner_id"
                                string="Service Provider"
                                options="{'no_create': True, 'no_quick_create': True}"
-                               readonly="1"
+                               readonly="0"
                                help="Veterinarian providing the care"/>
-
+                        <field name="room_id"
+                               options="{'no_open': True}"
+                               string="Treatment Room"
+                               domain="room_id_domain"/>
+                        <field name="patient_mobile" readonly="1" string="Mobile"
+                               help="Mobile number of the partner" invisible="not patient_mobile"/>
                         <field name="encounter_date" readonly="1"/>
                     </group>
 
@@ -39,16 +44,6 @@
                                string="Billing Customer"
                                readonly="1"
                                help="Billing customer (automatically synced with Pet Owner)"/>
-
-                        <field name="room_id"
-                               readonly="1"
-                               options="{'no_open': True}"
-                               string="Treatment Room"
-                               invisible="not room_id"/>
-
-                        <field name="total_pending_amount" readonly="1" widget="monetary"/>
-                        <field name="total_paid_amount" readonly="1" widget="monetary"/>
-                        <field name="has_pending_payments" readonly="1" widget="boolean_toggle"/>
                     </group>
                 </group>
             </xpath>
@@ -90,7 +85,7 @@
                 </group>
             </xpath>
 
-            <xpath expr="//page[@name='pending_items']" position="after">
+            <xpath expr="//page[@name='pending_pos_items']" position="after">
                 <page string="Boarding Stays" name="boarding_stays">
                     <field name="boarding_ids" nolabel="1" readonly="1">
                         <list create="false" edit="false">
@@ -154,10 +149,9 @@
             </xpath>
 
             <!-- Update partner_id label for clarity -->
-            <xpath expr="//field[@name='partner_id']" position="attributes">
-                <attribute name="string">Billing Customer</attribute>
-                <attribute name="optional">hide</attribute>
-            </xpath>
+            <!--            <xpath expr="//field[@name='partner_id']" position="attributes">-->
+            <!--                <attribute name="optional">show</attribute>-->
+            <!--            </xpath>-->
 
         </field>
     </record>
@@ -218,18 +212,26 @@
                 </div>
                 <div>
                     <strong>Pets: </strong>
-                    <t t-foreach="record.pet_badge_data.raw_value" t-as="badge" t-key="badge.name">
-                        <span t-att-class="'o_tag o_tag_color_' + badge.color" class="badge-pet">
-                            <t t-esc="badge.name"/> (<t t-esc="badge.species"/>)
-                        </span>
+                    <t t-if="record.pet_badge_data.raw_value">
+                        <t t-foreach="record.pet_badge_data.raw_value" t-as="badge" t-key="badge.name">
+                            <span t-att-class="'o_tag o_tag_color_' + badge.color" class="badge-pet">
+                                <t t-esc="badge.name"/> (<t t-esc="badge.species"/>)
+                            </span>
+                        </t>
                     </t>
                 </div>
+
                 <div>
                     <strong>Payment Status: </strong>
-                    <span t-if="record.has_pending_payments.raw_value" class="badge badge-warning">
-                        Pending: <t t-esc="record.total_pending_amount.value"/>
-                    </span>
-                    <span t-else="" class="badge badge-success">Paid</span>
+                    <t t-if="'has_pending_payments' in record">
+                        <span t-if="record.has_pending_payments.raw_value" class="badge badge-warning">
+                            Pending: <t t-esc="record.total_pending_amount.value"/>
+                        </span>
+                        <span t-else="" class="badge badge-success">Paid</span>
+                    </t>
+                    <t t-else="">
+                        <span class="badge badge-secondary">Unknown</span>
+                    </t>
                 </div>
             </xpath>
 
@@ -241,7 +243,7 @@
         <field name="name">Veterinary Encounters</field>
         <field name="res_model">ths.medical.base.encounter</field>
         <field name="view_mode">kanban,list,form</field>
-        <field name="domain">[('patient_ids.ths_partner_type_id.name', '=', 'Pet')]</field>
+        <field name="domain">[('patient_ids.ths_partner_type_id', '=', 'Pet')]</field>
         <field name="context">{'search_default_filter_in_progress': 1}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">

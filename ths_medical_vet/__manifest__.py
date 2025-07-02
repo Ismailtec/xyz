@@ -22,6 +22,7 @@
         'security/ir.model.access.csv',
         'data/ir_sequence.xml',
         'data/partner_type_data.xml',
+        'data/product_sub_type_data.xml',
         'views/boarding.xml',
         'views/calendar_event.xml',
         'views/medical_encounter.xml',

@@ -10,11 +10,14 @@
                 <field name="encounter_id" optional="show"/>
                 <field name="appointment_id" optional="show"/>
                 <field name="partner_id" string="Patient (Customer)"/>
-                <field name="patient_id" string="Patient (Recipient)"/>
+                <field name="patient_ids" string="Patients" widget="many2many_tags"/>
                 <field name="product_id"/>
                 <field name="qty"/>
                 <field name="price_unit"/>
+                <field name="discount" widget="percentage" optional="show"/>
+                <field name="sub_total" optional="show"/>
                 <field name="practitioner_id" optional="show"/>
+                <field name="room_id" optional="show"/>
                 <field name="state" widget="badge" decoration-success="state == 'processed'"
                        decoration-info="state == 'pending'" decoration-warning="state == 'cancelled'"/>
                 <field name="pos_order_line_id" optional="hide"/>
@@ -44,9 +47,14 @@
                         <group>
                             <field name="encounter_id" readonly="1"/>
                             <field name="appointment_id" readonly="1"/>
-                            <field name="partner_id" readonly="1" string="Patient (Customer)"
+                            <field name="partner_id"
+                                   readonly="1"
+                                   string="Patient (Customer)"
                                    help="Patient receiving treatment and responsible for payment"/>
-                            <field name="patient_id" readonly="1" string="Patient (Recipient)"
+                            <field name="patient_ids"
+                                   readonly="1"
+                                   string="Patients"
+                                   widget="many2many_tags"
                                    help="Patient who received the service (same as customer in human medical)"/>
                         </group>
                         <group>
@@ -54,9 +62,11 @@
                             <field name="qty" readonly="1"/>
                             <field name="price_unit" readonly="1"/>
                             <field name="discount" readonly="1"/>
+                            <field name="sub_total" readonly="1" widget="monetary"/>
                         </group>
                         <group>
                             <field name="practitioner_id" readonly="1"/>
+                            <field name="room_id" readonly="1"/>
                             <field name="commission_pct" readonly="1"/>
                             <field name="pos_order_line_id" readonly="1"/>
                             <field name="company_id" groups="base.group_multi_company" readonly="1"/>
@@ -78,9 +88,10 @@
                 <field name="encounter_id"/>
                 <field name="appointment_id"/>
                 <field name="partner_id" string="Patient (Customer)"/>
-                <field name="patient_id" string="Patient (Recipient)"/>
+                <field name="patient_ids" string="Patients"/>
                 <field name="product_id"/>
                 <field name="practitioner_id"/>
+                <field name="room_id"/>
                 <filter string="Pending" name="filter_pending" domain="[('state', '=', 'pending')]"/>
                 <filter string="Processed" name="filter_processed" domain="[('state', '=', 'processed')]"/>
                 <filter string="Cancelled" name="filter_cancelled" domain="[('state', '=', 'cancelled')]"/>
@@ -89,9 +100,10 @@
                 <group expand="0" string="Group By">
                     <filter string="Status" name="groupby_state" context="{'group_by': 'state'}"/>
                     <filter string="Patient (Customer)" name="groupby_partner" context="{'group_by': 'partner_id'}"/>
-                    <filter string="Patient (Recipient)" name="groupby_patient" context="{'group_by': 'patient_id'}"/>
+                    <filter string="Patients" name="groupby_patients" context="{'group_by': 'patient_ids'}"/>
                     <filter string="Practitioner" name="groupby_practitioner"
                             context="{'group_by': 'practitioner_id'}"/>
+                    <filter string="Room" name="groupby_room" context="{'group_by': 'room_id'}"/>
                     <filter string="Product/Service" name="groupby_product" context="{'group_by': 'product_id'}"/>
                     <filter string="Encounter" name="groupby_encounter" context="{'group_by': 'encounter_id'}"/>
                     <filter string="Company" name="groupby_company" context="{'group_by': 'company_id'}"
@@ -117,7 +129,8 @@
     <menuitem
             id="menu_ths_pending_pos_item"
             name="Pending POS Items"
-            parent="point_of_sale.menu_point_config_product" action="action_ths_pending_pos_item"
+            parent="point_of_sale.menu_point_config_product"
+            action="action_ths_pending_pos_item"
             sequence="100"
             groups="account.group_account_invoice"/>
 </odoo>

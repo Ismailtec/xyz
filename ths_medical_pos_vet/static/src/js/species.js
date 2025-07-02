@@ -4,21 +4,21 @@ import { patch } from "@web/core/utils/patch";
 import { PartnerList } from "@point_of_sale/app/screens/partner_list/partner_list";
 
 /**
- * Patch to fix pet species loading and display
- * Addresses issue where pets show as "unknown species" despite having species assigned
+ * Patch to fix pet species loading and display using new helper methods
+ * Updated to use the new encounter patient formatting helper
  */
 patch(PartnerList.prototype, {
 
     async loadEncountersForPopup() {
         try {
-            console.log("VET: Loading encounters with enhanced species data...");
+            console.log("VET: Loading encounters with enhanced species data using new helper methods...");
 
             // Load encounters with vet-specific fields
             const encounters = await this.pos.data.searchRead(
                 'ths.medical.base.encounter',
                 [
-                    ['ths_pet_owner_id', '!=', false],
-                    ['state', 'in', ['in_progress', 'done']]
+                    ('ths_pet_owner_id', '!=', false),
+                    ('state', 'in', ['in_progress', 'done'])
                 ],
                 [
                     'id', 'name', 'encounter_date', 'partner_id', 'patient_ids',
@@ -31,6 +31,14 @@ patch(PartnerList.prototype, {
             );
 
             console.log("VET: Raw encounters loaded:", encounters.length);
+
+            // Use new helper method for proper patient_ids formatting
+            const encounterIds = encounters.map(enc => enc.id);
+            const formattedPatients = await this.pos.data.call(
+                'ths.medical.base.encounter',
+                'get_formatted_patients_for_encounter_list',
+                [encounterIds]
+            );
 
             // Load species data separately for better reliability
             const allSpecies = await this.pos.data.searchRead(
@@ -52,69 +60,28 @@ patch(PartnerList.prototype, {
                 };
             });
 
-            // Format encounters with enhanced pet species data
-            this.formattedEncounters = await Promise.all(encounters.map(async (encounter) => {
+            // Format encounters with enhanced patient species data
+            this.formattedEncounters = encounters.map(encounter => {
                 console.log(`VET: Formatting encounter ${encounter.name} with species data`);
 
-                // Standard formatting from parent
-                await this.formatEncounterData(encounter);
+                // Use new formatted patients from helper method
+                const formattedPatientIds = formattedPatients[encounter.id] || [];
 
                 // Enhanced patient formatting with species data
-                if (encounter.patient_ids && encounter.patient_ids.length > 0) {
-                    const patientIds = encounter.patient_ids.map(p => Array.isArray(p) ? p[0] : p);
+                encounter.patient_ids = formattedPatientIds.map(patient => {
+                    // patient is now [id, name] from helper method
+                    const petId = patient[0];
+                    const petName = patient[1];
 
-                    try {
-                        // Load patients with species information
-                        const patientsWithSpecies = await this.pos.data.searchRead(
-                            'res.partner',
-                            [['id', 'in', patientIds]],
-                            ['id', 'name', 'ths_species_id'],
-                            { limit: 50 }
-                        );
+                    // We'll add species data by loading it separately
+                    return [petId, petName, null]; // Placeholder for species
+                });
 
-                        console.log("VET: Patients with species:", patientsWithSpecies);
+                // Load species data for each patient
+                this.loadSpeciesDataForPatients(encounter, speciesMap);
 
-                        // Format patient data with species information
-                        encounter.patient_ids = patientsWithSpecies.map(patient => {
-                            let speciesInfo = null;
-
-                            if (patient.ths_species_id) {
-                                let speciesId;
-                                if (Array.isArray(patient.ths_species_id)) {
-                                    speciesId = patient.ths_species_id[0];
-                                    speciesInfo = [patient.ths_species_id[0], patient.ths_species_id[1]];
-                                } else {
-                                    speciesId = patient.ths_species_id;
-                                    const speciesData = speciesMap[speciesId];
-                                    if (speciesData) {
-                                        speciesInfo = [speciesData.id, speciesData.name];
-                                    }
-                                }
-
-                                // Add color information if available
-                                if (speciesInfo && speciesMap[speciesId]) {
-                                    speciesInfo.push(speciesMap[speciesId].color);
-                                }
-                            }
-
-                            console.log(`VET: Patient ${patient.name} species:`, speciesInfo);
-
-                            // Return patient data in format: [id, name, species_info]
-                            return [
-                                patient.id,
-                                patient.name,
-                                speciesInfo // [species_id, species_name, species_color] or null
-                            ];
-                        });
-
-                    } catch (error) {
-                        console.error("VET: Error loading patient species data:", error);
-                        // Fallback to basic formatting
-                        encounter.patient_ids = encounter.patient_ids.map(p =>
-                            Array.isArray(p) ? p : [p, `Pet #${p}`, null]
-                        );
-                    }
-                }
+                // Format other fields
+                this.formatEncounterData(encounter);
 
                 // Add vet-specific context
                 encounter.vet_context = {
@@ -124,7 +91,7 @@ patch(PartnerList.prototype, {
                 };
 
                 return encounter;
-            }));
+            });
 
             console.log("VET: Formatted encounters with enhanced species data:", this.formattedEncounters.length);
 
@@ -134,11 +101,49 @@ patch(PartnerList.prototype, {
         }
     },
 
+    async loadSpeciesDataForPatients(encounter, speciesMap) {
+        try {
+            if (!encounter.patient_ids || encounter.patient_ids.length === 0) return;
+
+            const patientIds = encounter.patient_ids.map(p => p[0]);
+            const patientsWithSpecies = await this.pos.data.searchRead(
+                'res.partner',
+                [['id', 'in', patientIds]],
+                ['id', 'name', 'ths_species_id'],
+                { limit: 50 }
+            );
+
+            // Update patient data with species information
+            encounter.patient_ids = encounter.patient_ids.map(patient => {
+                const petId = patient[0];
+                const petName = patient[1];
+                const petData = patientsWithSpecies.find(p => p.id === petId);
+
+                let speciesInfo = null;
+                if (petData && petData.ths_species_id) {
+                    const speciesId = Array.isArray(petData.ths_species_id)
+                        ? petData.ths_species_id[0]
+                        : petData.ths_species_id;
+
+                    const speciesData = speciesMap[speciesId];
+                    if (speciesData) {
+                        speciesInfo = [speciesData.id, speciesData.name, speciesData.color];
+                    }
+                }
+
+                console.log(`VET: Patient ${petName} species:`, speciesInfo);
+                return [petId, petName, speciesInfo];
+            });
+
+        } catch (error) {
+            console.error("VET: Error loading patient species data:", error);
+        }
+    },
+
     // Helper method to get species color class
     getSpeciesColorClass(colorIndex) {
         if (!colorIndex) return 'bg-secondary';
 
-        // Odoo color palette mapping
         const colorClasses = [
             'bg-secondary',   // 0 - grey
             'bg-danger',      // 1 - red
@@ -167,4 +172,4 @@ patch(PartnerList.prototype, {
     }
 });
 
-console.log("VET: Loaded enhanced species loading patch");
+console.log("VET: Loaded enhanced species loading patch using new helper methods");

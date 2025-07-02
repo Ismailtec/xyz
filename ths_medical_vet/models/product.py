@@ -24,6 +24,7 @@ class ProductTemplate(models.Model):
 		member_subtype = self.env.ref('ths_medical_vet.product_sub_type_member', raise_if_not_found=False)
 		for product in self:
 			is_membership = product.ths_product_sub_type_id == member_subtype if member_subtype else False
+			# is_membership = product.ths_product_sub_type_id.name == 'Membership'
 			product.ths_membership_duration_visible = is_membership
 			product.ths_membership_duration_required = is_membership
 
@@ -32,9 +33,11 @@ class ProductTemplate(models.Model):
 		member_subtype = self.env.ref('ths_medical_vet.product_sub_type_member', raise_if_not_found=False)
 		for product in self:
 			if (member_subtype and
+					# if (product.ths_product_sub_type_id.name == 'Membership' and
 					product.ths_product_sub_type_id == member_subtype and
 					not product.ths_membership_duration):
 				raise ValidationError(_('Membership Duration is required for membership services.'))
+
 
 # TODO: Add membership pricing tiers based on duration
 # TODO: Add automatic membership product creation wizard

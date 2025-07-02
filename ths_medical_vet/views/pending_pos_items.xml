@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="ths.pending.pos.item.list_inherit_vet" model="ir.ui.view">
+        <field name="name">ths.pending.pos.item.list.inherit.vet</field>
+        <field name="model">ths.pending.pos.item</field>
+        <field name="inherit_id" ref="ths_medical_base.view_ths_pending_pos_item_list"/>
+        <field name="arch" type="xml">
+
+            <!-- Domain to show Pets related to owner -->
+            <xpath expr="//field[@name='patient_ids']" position="attributes">
+<!--                <attribute name="domain">patient_ids_domain</attribute>-->
+                <attribute name="readonly">0</attribute>
+            </xpath>
+
+        </field>
+    </record>
+</odoo>

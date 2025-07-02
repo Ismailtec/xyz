@@ -9,6 +9,9 @@
                 <field name="ths_resource_category"/>
                 <field name="employee_id" invisible="ths_resource_category != 'practitioner'" readonly="1"/>
                 <field name="ths_treatment_room_id" invisible="ths_resource_category != 'location'" readonly="1"/>
+                <field name="ths_department_id"
+                       invisible="ths_resource_category != 'practitioner' or ths_resource_category != 'location'"
+                       readonly="1"/>
             </xpath>
         </field>
     </record>
@@ -22,6 +25,7 @@
                 <field name="ths_resource_category" optional="show"/>
                 <field name="employee_id" optional="show"/>
                 <field name="ths_treatment_room_id" optional="show"/>
+                <field name="ths_department_id" optional="show"/>
             </xpath>
         </field>
     </record>
@@ -39,6 +43,8 @@
             <xpath expr="//filter[@name='group_by_appointment_type']" position="before">
                 <filter string="Medical Category" name="group_by_ths_resource_category"
                         context="{'group_by': 'ths_resource_category'}"/>
+                <filter string="Department" name="group_by_department"
+                        context="{'group_by': 'ths_department_id'}"/>
             </xpath>
         </field>
     </record>

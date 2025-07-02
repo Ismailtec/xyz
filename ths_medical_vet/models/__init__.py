@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from . import res_partner
+from . import product_sub_type
 from . import pending_pos_item
 from . import calendar_event
 from . import boarding_cage

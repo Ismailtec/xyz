@@ -73,7 +73,7 @@
             'ths_medical_pos/static/src/screens/product_screen/control_buttons_encounter.xml',
 
             # 5. Partner list enhancements with customer filtering
-            'ths_medical_pos/static/src/screens/partner_list_screen/partner_list_customer_filter.js',
+            #'ths_medical_pos/static/src/screens/partner_list_screen/partner_list_customer_filter.js',
             'ths_medical_pos/static/src/screens/partner_list_screen/partner_list_screen.js',
             'ths_medical_pos/static/src/screens/partner_list_screen/partner_list_screen.xml',
 

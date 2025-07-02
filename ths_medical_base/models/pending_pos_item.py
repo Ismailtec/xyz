@@ -51,13 +51,17 @@ class ThsPendingPosItem(models.Model):
         help="The patient receiving treatment and responsible for payment. This is both the service recipient and the billing customer."
     )
 
-    # For human medical: patient_id = partner_id (same person, for consistency)
-    patient_id = fields.Many2one(
+    # For medical: patient_ids = partner_id (same person, for consistency)
+    patient_ids = fields.Many2many(
         'res.partner',
-        string='Patient (Recipient)',  # Same as partner_id in human medical
+        'ths_pending_pos_patient_rel',
+        'encounter_id',
+        'patient_id',
+        string='Patients',
+        domain="[('ths_partner_type_id.is_patient', '=', True)]",
+        #related='partner_id',
+        readonly=False,
         store=True,
-        index=True,
-        required=True,
         help="The patient who received the service/product. This is the same person as the billing customer."
     )
 
@@ -87,6 +91,11 @@ class ThsPendingPosItem(models.Model):
         digits='Discount',
         default=0.0
     )
+    sub_total = fields.Float(
+        string='Subtotal',
+        compute='_compute_sub_total',
+        store=True,
+        digits='Product Price',)
 
     # Practitioner who provided the service (for commission/reporting)
     practitioner_id = fields.Many2one(
@@ -103,7 +112,13 @@ class ThsPendingPosItem(models.Model):
         string='Room',
         store=True,
         index=True,
+        domain="[('ths_resource_category', '=', 'location')]",
         # readonly=True
+    )
+    room_id_domain = fields.Char(
+        compute='_compute_room_id_domain',
+        store=False,
+        help="Domain for selecting the room based on the practitioner."
     )
 
     # Commission percentage for this specific line/item/practitioner
@@ -138,12 +153,12 @@ class ThsPendingPosItem(models.Model):
         default=lambda self: self.env.company
     )
 
-    @api.depends('product_id', 'encounter_id', 'patient_id')
+    @api.depends('product_id', 'encounter_id', 'patient_ids')
     def _compute_name(self):
         for item in self:
             name = item.product_id.name or _("Pending Item")
-            if item.patient_id:
-                name += f" - {item.patient_id.name}"
+            if item.patient_ids:
+                name += f" - {item.patient_ids.name}"
             if item.encounter_id:
                 name += f" ({item.encounter_id.name})"
             item.name = name
@@ -153,35 +168,33 @@ class ThsPendingPosItem(models.Model):
         for record in self:
             record.appointment_id = record.encounter_id.appointment_ids[:1]
 
-    # @api.constrains('partner_id', 'patient_id')
-    # def _check_patient_partner_consistency(self):
-    #     """
-    #     For human medical: ensure partner_id and patient_id are the same person
-    #     This constraint enforces the human medical business rule where the patient is the customer
-    #     """
-    #     for item in self:
-    #         if item.partner_id and item.patient_id and item.partner_id != item.patient_id:
-    #             raise UserError(_(
-    #                 "In human medical practice, the Patient (Recipient) and Patient (Customer) must be the same person. "
-    #                 "Patient: %s, Customer: %s",
-    #                 item.patient_id.name, item.partner_id.name
-    #             ))
+    @api.depends('practitioner_id')
+    def _compute_room_id_domain(self):
+        """ Compute domain for room_id based on practitioner_id """
+        for record in self:
+            if record.practitioner_id and record.practitioner_id.ths_department_id:
+                record.room_id_domain = str([
+                    ('ths_resource_category', '=', 'location'),
+                    ('ths_department_id', '=', record.practitioner_id.ths_department_id.id)
+                ])
+            else:
+                record.room_id_domain = str([('ths_resource_category', '=', 'location')])
+
+    @api.depends('qty', 'price_unit', 'discount')
+    def _compute_sub_total(self):
+        """ Compute the subtotal for this item """
+        for item in self:
+            if item.discount:
+                discount_amount = (item.price_unit * item.qty) * item.discount
+                item.sub_total = (item.price_unit * item.qty) - discount_amount
+            else:
+                item.sub_total = item.price_unit * item.qty
 
     @api.onchange('partner_id')
     def _onchange_partner_id(self):
-        """
-        For human medical: when partner changes, auto-set patient to same person
-        """
+        """  For medical: when partner changes, auto-set patient to same person  """
         if self.partner_id:
-            self.patient_id = self.partner_id
-
-    @api.onchange('patient_id')
-    def _onchange_patient_id(self):
-        """
-        For human medical: when patient changes, auto-set partner to same person
-        """
-        if self.patient_id:
-            self.partner_id = self.patient_id
+            self.patient_ids = self.partner_id
 
     # @api.model_create_multi
     # def create(self, vals_list):

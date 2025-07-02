@@ -266,24 +266,24 @@ class PosOrder(models.Model):
 
 	# === VET-SPECIFIC ACTIONS ===
 
-	def action_view_pet_medical_histories(self):
-		"""View medical histories for all pets in this order"""
-		self.ensure_one()
-		pet_ids = self.lines.mapped('ths_patient_id').ids
-		if not pet_ids:
-			return {}
-
-		return {
-			'name': _('Pet Medical Histories'),
-			'type': 'ir.actions.act_window',
-			'res_model': 'ths.medical.base.encounter',
-			'view_mode': 'list,form',
-			'domain': [('patient_ids', 'in', pet_ids)],
-			'context': {
-				'search_default_groupby_patient': 1,
-				'create': False,
-			}
-		}
+	# def action_view_pet_medical_histories(self):
+	# 	"""View medical histories for all pets in this order"""
+	# 	self.ensure_one()
+	# 	pet_ids = self.lines.mapped('patient_ids').ids
+	# 	if not pet_ids:
+	# 		return {}
+	#
+	# 	return {
+	# 		'name': _('Pet Medical Histories'),
+	# 		'type': 'ir.actions.act_window',
+	# 		'res_model': 'ths.medical.base.encounter',
+	# 		'view_mode': 'list,form',
+	# 		'domain': [('patient_ids', 'in', pet_ids)],
+	# 		'context': {
+	# 			'search_default_groupby_patient': 1,
+	# 			'create': False,
+	# 		}
+	# 	}
 
 	def action_view_pet_owner_orders(self):
 		"""View all orders for the pet owner"""

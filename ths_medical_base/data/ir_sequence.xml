@@ -37,13 +37,6 @@
         <field name="company_id" eval="False"/>
     </record>
 
-    <record id="seq_product_sub_type_nmd" model="ir.sequence">
-        <field name="name">Product Sub Type - None Medical (NMD)</field>
-        <field name="code">product.sub.type.seq.NMD</field>
-        <field name="prefix">NMD-</field>
-        <field name="padding">5</field>
-        <field name="company_id" eval="False"/>
-    </record>
     <record id="seq_product_sub_type_cafe" model="ir.sequence">
         <field name="name">Product Sub Type - Cafeteria (CAFE)</field>
         <field name="code">product.sub.type.seq.CAFE</field>
@@ -121,10 +114,24 @@
         <field name="padding">5</field>
         <field name="company_id" eval="False"/>
     </record>
-    <record id="seq_product_sub_type_cit" model="ir.sequence">
-        <field name="name">Product Sub Type - Clinic Items (CIT)</field>
-        <field name="code">product.sub.type.seq.CIT</field>
-        <field name="prefix">CIT-</field>
+    <record id="seq_product_sub_type_consu" model="ir.sequence">
+        <field name="name">Product Sub Type - Consumables (CONSU)</field>
+        <field name="code">product.sub.type.seq.consu</field>
+        <field name="prefix">CONSU-</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+    <record id="seq_product_sub_type_eqp" model="ir.sequence">
+        <field name="name">Product Sub Type - Equipment (EQUIP)</field>
+        <field name="code">product.sub.type.seq.eqp</field>
+        <field name="prefix">EQUIP-</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+    <record id="seq_product_sub_type_exps" model="ir.sequence">
+        <field name="name">Product Sub Type - Expense Service (EXPS)</field>
+        <field name="code">product.sub.type.seq.exps</field>
+        <field name="prefix">EXPS-</field>
         <field name="padding">5</field>
         <field name="company_id" eval="False"/>
     </record>

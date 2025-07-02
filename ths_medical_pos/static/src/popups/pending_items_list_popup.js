@@ -1,14 +1,5 @@
 /** @odoo-module */
 
-/*
- *
- * ANALYSIS OF USER LOGS:
- * ✅ OrderLineModel.create() works perfectly (2→3 lines, no duplication)
- * ❌ BUT: triggers "pl.payment_method_id is undefined" in customer display system
- *
- * SOLUTION: Keep working orderline creation, avoid triggering payment errors
- */
-
 import { Component } from "@odoo/owl";
 import { Dialog } from "@web/core/dialog/dialog";
 import { _t } from "@web/core/l10n/translation";
@@ -26,14 +17,14 @@ export class PendingItemsListPopup extends Component {
 
     static props = {
         title: { type: String, optional: true },
-        items: { type: Array, optional: true }, // Made optional to allow default value
+        items: { type: Array, optional: true },
         close: Function,
         getPayload: { type: Function, optional: true },
     };
 
     static defaultProps = {
         title: _t("Pending Medical Items"),
-        items: [], // Now valid since items is optional
+        items: [],
     };
 
     setup() {
@@ -43,9 +34,6 @@ export class PendingItemsListPopup extends Component {
         this.orm = useService("orm");
     }
 
-    /**
-     * Get product using POS database - the reliable method
-     */
     getProductById(productId) {
         try {
             if (this.pos.db && typeof this.pos.db.get_product_by_id === 'function') {
@@ -67,9 +55,6 @@ export class PendingItemsListPopup extends Component {
         }
     }
 
-    /**
-     * WORKING: OrderLineModel.create() with error prevention
-     */
     async addProductToOrder(order, product, options = {}) {
         try {
             console.log("=== ERROR-FREE ODOO 18 ORDERLINE CREATION ===");
@@ -119,9 +104,6 @@ export class PendingItemsListPopup extends Component {
         }
     }
 
-    /**
-     * SAFE note setting that avoids triggering payment errors
-     */
     async setOrderlineNoteSafely(orderline, description) {
         if (!description || !orderline) {
             return;
@@ -129,7 +111,7 @@ export class PendingItemsListPopup extends Component {
 
         try {
             // Method 1: Try direct property setting first (least reactive)
-            if (!orderline.note !== undefined) {
+            if (orderline.note !== undefined) {
                 orderline.note = description;
                 console.log("✅ Set note via direct property");
                 return;
@@ -137,7 +119,6 @@ export class PendingItemsListPopup extends Component {
 
             // Method 2: Try setNote if available, with delay to avoid reactive conflicts
             if (typeof orderline.setNote === 'function') {
-                // Use setTimeout to avoid immediate reactive update conflicts
                 setTimeout(() => {
                     try {
                         orderline.setNote(description);
@@ -149,32 +130,13 @@ export class PendingItemsListPopup extends Component {
                 return;
             }
 
-            // Method 3: Try set_note if available
-            if (typeof orderline.set_note === 'function') {
-                setTimeout(() => {
-                    try {
-                        orderline.set_note(description);
-                        console.log("✅ Set note via set_note (delayed)");
-                    } catch (delayedError) {
-                        console.log("⚠️ Delayed set_note failed:", delayedError.message);
-                    }
-                }, 100);
-                return;
-            }
-
             console.log("ℹ️ No note setting method available on orderline");
 
         } catch (error) {
             console.log("⚠️ Could not set note safely:", error.message);
-            // Don't throw - note is not critical
         }
     }
 
-    /**
-     * Add pending medical item to POS order - FIXED TRACEABILITY VERSION
-     * Now properly handles the new traceability logic where items are only marked
-     * as 'processed' when the order is finalized, not when added to cart
-     */
     async addItemToOrder(item) {
         console.log("=== ADDING MEDICAL ITEM TO ORDER WITH ENCOUNTER INTEGRATION ===");
         console.log("Item:", item);
@@ -226,14 +188,33 @@ export class PendingItemsListPopup extends Component {
             console.log("✅ SUCCESS: Added orderline:", orderline);
             console.log("Order now has", order.get_orderlines().length, "lines");
 
+            // Update order header with encounter data if not already set
+            if (item.encounter_id?.[0] && !order.encounter_id) {
+                order.encounter_id = item.encounter_id[0];
+                // Populate encounter fields to order header
+                try {
+                    const encounter = await this.orm.searchRead(
+                        'ths.medical.base.encounter',
+                        [['id', '=', item.encounter_id[0]]],
+                        ['patient_ids', 'practitioner_id', 'room_id'],
+                        { limit: 1 }
+                    );
+
+                    if (encounter.length > 0) {
+                        const encounterData = encounter[0];
+                        order.patient_ids = encounterData.patient_ids || [];
+                        order.practitioner_id = encounterData.practitioner_id || null;
+                        order.room_id = encounterData.room_id || null;
+                    }
+                } catch (error) {
+                    console.error("Error loading encounter data:", error);
+                }
+            }
+
             // SAFE note setting - avoid triggering payment errors
             await this.setOrderlineNoteSafely(orderline, item.description);
 
-            // Update backend status ONLY AFTER successful addition
-            // Do NOT update backend status immediately
-            // Items will be marked as 'processed' only when order is finalized/paid
             console.log("⚠️ NOTE: Item will be marked as 'processed' only when order is paid/finalized");
-            //await this.orm.write("ths.pending.pos.item", [item.id], { state: "processed" });
             this.notification.add(_t("Item added to order and linked to encounter"), { type: "success" });
 
             // Remove from popup

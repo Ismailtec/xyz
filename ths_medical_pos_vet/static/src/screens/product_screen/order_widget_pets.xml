@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <templates id="template" xml:space="preserve">
 
-    <!-- Extend OrderWidget to show Pet Owner and Pets information -->
+    <!-- Extend OrderWidget to show Pet Owner and Pets information with NEW membership model -->
     <t t-inherit="point_of_sale.OrderWidget" t-inherit-mode="extension">
 
         <!-- Add Pet Owner and Pets information after order summary -->
@@ -19,7 +19,7 @@
                         <span class="ms-1" t-esc="partner.name"/>
                     </div>
 
-                    <!-- Pets Information -->
+                    <!-- Pets Information with species display -->
                     <t t-if="medical_context.patient_ids and medical_context.patient_ids.length > 0">
                         <div class="d-flex align-items-start">
                             <i class="fa fa-paw me-2 text-secondary mt-1" title="Pets"/>

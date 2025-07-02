@@ -2,12 +2,43 @@
 
 import { patch } from "@web/core/utils/patch";
 import { PartnerList } from "@point_of_sale/app/screens/partner_list/partner_list";
+import { registry } from "@web/core/registry";
+
+const orm = registry.category("services").get("orm");
+const posModel = registry.category("pos_models").get("pos.model");
+
+async function refreshModels(modelNames = []) {
+    for (const model of modelNames) {
+        const result = await orm.call(model, "_load_pos_data", [{}, {}]);
+        if (result && result.data) {
+            posModel.db.addData(model, result.data);
+        }
+    }
+}
 
 /**
  * Patch PartnerList to filter only customer type partners
  * Shows only partners with ths_partner_type_id.is_customer = True
+ * Also refreshes required models when screen mounts
  */
+
 patch(PartnerList.prototype, {
+
+    async willStart() {
+        await refreshModels([
+            'res.partner',
+            'ths.partner.type',
+            'ths.medical.base.encounter',
+            'ths.pending.pos.item',
+            'ths.treatment.room',
+            'appointment.resource',
+            'calendar.event',
+            'ths.species',
+            'vet.pet.membership',
+            'park.checkin',
+        ]);
+        return super.willStart();
+    },
 
     getPartners() {
         // Get all partners using the parent method
@@ -24,26 +55,12 @@ patch(PartnerList.prototype, {
                 // Get partner type from POS models
                 const partnerTypes = this.pos.models["ths.partner.type"]?.getAll() || [];
                 const partnerType = partnerTypes.find(pt => pt.id === partnerTypeId);
-
-                if (partnerType && partnerType.is_customer) {
-                    return true;
-                }
+                return partnerType?.is_customer;
             }
-
-            // For vet module: also include pets (since they're linked to pet owners who are customers)
-            // and pet owners (who are customers)
-            if (partner.ths_partner_type_id && Array.isArray(partner.ths_partner_type_id)) {
-                const typeName = partner.ths_partner_type_id[1];
-                if (typeName === 'Pet' || typeName === 'Pet Owner' || typeName === 'Patient' || typeName === 'Walk-in') {
-                    return true;
-                }
-            }
-
             return false;
         });
 
         console.log(`Filtered partners: ${customerPartners.length} customer partners out of ${allPartners.length} total`);
-
         return customerPartners;
     },
 
@@ -62,21 +79,8 @@ patch(PartnerList.prototype, {
                     : partner.ths_partner_type_id;
 
                 const partnerType = partnerTypes.find(pt => pt.id === typeId);
-
-                if (partnerType && partnerType.is_customer) {
-                    return true;
-                }
-
-                // Also check by name for vet-specific types
-                const typeName = Array.isArray(partner.ths_partner_type_id)
-                    ? partner.ths_partner_type_id[1]
-                    : null;
-
-                if (typeName && ['Pet', 'Pet Owner', 'Patient', 'Walk-in'].includes(typeName)) {
-                    return true;
-                }
+                return partnerType?.is_customer;
             }
-
             return false;
         });
 

@@ -1,76 +1,28 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<templates id="template" xml:space="preserve">
+<templates xml:space="preserve">
 
-    <!-- Complete Veterinary Encounter Selection Popup -->
-    <t t-inherit="ths_medical_pos.EncounterSelectionPopup" t-inherit-mode="extension">
+  <!-- Extend card-body in EncounterSelectionPopup for pet memberships -->
+    <t t-name="ths_medical_pos_vet.EncounterSelectionPopup" t-inherit="ths_medical_pos.EncounterSelectionPopup"
+       t-inherit-mode="extension">
+    <xpath expr="//div[contains(@class, 'card-body')]" position="inside">
 
-        <!-- Target the partner-info div and replace with Pet Owner label -->
-        <xpath expr="//div[@name='partner-info']" position="replace">
-            <div class="mb-2 partner-info" name="partner-info">
-                <div class="d-flex align-items-center">
-                    <i class="fa fa-user me-2 text-secondary" style="width: 14px;"/>
-                    <strong style="font-size: 0.9rem;">Pet Owner: </strong>
-                    <span class="ms-1">
-                        <t t-if="encounter.partner_id" t-esc="encounter.partner_id[1]"/>
-                        <t t-else="">No Pet Owner</t>
-                    </span>
-                </div>
-            </div>
-        </xpath>
+      <!-- Display memberships for each pet if available -->
+        <t t-if="encounter.pet_memberships">
+        <div class="mt-2">
+          <small class="text-muted">Memberships:</small>
+            <ul class="mb-0 ps-3">
+            <t t-foreach="encounter.pet_memberships" t-as="m" t-key="m[0]">
+              <li>
+                <t t-esc="m[1]"/>:
+                  <span class="badge bg-success" t-if="m[2] === 'valid'">Valid</span>
+                  <span class="badge bg-danger" t-if="m[2] !== 'valid'">Invalid</span>
+              </li>
+            </t>
+          </ul>
+        </div>
+      </t>
 
-        <!-- Replace patients icon with paw icon and change label to "Pets" -->
-        <xpath expr="//i[@class='fa fa-users me-2 text-secondary mt-1']" position="replace">
-            <i class="fa fa-paw me-2 text-secondary mt-1" style="width: 14px;"/>
-        </xpath>
-
-        <!-- Change "Patients: " to "Pets: " -->
-        <xpath expr="//small[@class='text-muted'][contains(text(), 'Patients: ')]" position="replace">
-            <small class="text-muted" style="font-size: 0.8rem;">Pets: </small>
-        </xpath>
-
-        <!-- Replace pets display with many2many badge style -->
-        <xpath expr="//span[@style='font-size: 0.9rem; font-weight: bold;']" position="replace">
-            <div class="pets-many2many-display">
-                <t t-foreach="encounter.patient_display" t-as="patient_name" t-key="patient_name">
-                    <span class="badge bg-primary me-1 mb-1 pet-tag" style="font-size: 0.8rem; padding: 0.4rem 0.6rem;">
-                        <i class="fa fa-paw me-1" style="font-size: 0.7rem;"/>
-                        <t t-esc="patient_name"/>
-                        <t t-else="">Unknown Pet</t>
-                        <!-- Show species as sub-badge if available -->
-                        <t t-if="patient and patient.length >= 3 and patient[2]">
-                            <span class="species-sub-badge ms-1"
-                                  style="background-color: rgba(255,255,255,0.3); border-radius: 0.25rem; padding: 0.1rem 0.3rem; font-size: 0.7rem;">
-                                <t t-esc="patient[2][1] or 'Unknown'"/>
-                            </span>
-                        </t>
-                    </span>
-                </t>
-            </div>
-        </xpath>
-
-        <!-- Change "Dr. " to "Service Provider: " -->
-        <xpath expr="//span[@class='text-muted'][text()='Dr. ']" position="replace">
-            <span class="text-muted">Service Provider: </span>
-        </xpath>
-
-        <!-- Add membership status for each pet -->
-        <xpath expr="//div[hasclass('d-flex justify-content-end mt-2')]" position="before">
-            <!-- Membership information for pets -->
-            <div class="mb-2">
-                <div class="d-flex align-items-start">
-                    <i class="fa fa-star me-2 text-secondary mt-1" style="width: 14px;"/>
-                    <div class="flex-fill">
-                        <small class="text-muted" style="font-size: 0.8rem;">Membership: </small>
-                        <div class="mt-1">
-                            <span class="badge bg-success" style="font-size: 0.7rem;">
-                                Active Pet Owner
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </xpath>
-
-    </t>
+    </xpath>
+  </t>
 
 </templates>

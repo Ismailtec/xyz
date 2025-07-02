@@ -26,6 +26,23 @@ class AppointmentResource(models.Model):
         'ths.treatment.room', string="Related Room",
         related='resource_id.ths_treatment_room_id', store=True, readonly=True, index=True
     )
+    ths_department_id = fields.Many2one(
+        'hr.department',
+        compute='_compute_ths_department_id',
+        string='Department (Smart Link)',
+        store=True,
+        readonly=True
+    )
+
+    @api.depends('ths_resource_category', 'employee_id.department_id', 'ths_treatment_room_id.department_id')
+    def _compute_ths_department_id(self):
+        for rec in self:
+            if rec.ths_resource_category == 'practitioner':
+                rec.ths_department_id = rec.employee_id.department_id
+            elif rec.ths_resource_category == 'location':
+                rec.ths_department_id = rec.ths_treatment_room_id.department_id
+            else:
+                rec.ths_department_id = False
 
     @api.model_create_multi
     def create(self, vals_list):

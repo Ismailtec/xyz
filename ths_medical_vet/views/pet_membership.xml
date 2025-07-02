@@ -33,8 +33,7 @@
                         <group>
                             <field name="membership_service_id"
                                    options="{'no_create': True, 'no_quick_create': True}"
-                                   domain="membership_service_domain"/>
-                            <field name="membership_service_domain" invisible="1"/>
+                                   domain="[('ths_product_sub_type_id', '=', %(ths_medical_vet.product_sub_type_member)d)]"/>
                             <field name="is_paid" widget="boolean_toggle"/>
                         </group>
                     </group>

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<odoo noupdate="1">
+<odoo noupdate="0">
 
     <record id="seq_partner_ref_pet_owner" model="ir.sequence">
         <field name="name">Pet Owner</field>
@@ -56,15 +56,6 @@
         <field name="padding">6</field>
         <field name="company_id" eval="False"/>
     </record>
-
-    <record id="seq_vet_pet_membership" model="ir.sequence">
-            <field name="name">Pet Membership Sequence</field>
-            <field name="code">vet.pet.membership</field>
-            <field name="prefix">MEMB</field>
-            <field name="padding">5</field>
-            <field name="number_next">1</field>
-            <field name="company_id" eval="False"/>
-        </record>
 
 
 </odoo>

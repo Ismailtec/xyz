@@ -316,29 +316,6 @@ class ThsMedicalBaseEncounter(models.Model):
                     })
             rec.pet_badge_data = badge_data
 
-    # --- VET-SPECIFIC CONSTRAINTS ---
-
-    # @api.constrains('patient_ids', 'ths_pet_owner_id')
-    # def _check_vet_encounter_consistency(self):
-    #     """Validate vet encounter consistency - but allow changes if not billed"""
-    #     for encounter in self:
-    #         # ONLY enforce constraint if encounter is billed
-    #         if encounter.state == 'billed':
-    #             if encounter.patient_ids and encounter.ths_pet_owner_id:
-    #                 wrong_owner_pets = encounter.patient_ids.filtered(
-    #                     lambda p: p.ths_pet_owner_id != encounter.ths_pet_owner_id
-    #                 )
-    #                 if wrong_owner_pets:
-    #                     raise ValidationError(_(
-    #                         "Cannot change pets after billing. Encounter is already billed."
-    #                     ))
-    #
-    #         # Ensure billing customer is set
-    #         if encounter.patient_ids and not encounter.partner_id:
-    #             raise ValidationError(_(
-    #                 "Billing customer (Pet Owner) must be set for encounters with pets."
-    #             ))
-
     # --- VET-SPECIFIC BUSINESS METHODS ---
     def _get_primary_pet(self):
         """Get the primary/first pet for this encounter"""
@@ -363,7 +340,7 @@ class ThsMedicalBaseEncounter(models.Model):
             'view_mode': 'list,form',
             'domain': [('patient_ids', 'in', self.patient_ids.ids)],
             'context': {
-                'search_default_groupby_patient': 1,
+                'search_default_groupby_patients': 1,
                 'create': False,
             }
         }

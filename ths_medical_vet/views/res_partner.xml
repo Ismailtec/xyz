@@ -27,7 +27,7 @@
 
                 <button name="action_view_pet_memberships" type="object"
                         class="oe_stat_button" icon="fa-star"
-                        invisible="not is_pet_owner">
+                        invisible="not is_pet">
                     <field name="pet_membership_count" widget="statinfo" string="Memberships"/>
                 </button>
 
@@ -194,8 +194,27 @@
                     </field>
                 </page>
 
+                <!-- Park Membership Tab for Pets -->
+                <page string="Park Membership" name="pet_membership" invisible="not is_pet" autofocus="autofocus">
+                    <field name="pet_membership_ids"
+                           context="{'default_partner_id': ths_pet_owner_id.id, 'default_patient_ids': [id] if id else []}">
+                        <list string="Pet Memberships" decoration-success="state == 'running'"
+                              decoration-danger="state=='expired'">
+                            <field name="name" width="100px;"/>
+                            <field name="partner_id" string="Pet Owner"/>
+                            <field name="patient_ids" widget="many2many_tags"/>
+                            <field name="membership_service_id"/>
+                            <field name="valid_from"/>
+                            <field name="valid_to"/>
+                            <field name="state" widget="badge" decoration-success="state == 'running'"/>
+                            <field name="is_paid" widget="boolean_toggle"/>
+                        </list>
+                    </field>
+
+                </page>
+
                 <!-- Medical Summary Tab for Pets -->
-                <page string="Medical Summary" name="pet_medical" invisible="not is_pet" autofocus="autofocus">
+                <page string="Medical Summary" name="pet_medical" invisible="not is_pet">
                     <div class="row mb-3">
                         <div class="col-12">
                             <div class="alert alert-success" role="status">

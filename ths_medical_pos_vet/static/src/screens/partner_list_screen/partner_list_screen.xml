@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+  <!-- Vet: Show Membership and Species logic (mobile only) -->
+    <t t-name="point_of_sale.PartnerLine" t-inherit="point_of_sale.PartnerLine" t-inherit-mode="extension">
+    <xpath expr="//div[hasclass('company-field')]" position="after">
+      <div>
+        <t t-if="props.partner.vet_membership_valid">
+          <span class="badge bg-success me-1">Membership Active</span>
+        </t>
+          <t t-if="props.partner.ths_species_id?.[1]">
+          <span class="badge bg-info">
+            <i class="fa fa-paw me-1"/> <t t-esc="props.partner.ths_species_id[1]"/>
+          </span>
+        </t>
+      </div>
+    </xpath>
+  </t>
+
+</templates>

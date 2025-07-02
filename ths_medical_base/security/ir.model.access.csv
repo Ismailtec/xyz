@@ -14,7 +14,6 @@ access_ths_pending_pos_item_user,ths.pending.pos.item.user.read,model_ths_pendin
 access_ths_pending_pos_item_manager,ths.pending.pos.item.manager.write,model_ths_pending_pos_item,ths_medical_base.group_medical_user,1,1,1,1
 access_calendar_event_medical_user,calendar.event.medical.user.read,model_calendar_event,ths_medical_base.group_medical_user,1,0,0,0
 access_calendar_event_medical_manager,calendar.event.medical.manager.write,model_calendar_event,ths_medical_base.group_medical_manager,1,1,1,1
-access_ths_medical_encounter_service_user,ths.medical.encounter.service.user.access,model_ths_medical_encounter_service,ths_medical_base.group_medical_user,1,1,1,1
 access_ths_hr_employee_type_config_user,ths.hr.employee.type.config.user.access,model_ths_hr_employee_type_config,ths_hr.group_ths_hr_user,1,0,0,0
 access_ths_hr_employee_type_config_manager,ths.hr.employee.type.config.manager.access,model_ths_hr_employee_type_config,ths_hr.group_ths_hr_manager,1,1,0,0
 access_ths_medical_cancellation_reason,ths.medical.cancellation.reason.user.access,ths_medical_base.model_ths_medical_cancellation_reason,ths_medical_base.group_medical_user,1,0,0,0

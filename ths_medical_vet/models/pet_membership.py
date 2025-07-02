@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from dateutil.relativedelta import relativedelta
 from odoo import models, fields, api, _
-#from odoo.exceptions import ValidationError
+from odoo.exceptions import UserError
 
 
 class VetPetMembership(models.Model):
@@ -10,7 +10,7 @@ class VetPetMembership(models.Model):
 	_inherit = ['mail.thread', 'mail.activity.mixin']
 	_order = 'valid_from desc, name desc'
 
-	name = fields.Char(string='Membership Reference', required=True, copy=False, readonly=True,
+	name = fields.Char(string='Membership Code', required=True, copy=False, readonly=True,
 	                   default=lambda self: _('New'))
 
 	partner_id = fields.Many2one(
@@ -34,14 +34,15 @@ class VetPetMembership(models.Model):
 	membership_service_id = fields.Many2one(
 		'product.product',
 		string='Membership Service',
+		# domain=[('ths_product_sub_type_id', '=', 'Membership')],
 		required=True,
 		tracking=True
 	)
 
-	membership_service_domain = fields.Char(
-		compute='_compute_membership_service_domain',
-		store=False
-	)
+	# membership_service_domain = fields.Char(
+	# 	compute='_compute_membership_service_domain',
+	# 	store=False
+	# )
 
 	valid_from = fields.Date(string='Valid From', required=True, default=fields.Date.today, tracking=True)
 	valid_to = fields.Date(string='Valid To', readonly=True, compute='_compute_valid_to', store=True)
@@ -68,12 +69,13 @@ class VetPetMembership(models.Model):
 			else:
 				rec.patient_ids_domain = str([('ths_partner_type_id.name', '=', 'Pet')])
 
-	@api.depends()
-	def _compute_membership_service_domain(self):
-		member_subtype = self.env.ref('ths_medical_vet.product_sub_type_member', raise_if_not_found=False)
-		domain = [('ths_product_sub_type_id', '=', member_subtype.id)] if member_subtype else [('id', '=', False)]
-		for rec in self:
-			rec.membership_service_domain = str(domain)
+	# @api.depends()
+	# def _compute_membership_service_domain(self):
+	# 	member_subtype = self.env.ref('ths_medical_vet.product_sub_type_member', raise_if_not_found=False)
+	# 	domain = [('ths_product_sub_type_id', '=', member_subtype)] if member_subtype else [('id', '=', False)]
+	# 	for rec in self:
+	# 		rec.membership_service_domain = domain
+
 
 	@api.depends('valid_from', 'membership_service_id.ths_membership_duration')
 	def _compute_valid_to(self):
@@ -91,6 +93,12 @@ class VetPetMembership(models.Model):
 			if vals.get('name', _('New')) == _('New'):
 				vals['name'] = self.env['ir.sequence'].sudo().next_by_code('vet.pet.membership') or _('New')
 		return super().create(vals_list)
+
+	def unlink(self):
+		for record in self:
+			if record.state != 'draft':
+				raise UserError(_("You can only delete memberships in draft state."))
+		return super().unlink()
 
 	def action_start_membership(self):
 		"""Start the membership"""
