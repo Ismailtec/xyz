@@ -1,28 +1,24 @@
 /** @odoo-module **/
 
-import { registry } from "@web/core/registry";
-import { Dialog } from "@web/core/dialog/dialog";
-import { _t } from "@web/core/l10n/translation";
-import { Component } from "@odoo/owl";
-import { useService } from "@web/core/utils/hooks";
+import {registry} from "@web/core/registry";
+import {Dialog} from "@web/core/dialog/dialog";
+import {Component} from "@odoo/owl";
+import {usePos} from "@point_of_sale/app/store/pos_hook";
 
 export class EncounterSelectionPopup extends Component {
     static template = "ths_medical_pos.EncounterSelectionPopup";
-    static components = { Dialog };
+    static components = {Dialog};
 
     setup() {
-        // Access the POS service using OWL 3 composables
-        this.pos = useService("pos");
+        // Access the POS service using OWL 3 composable
+        this.pos = usePos();
     }
 
     confirmSelection(encounter) {
-        console.log("POS ENV", this.env); // Log full environment
-        console.log("Encounter selected:", encounter); // Log the selected encounter object
-        const partnerModel = this.pos.model?.get("res.partner");
-        const partner = partnerModel?.get(encounter.partner_id) || null;
+        console.log("Encounter selected:", encounter);
+        const partner = this.pos.models["res.partner"]?.get(encounter.partner_id[0]) || null;
 
-        console.log("Partner model:", partnerModel); // Log model access
-        console.log("Resolved partner:", partner);   // Log partner record fetched
+        console.log("Resolved partner:", partner);
 
         this.props.resolve({
             confirmed: true,
@@ -33,7 +29,6 @@ export class EncounterSelectionPopup extends Component {
                 patient_ids: encounter.patient_ids,
                 practitioner_id: encounter.practitioner_id,
                 room_id: encounter.room_id,
-                pet_owner_id: encounter.pet_owner_id,
             },
         });
     }

@@ -1,10 +1,10 @@
 /** @odoo-module */
 
-import { Component } from "@odoo/owl";
-import { Dialog } from "@web/core/dialog/dialog";
-import { _t } from "@web/core/l10n/translation";
-import { usePos } from "@point_of_sale/app/store/pos_hook";
-import { useService } from "@web/core/utils/hooks";
+import {Component} from "@odoo/owl";
+import {Dialog} from "@web/core/dialog/dialog";
+import {_t} from "@web/core/l10n/translation";
+import {usePos} from "@point_of_sale/app/store/pos_hook";
+import {useService} from "@web/core/utils/hooks";
 
 export class PendingItemsListPopup extends Component {
     constructor(...args) {
@@ -13,13 +13,13 @@ export class PendingItemsListPopup extends Component {
     }
 
     static template = "ths_medical_pos.PendingItemsListPopup";
-    static components = { Dialog };
+    static components = {Dialog};
 
     static props = {
-        title: { type: String, optional: true },
-        items: { type: Array, optional: true },
+        title: {type: String, optional: true},
+        items: {type: Array, optional: true},
         close: Function,
-        getPayload: { type: Function, optional: true },
+        getPayload: {type: Function, optional: true},
     };
 
     static defaultProps = {
@@ -36,19 +36,8 @@ export class PendingItemsListPopup extends Component {
 
     getProductById(productId) {
         try {
-            if (this.pos.db && typeof this.pos.db.get_product_by_id === 'function') {
-                console.log("Using pos.db.get_product_by_id...");
-                return this.pos.db.get_product_by_id(productId);
-            }
-
-            if (this.pos.models && this.pos.models['product.product']) {
-                console.log("Using pos.models['product.product']...");
-                const products = this.pos.models['product.product'].getAll();
-                return products.find(p => p.id === productId);
-            }
-
-            console.error("Product not found with ID:", productId);
-            return null;
+            // Use preloaded product data
+            return this.pos.models["product.product"].get(productId);
         } catch (error) {
             console.error("Error accessing product by ID:", error);
             return null;
@@ -147,27 +136,22 @@ export class PendingItemsListPopup extends Component {
         if (!product) {
             this.notification.add(
                 _t("Product %s not found in POS", item.product_id?.[1] || "Unknown"),
-                { type: "danger" }
+                {type: "danger"}
             );
             return;
         }
-
-        console.log("Found product:", product);
-        console.log("Current order:", order);
-        console.log("Order has", order.get_orderlines().length, "existing lines");
 
         // Check customer
         const currentPartner = order.get_partner();
         if (currentPartner && currentPartner.id !== item.partner_id?.[0]) {
             this.notification.add(
                 _t("Item is for %s, current customer is %s. Proceeding anyway.",
-                   item.partner_id?.[1], currentPartner.name),
-                { type: "warning" }
+                    item.partner_id?.[1], currentPartner.name),
+                {type: "warning"}
             );
         }
 
         try {
-            // Use the WORKING approach - OrderLineModel.create() only
             const orderline = await this.addProductToOrder(order, product, {
                 quantity: item.qty,
                 price: item.price_unit,
@@ -185,39 +169,26 @@ export class PendingItemsListPopup extends Component {
                 throw new Error("Failed to create orderline");
             }
 
-            console.log("✅ SUCCESS: Added orderline:", orderline);
-            console.log("Order now has", order.get_orderlines().length, "lines");
-
             // Update order header with encounter data if not already set
             if (item.encounter_id?.[0] && !order.encounter_id) {
                 order.encounter_id = item.encounter_id[0];
-                // Populate encounter fields to order header
-                try {
-                    const encounter = await this.orm.searchRead(
-                        'ths.medical.base.encounter',
-                        [['id', '=', item.encounter_id[0]]],
-                        ['patient_ids', 'practitioner_id', 'room_id'],
-                        { limit: 1 }
-                    );
 
-                    if (encounter.length > 0) {
-                        const encounterData = encounter[0];
-                        order.patient_ids = encounterData.patient_ids || [];
-                        order.practitioner_id = encounterData.practitioner_id || null;
-                        order.room_id = encounterData.room_id || null;
-                    }
-                } catch (error) {
-                    console.error("Error loading encounter data:", error);
+                // Get encounter data from preloaded data
+                const encounter = this.pos.models["ths.medical.base.encounter"].get(item.encounter_id[0]);
+                if (encounter) {
+                    order.patient_ids = encounter.patient_ids_formatted || [];
+                    order.practitioner_id = encounter.practitioner_id || null;
+                    order.room_id = encounter.room_id || null;
                 }
             }
 
-            // SAFE note setting - avoid triggering payment errors
             await this.setOrderlineNoteSafely(orderline, item.description);
 
             console.log("⚠️ NOTE: Item will be marked as 'processed' only when order is paid/finalized");
-            this.notification.add(_t("Item added to order and linked to encounter"), { type: "success" });
+            this.notification.add(_t("Item added to order and linked to encounter"), {type: "success"});
 
-            // Remove from popup
+            // Remove from popup - update preloaded data
+            this.pos.models["ths.pending.pos.item"].delete(item.id);
             const index = this.props.items.findIndex(i => i.id === item.id);
             if (index !== -1) {
                 this.props.items.splice(index, 1);
@@ -232,7 +203,7 @@ export class PendingItemsListPopup extends Component {
             console.error("❌ ERROR adding item to order:", error);
             this.notification.add(
                 _t("Could not add item to order: %s", error.message),
-                { type: "danger" }
+                {type: "danger"}
             );
         }
     }

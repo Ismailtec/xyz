@@ -1,10 +1,10 @@
 /** @odoo-module */
 
-import { patch } from "@web/core/utils/patch";
-import { PendingItemsButton } from "@ths_medical_pos/components/pending_items_button/pending_items_button";
-import { _t } from "@web/core/l10n/translation";
-import { makeAwaitable } from "@point_of_sale/app/store/make_awaitable_dialog";
-import { PendingItemsListPopup } from "@ths_medical_pos/popups/pending_items_list_popup";
+import {patch} from "@web/core/utils/patch";
+import {PendingItemsButton} from "@ths_medical_pos/components/pending_items_button/pending_items_button";
+import {_t} from "@web/core/l10n/translation";
+import {makeAwaitable} from "@point_of_sale/app/store/make_awaitable_dialog";
+import {PendingItemsListPopup} from "@ths_medical_pos/popups/pending_items_list_popup";
 
 /**
  * IMPORTANT: This follows Odoo 18 OWL 3 component patching methodology.
@@ -30,7 +30,7 @@ patch(PendingItemsButton.prototype, {
             console.error("No active order found");
             this.notification.add(
                 _t('No active order found. Please try again.'),
-                { type: 'danger', sticky: false, duration: 3000 }
+                {type: 'danger', sticky: false, duration: 3000}
             );
             return;
         }
@@ -46,7 +46,7 @@ patch(PendingItemsButton.prototype, {
             // In vet context, partner_id refers to the Pet Owner who pays the bills
             const ownerFilter = ['partner_id', '=', client.id];
             filterDomain = [...filterDomain, ownerFilter];
-            popupTitle = _t("Pending Items for %(ownerName)s's Pets", { ownerName: client.name });
+            popupTitle = _t("Pending Items for %(ownerName)s's Pets", {ownerName: client.name});
         } else {
             console.log("Vet POS: No Pet Owner selected, fetching all pending items for all pets.");
         }
@@ -66,7 +66,7 @@ patch(PendingItemsButton.prototype, {
                 'ths.pending.pos.item',
                 filterDomain,
                 fieldsToFetch,
-                { context: this.pos.user.context }
+                {context: this.pos.user.context}
             );
 
             console.log("Vet POS: RPC call successful. Pending items fetched:", pendingItems);
@@ -86,7 +86,7 @@ patch(PendingItemsButton.prototype, {
                 // Veterinary-specific no-items message
                 let message;
                 if (client) {
-                    message = _t('No pending medical items found for %(ownerName)s\'s pets.', { ownerName: client.name });
+                    message = _t('No pending medical items found for %(ownerName)s\'s pets.', {ownerName: client.name});
                 } else {
                     message = _t('No pending medical items found for any pets. Note: Select a pet owner to filter items for specific pets.');
                 }
@@ -108,10 +108,10 @@ patch(PendingItemsButton.prototype, {
             } else if (error.message && error.message.includes('permission')) {
                 errorMessage = _t('Access denied. Please check your permissions for veterinary records.');
             } else {
-                errorMessage = _t('Error fetching pending veterinary items: %(error)s', { error: error.message || 'Unknown error' });
+                errorMessage = _t('Error fetching pending veterinary items: %(error)s', {error: error.message || 'Unknown error'});
             }
 
-            this.notification.add(errorMessage, { type: 'danger', sticky: true });
+            this.notification.add(errorMessage, {type: 'danger', sticky: true});
         }
     }
 });

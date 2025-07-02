@@ -25,3 +25,8 @@ class ThsPartnerType(models.Model):
 			'data': self.search_read(domain, fields, load=False),
 			'fields': fields
 		}
+
+	def _trigger_pos_sync(self, operation='update'):
+		"""Trigger POS sync for partner type updates - STATIC MODEL"""
+		# Note: This is a static model, rarely changes, manual refresh recommended
+		pass

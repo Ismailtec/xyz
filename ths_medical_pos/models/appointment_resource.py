@@ -28,3 +28,8 @@ class AppointmentResource(models.Model):
 			'data': resources,
 			'fields': model_fields
 		}
+
+	def _trigger_pos_sync(self, operation='update'):
+		"""Trigger POS sync for appointment resource updates - PERIODIC MODEL"""
+		# Note: This is a periodic model, sync will be handled by periodic batch sync
+		pass

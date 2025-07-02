@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from . import pos_aware
 from . import res_partner
 from . import medical_encounter
 from . import partner_type
