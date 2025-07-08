@@ -146,17 +146,30 @@
         <field name="model">calendar.event</field>
         <field name="inherit_id" ref="calendar.view_calendar_event_tree"/>
         <field name="arch" type="xml">
+            <xpath expr="//field[@name='partner_ids']" position="attributes">
+                <attribute name="optional">hide</attribute>
+            </xpath>
+            <xpath expr="//field[@name='location']" position="attributes">
+                <attribute name="optional">hide</attribute>
+            </xpath>
+            <xpath expr="//field[@name='appointment_resource_ids']" position="attributes">
+                <attribute name="optional">hide</attribute>
+            </xpath>
+            <xpath expr="//field[@name='name']" position="attributes">
+                <attribute name="string">Appointment</attribute>
+                <attribute name="optional">hide</attribute>
+            </xpath>
             <xpath expr="//field[@name='partner_ids']" position="after">
                 <field name="ths_patient_ids" optional="show" widget="many2many_tags" string="Patients"/>
-                <field name="ths_practitioner_id" optional="show"/>
+                <field name="ths_practitioner_id" optional="show" string="Practitioner"/>
                 <field name="ths_room_id" optional="show"/>
-                <field name="appointment_type_id" optional="hide"/>
-                <field name="appointment_status" optional="show" widget="badge"
-                       decoration-success="appointment_status == 'billed'"
-                       decoration-info="appointment_status in ('draft', 'confirmed', 'checked_in')"
-                       decoration-warning="appointment_status in ('in_progress', 'completed')"
+                <field name="appointment_type_id" optional="hide" string="Type"/>
+                <field name="appointment_status" optional="show" widget="badge" string="Status"
+                       decoration-success="appointment_status in ('billed','completed')"
+                       decoration-info="appointment_status in ('draft', 'confirmed')"
+                       decoration-warning="appointment_status in ('in_progress', 'checked_in')"
                        decoration-danger="appointment_status in ('cancelled_by_patient', 'cancelled_by_clinic', 'no_show')"/>
-                <field name="ths_is_walk_in" optional="show"/>
+                <field name="ths_is_walk_in" widget="boolean_toggle" optional="show" readonly="1"/>
             </xpath>
         </field>
     </record>

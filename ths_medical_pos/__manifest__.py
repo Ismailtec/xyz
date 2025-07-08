@@ -44,50 +44,42 @@
         # # Data
         #
         # # Assets
-        # 'views/assets.xml',
+        #'static/src/xml/assets.xml',
     ],
 
     'assets': {
         'point_of_sale._assets_pos': [
-            # === DEBUG FILES  ===
-            # 'ths_medical_pos/static/src/debug/debug_pos_models.js',
-            # 'ths_medical_pos/static/src/debug/test_partner_types.js',
-            # 'ths_medical_pos/static/src/debug/simple_partner_fix.js',
-            # 'ths_medical_pos/static/src/debug/simple_encounter_fix.js',
-            # 'ths_medical_pos/static/src/debug/partner_debug.js',
+	        #1. Data helpers (load first - provides utility functions)
+	        'ths_medical_pos/static/src/js/pos_data_helpers.js',
 
-            # 1. Base popup components (no dependencies)
-            'ths_medical_pos/static/src/popups/pending_items_list_popup.js',
-            'ths_medical_pos/static/src/popups/pending_items_list_popup.xml',
+	        # 2. Base popup components (no dependencies)
+	        'ths_medical_pos/static/src/popups/pending_items_list_popup.js',
+	        'ths_medical_pos/static/src/popups/pending_items_list_popup.xml',
+	        'ths_medical_pos/static/src/popups/encounter_selection_popup.js',
+	        'ths_medical_pos/static/src/popups/encounter_selection_popup.xml',
 
-            # 2. Button components (depends on popup)
-            'ths_medical_pos/static/src/components/pending_items_button/pending_items_button.js',
-            'ths_medical_pos/static/src/components/pending_items_button/pending_items_button.xml',
+	        # 3. Button components (depends on popups)
+	        'ths_medical_pos/static/src/components/pending_items_button/pending_items_button.js',
+	        'ths_medical_pos/static/src/components/pending_items_button/pending_items_button.xml',
 
-            # 3. Screen patches and encounter popups
-            'ths_medical_pos/static/src/popups/encounter_selection_popup.js',
-            'ths_medical_pos/static/src/popups/encounter_selection_popup.xml',
+	        # 4. Control buttons encounter functionality
+	        'ths_medical_pos/static/src/screens/product_screen/control_buttons_encounter.js',
+	        'ths_medical_pos/static/src/screens/product_screen/control_buttons_encounter.xml',
 
-            # 4. Control buttons encounter functionality (moved from partner list)
-            'ths_medical_pos/static/src/screens/product_screen/control_buttons_encounter.js',
-            'ths_medical_pos/static/src/screens/product_screen/control_buttons_encounter.xml',
+	        # 5. Screen enhancements and patches
+	        'ths_medical_pos/static/src/screens/partner_list_screen/partner_list_screen.js',
+	        'ths_medical_pos/static/src/screens/partner_list_screen/partner_list_screen.xml',
 
-            # 5. Partner list enhancements with customer filtering
-            #'ths_medical_pos/static/src/screens/partner_list_screen/partner_list_customer_filter.js',
-            'ths_medical_pos/static/src/screens/partner_list_screen/partner_list_screen.js',
-            'ths_medical_pos/static/src/screens/partner_list_screen/partner_list_screen.xml',
+	        # 6. Product screen enhancements
+	        'ths_medical_pos/static/src/screens/product_screen/product_screen.js',
+	        'ths_medical_pos/static/src/screens/product_screen/product_screen.xml',
 
-            # 6. Product screen enhancements
-            'ths_medical_pos/static/src/screens/product_screen/product_screen.js',
-            'ths_medical_pos/static/src/screens/product_screen/product_screen.xml',
+	        # 7. Appointment screen functionality
+	        'ths_medical_pos/static/src/screens/appointment_screen/appointment_screen.js',
+	        'ths_medical_pos/static/src/screens/appointment_screen/appointment_screen.xml',
 
-            # 7. Appointment screen functionality
-            'ths_medical_pos/static/src/screens/appointment_screen/appointment_screen.xml',
-            'ths_medical_pos/static/src/screens/appointment_screen/appointment_screen.js',
-
-            # 8. Calendar widget and styling (no dependencies)
-            'ths_medical_pos/static/src/components/calendar_widget/calendar_widget.js',
-            'ths_medical_pos/static/src/css/style.css',
+	        # 8. Styling (load last)
+	        'ths_medical_pos/static/src/css/style.css',
         ],
     },
     'installable': True,

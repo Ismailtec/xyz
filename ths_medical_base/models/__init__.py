@@ -9,8 +9,8 @@ from . import product_sub_type
 from . import treatment_room
 from . import resource_resource
 from . import appointment_resource
+from . import calendar_event
 from . import medical_encounter
 from . import pending_pos_item
 from . import appointment_type
 from . import cancellation_reason
-from . import calendar_event

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from odoo import models, fields, api
+from odoo import models, api
 
 import logging
 
@@ -19,7 +19,7 @@ class ThsPendingPosItem(models.Model):
 	@api.model
 	def _load_pos_data_fields(self, config_id):
 		return [
-			'name', 'encounter_id', 'appointment_id', 'partner_id', 'patient_ids',
+			'name', 'encounter_id', 'partner_id', 'patient_ids',
 			'product_id', 'qty', 'price_unit', 'discount', 'practitioner_id',
 			'room_id', 'commission_pct', 'state', 'pos_order_line_id'
 		]
@@ -31,61 +31,50 @@ class ThsPendingPosItem(models.Model):
 		result = []
 		for rec in self.search(domain):
 			entry = rec.read(model_fields)[0]
-			entry['patient_ids'] = rec.patient_ids.patient_name('patient_ids')
+			# entry['patient_ids'] = rec.patient_ids.patient_name('patient_ids')
 			result.append(entry)
 		return {'data': result, 'fields': model_fields}
 
 	def _trigger_pos_sync(self, operation='update'):
-		"""Trigger POS sync for pending item updates"""
+		"""Trigger POS sync for updates"""
+		# IMPORTANT: Add this guard. If self is empty, there are no records to sync.
+		if not self:
+			return
+
 		PosSession = self.env['pos.session']
 
 		if self._name in PosSession.CRITICAL_MODELS:
 			try:
 				active_sessions = PosSession.search([('state', '=', 'opened')])
 
-				if hasattr(self, '_load_pos_data'):
-					sync_data = self._load_pos_data({})
-					current_data = [r for r in sync_data.get('data', []) if r.get('id') in self.ids]
+				current_data = []
+				if operation != 'delete':
+					fields_to_sync = self._load_pos_data_fields(False)
+					current_data = self.read(fields_to_sync)
 				else:
-					current_data = self.read()
+					current_data = [{'id': record_id} for record_id in self.ids]
 
 				for session in active_sessions:
-					channel = (self._cr.dbname, 'pos.session', session.id)
+					channel = 'pos.sync.channel'  # (self._cr.dbname, 'pos.session', session.id)
 					self.env['bus.bus']._sendone(
 						channel,
+						'critical_update',
 						{
 							'type': 'critical_update',
 							'model': self._name,
 							'operation': operation,
-							'records': current_data if operation != 'delete' else [{'id': record_id} for record_id in
-							                                                       self.ids]
+							'records': current_data
 						}
 					)
+					_logger.info(f"POS Sync - Data sent to bus for res.partner (action: {operation}, IDs: {self.ids})")
 			except Exception as e:
-				_logger.error(f"Error triggering POS sync for {self._name}: {e}")
+				_logger.error(f"Error triggering POS sync for {self._name} (IDs: {self.ids}): {e}")
 
 	@api.model_create_multi
 	def create(self, vals_list):
 		""" Override to link items to daily encounters """
-		processed_vals_list = []
+		items = super().create(vals_list)
 
-		for vals in vals_list:
-			# Find or create encounter for this item
-			if vals.get('partner_id') and not vals.get('encounter_id'):
-				partner_id = vals['partner_id']
-				encounter_date = fields.Date.context_today(self)
-
-				# Find or create daily encounter
-				encounter = self.env['ths.medical.base.encounter']._find_or_create_daily_encounter(
-					partner_id, encounter_date
-				)
-				vals['encounter_id'] = encounter.id
-
-			processed_vals_list.append(vals)
-
-		items = super().create(processed_vals_list)
-
-		# Update encounter payment status
 		encounters = items.mapped('encounter_id')
 		if encounters:
 			encounters._compute_payment_status()
@@ -95,7 +84,6 @@ class ThsPendingPosItem(models.Model):
 
 	def write(self, vals):
 		""" Track state changes to update encounter status """
-		# old_states = {item.id: item.state for item in self}
 		result = super().write(vals)
 
 		# If state changed, update encounter payment status

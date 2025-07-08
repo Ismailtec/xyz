@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 from datetime import timedelta
 
-from odoo import models, fields, api, _
+from odoo import models, fields, api, _, Command
 # from odoo.exceptions import UserError
 # from datetime import datetime, date
 
 import logging
+
+from odoo.tools import format_date
 
 _logger = logging.getLogger(__name__)
 
@@ -15,7 +17,7 @@ class ThsMedicalEncounter(models.Model):
 	_name = 'ths.medical.base.encounter'
 	_description = 'Medical Encounter'
 	_inherit = ['mail.thread', 'mail.activity.mixin']
-	_order = 'date_start desc, name desc'
+	_order = 'encounter_date desc, name desc'
 
 	name = fields.Char(
 		string='Encounter ID',
@@ -34,21 +36,12 @@ class ThsMedicalEncounter(models.Model):
 		help="Date for this encounter - one encounter per partner per date"
 	)
 
-	appointment_ids = fields.One2many(
-		'calendar.event',
-		'encounter_id',
-		string='Appointments',
-		help="All appointments linked to this encounter"
-	)
-
 	# For medical: partner_id = patient (same person receiving care and paying)
 	partner_id = fields.Many2one(
 		'res.partner',
-		string='Patient',  # In medical, patient is the customer
-		# related='appointment_id.partner_id',
+		string='Patient (Billing)',  # In medical, patient is the customer
 		store=True,
 		index=True,
-		# readonly=True,
 		help="Billing customer."
 	)
 
@@ -62,7 +55,6 @@ class ThsMedicalEncounter(models.Model):
 		domain="[('ths_partner_type_id.is_patient', '=', True)]",
 		store=True,
 		index=True,
-		# readonly=True,
 		help="Patients participating in this encounter. In human medical practice, these are the same people as in partner_id."
 	)
 
@@ -75,7 +67,6 @@ class ThsMedicalEncounter(models.Model):
 		domain="[('ths_resource_category', '=', 'practitioner')]",
 		store=True,
 		index=True,
-		readonly=True
 	)
 	room_id = fields.Many2one(
 		'appointment.resource',
@@ -83,25 +74,35 @@ class ThsMedicalEncounter(models.Model):
 		domain="[('ths_resource_category', '=', 'location')]",
 		store=True,
 		index=True,
-		readonly=False
 	)
 	room_id_domain = fields.Char(
 		compute='_compute_room_id_domain',
 		store=False,
 		help="Domain for selecting the room based on the practitioner."
 	)
-	date_start = fields.Datetime(
-		string='Start Time',
-		related='appointment_ids.start',
-		store=True,
-		# readonly=True
+
+	state = fields.Selection([
+		('in_progress', 'In Progress'),
+		('done', 'Done')
+	], string='Status', default='in_progress', index=True, tracking=True, copy=False)
+
+	appointment_ids = fields.One2many(
+		'calendar.event',
+		'encounter_id',
+		string='Appointments',
+		help="All appointments linked to this encounter"
 	)
-	date_end = fields.Datetime(
-		string='End Time',
-		related='appointment_ids.stop',
-		store=True,
-		# readonly=True
+
+	# New computed field to derive the default appointment type from the practitioner's department
+	default_appointment_type_id = fields.Many2one(
+		'appointment.type',
+		string="Default Appointment Type (from Practitioner Dept.)",
+		compute='_compute_default_appointment_type',
+		store=False,
+		readonly=True,
+		help="Computes a default appointment type based on the selected practitioner's department."
 	)
+
 	appointment_status = fields.Selection(
 		related='appointment_ids.appointment_status',
 		string='Appointment Status',
@@ -110,16 +111,31 @@ class ThsMedicalEncounter(models.Model):
 		help="Status of the related appointment"
 	)
 
-	state = fields.Selection([
-		('in_progress', 'In Progress'),
-		('done', 'Done')
-	], string='Status', default='in_progress', index=True, tracking=True, copy=False)
-
 	pending_pos_items = fields.One2many(
 		'ths.pending.pos.item',
 		'encounter_id',
 		string='POS Pending Items',
-		copy=True
+		copy=False
+	)
+
+	# Payment tracking
+	pending_amount = fields.Float(
+		string='Pending Amount',
+		compute='_compute_payment_status',
+		store=True,
+		help="Amount of unpaid Services/Items lines"
+	)
+	paid_amount = fields.Float(
+		string='Paid Amount',
+		compute='_compute_payment_status',
+		store=True,
+		help="Total amount of Services/Items lines"
+	)
+	pending_payments = fields.Boolean(
+		string='ending Payments',
+		compute='_compute_payment_status',
+		store=True,
+		help="True if there are unpaid Services/Items lines"
 	)
 
 	notes = fields.Text(string="Internal Notes")
@@ -128,7 +144,7 @@ class ThsMedicalEncounter(models.Model):
 	chief_complaint = fields.Text(string="Chief Complaint")
 	history_illness = fields.Text(string="History of Present Illness")
 	vitals = fields.Text(string="Vital Signs",
-	                     help="Record key vitals like Temp, HR, RR, BP etc.")
+						 help="Record key vitals like Temp, HR, RR, BP etc.")
 
 	# === SOAP Fields ===
 	ths_subjective = fields.Text(string="Subjective", help="Patient's reported symptoms and history.")
@@ -142,7 +158,7 @@ class ThsMedicalEncounter(models.Model):
 	ths_prescriptions_text = fields.Text(string="Prescriptions Summary", help="Summary of medications prescribed.")
 	ths_lab_orders_text = fields.Text(string="Lab Orders Summary", help="Summary of laboratory tests ordered.")
 	ths_radiology_orders_text = fields.Text(string="Radiology Orders Summary",
-	                                        help="Summary of radiology exams ordered.")
+											help="Summary of radiology exams ordered.")
 
 	@api.depends('practitioner_id')
 	def _compute_room_id_domain(self):
@@ -155,6 +171,20 @@ class ThsMedicalEncounter(models.Model):
 				])
 			else:
 				record.room_id_domain = str([('ths_resource_category', '=', 'location')])
+
+	@api.depends('practitioner_id.ths_department_id')
+	def _compute_default_appointment_type(self):
+		"""  Computes the default appointment type ID based on the practitioner's associated department.
+			 It searches for an appointment type that has this department linked to it.  """
+		for rec in self:
+			rec.default_appointment_type_id = False
+
+			if rec.practitioner_id and rec.practitioner_id.ths_department_id:
+				appointment_type = self.env['appointment.type'].search([
+					('department_ids', 'in', rec.practitioner_id.ths_department_id.id)
+				], limit=1)
+
+				rec.default_appointment_type_id = appointment_type.id if appointment_type else False
 
 	@api.model
 	def _get_encounter_domain_by_context(self):
@@ -174,34 +204,83 @@ class ThsMedicalEncounter(models.Model):
 
 		return domain
 
+	@api.depends('pending_pos_items.sub_total', 'pending_pos_items.state')
+	def _compute_payment_status(self):
+		"""  Compute payment status from Pending items  """
+		for encounter in self:
+			# Calculate from Pending Service Items
+			paid_lines = encounter.pending_pos_items.filtered(lambda o: o.state == 'processed')
+			pending_lines = encounter.pending_pos_items.filtered(lambda o: o.state == 'pending')
+
+			encounter.paid_amount = sum(paid_lines.mapped('sub_total'))
+			encounter.pending_amount = sum(pending_lines.mapped('sub_total'))
+			encounter.pending_payments = encounter.pending_amount > 0
+
+			# Update encounter state based on payments
+			if encounter.pending_payments:
+				encounter.state = 'in_progress'
+			else:
+				encounter.state = 'done'
+
 	@api.model
-	def _find_or_create_daily_encounter(self, partner_id, encounter_date=None):
+	def _find_or_create_daily_encounter(
+			self, partner_id, patient_ids=None, encounter_date=None, practitioner_id=None, room_id=None):
 		"""Find existing encounter for partner+date or create new one"""
-		if not encounter_date:
-			encounter_date = fields.Date.context_today(self)
-
-		# Search for existing encounter
-		encounter = self.search([
+		domain = [
 			('partner_id', '=', partner_id),
-			('encounter_date', '=', encounter_date)
-		], limit=1)
+			('encounter_date', '=', encounter_date),
+		]
+		encounter = self.search(domain, limit=1)
 
-		if encounter:
-			return encounter
+		if not encounter:
+			vals = {
+				'partner_id': partner_id,
+				'encounter_date': encounter_date,
+				'patient_ids': [Command.set(patient_ids)],  # Set initial patients
+				'practitioner_id': practitioner_id.id if practitioner_id else False,
+				'room_id': room_id.id if room_id else False,
+			}
+			encounter = self.create(vals)
+		else:
+			update_vals = {}
 
-		# Create new encounter
-		# partner = self.env['res.partner'].browse(partner_id)
-		encounter_vals = {
-			'partner_id': partner_id,
-			'patient_ids': [(4, partner_id)],  # For human medical, patient = partner
-			'encounter_date': encounter_date,
-			'state': 'in_progress'
-		}
+			if practitioner_id and (
+					not encounter.practitioner_id or encounter.practitioner_id.id != practitioner_id.id):
+				update_vals['practitioner_id'] = practitioner_id.id
 
-		return self.create(encounter_vals)
+			if room_id and (not encounter.room_id or encounter.room_id.id != room_id.id):
+				update_vals['room_id'] = room_id.id
 
-# TODO: Add similar helper methods for practitioner_id and room_id formatting
-# TODO: Consider caching formatted data for performance
+			current_encounter_patient_ids = encounter.patient_ids.ids
+			all_unique_patient_ids = list(set(current_encounter_patient_ids + patient_ids))
+
+			if set(all_unique_patient_ids) != set(current_encounter_patient_ids):
+				update_vals['patient_ids'] = [Command.set(all_unique_patient_ids)]
+
+			if update_vals:
+				encounter.write(update_vals)
+		return encounter
+
+	@api.depends('name', 'encounter_date', 'partner_id.name')
+	def name_get(self):
+		"""  Formats the display as: "Encounter Name, Date - Partner Name"  """
+		result = []
+		for encounter in self:
+			encounter_name = encounter.name or _('New Encounter')
+
+			encounter_date_str = ""
+			if encounter.encounter_date:
+				encounter_date_str = format_date(self.env, encounter.encounter_date)
+
+			partner_name = encounter.partner_id.name or _('No Partner')
+
+			display_name = f"{encounter_name} ({encounter_date_str}) - {partner_name}"
+
+			result.append((encounter.id, display_name))
+		return result
+
+	# TODO: Add similar helper methods for practitioner_id and room_id formatting
+	# TODO: Consider caching formatted data for performance
 	def _get_formatted_patient_ids_with_names(self):
 		"""
 		Helper method to format patient_ids as [[id, name], [id, name]] for frontend consumption
@@ -274,7 +353,6 @@ class ThsMedicalEncounter(models.Model):
 			'domain': [('encounter_id', '=', self.id)],
 			'context': {'create': False}
 		}
-
 
 	def add_service_to_encounter(self, service_model, service_id):
 		"""Generic method to link any service to this encounter"""

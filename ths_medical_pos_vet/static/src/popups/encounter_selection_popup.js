@@ -7,36 +7,37 @@ patch(EncounterSelectionPopup.prototype, {
     setup() {
         super.setup();
 
-        // FIX 2: Declare properties on the component instance to avoid PyCharm warnings
-        Object.defineProperty(this, 'speciesById', {
-            value: {},
-            writable: true,
-            configurable: true
-        });
-
-        Object.defineProperty(this, 'membershipByPetId', {
-            value: {},
-            writable: true,
-            configurable: true
-        });
+        // Properly initialize properties for OWL 3 compatibility
+        this.speciesById = Object.create(null);
+        this.membershipByPetId = Object.create(null);
 
         // Build species lookup for vet enhancements
-        const allSpecies = this.pos.models["ths.species"]?.getAll() || [];
-        for (const species of allSpecies) {
-            this.speciesById[species.id] = species.name;
+        try {
+            const allSpecies = this.pos.models["ths.species"]?.getAll() || [];
+            allSpecies.forEach(species => {
+                if (species?.id && species?.name) {
+                    this.speciesById[species.id] = species.name;
+                }
+            });
+        } catch (error) {
+            console.error("Error building species lookup:", error);
         }
 
         // Build membership lookup for vet enhancements
-        const allMemberships = this.pos.models["vet.pet.membership"]?.getAll() || [];
-        for (const membership of allMemberships) {
-            if (membership.patient_ids && Array.isArray(membership.patient_ids)) {
-                for (const patient of membership.patient_ids) {
-                    const petId = Array.isArray(patient) ? patient[0] : (patient.id || patient);
-                    if (petId) {
-                        this.membershipByPetId[petId] = membership.state === 'running' && membership.is_paid ? 'active' : 'inactive';
-                    }
+        try {
+            const allMemberships = this.pos.models["vet.pet.membership"]?.getAll() || [];
+            allMemberships.forEach(membership => {
+                if (membership?.patient_ids && Array.isArray(membership.patient_ids)) {
+                    membership.patient_ids.forEach(patient => {
+                        const petId = Array.isArray(patient) ? patient[0] : (patient?.id || patient);
+                        if (petId) {
+                            this.membershipByPetId[petId] = membership.state === 'running' && membership.is_paid ? 'active' : 'inactive';
+                        }
+                    });
                 }
-            }
+            });
+        } catch (error) {
+            console.error("Error building membership lookup:", error);
         }
     },
 

@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
+from datetime import date
 
 from odoo import models, fields, api, _
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
 import logging
 
 _logger = logging.getLogger(__name__)
@@ -20,13 +21,50 @@ class PosOrder(models.Model):
 		help="Pet owner responsible for billing"
 	)
 
+	# Override patient_ids to represent pets in veterinary context
+	patient_ids = fields.Many2many(
+		'res.partner',
+		'pos_order_patient_rel',
+		'order_id',
+		'patient_id',
+		string='Pets',  # Changed from 'Patients' to 'Pets'
+		domain="[('ths_partner_type_id.name', '=', 'Pet')]",
+		help="Pets receiving services in this order"
+	)
+
 	# === VET-SPECIFIC ENCOUNTER INTEGRATION ===
 
+	def _get_encounter_domain(self, partner_id, encounter_date):
+		"""  Vet override: Find encounters for pet owners, not pets  """
+		# In vet context, partner_id should be the pet owner
+		return [
+			('ths_pet_owner_id', '=', partner_id),  # Look for pet owner encounters
+			('encounter_date', '=', encounter_date)
+		]
+
+	def _get_encounter_vals(self, partner_id, encounter_date):
+		"""  Vet override: Create encounters for pet owners with proper context  """
+		# Get pet owner record
+		pet_owner = self.env['res.partner'].browse(partner_id)
+
+		# Base encounter values for vet context
+		encounter_vals = {
+			'partner_id': partner_id,  # Partner is the pet owner
+			'ths_pet_owner_id': partner_id,  # Explicitly set pet owner
+			'encounter_date': encounter_date,
+			'state': 'in_progress',
+			'patient_ids': [],  # Will be populated with selected pets
+		}
+
+		# Add default pets if owner has any
+		if hasattr(pet_owner, 'ths_pet_ids') and pet_owner.ths_pet_ids:
+			encounter_vals['patient_ids'] = [(6, 0, pet_owner.ths_pet_ids.ids)]
+
+		return encounter_vals
+
 	@api.model
-	def _process_order(self, order, draft, existing_order):
-		"""
-		Override to add vet-specific logic after base processing
-		"""
+	def _process_order(self, order, draft, existing_order=None):
+		"""  Override to add vet-specific logic after base processing  """
 		# Handle vet-specific partner logic before encounter creation
 		partner_id = order.get('partner_id')
 		if partner_id:
@@ -41,249 +79,248 @@ class PosOrder(models.Model):
 				if partner.id not in current_patients:
 					order['patient_ids'] = current_patients + [partner.id]
 
-		return super()._process_order(order, draft, existing_order)
+		return super()._process_order(order, draft, existing_order=None)
 
 	# === NEW ORDER POPUP WORKFLOW ===
 
 	@api.model
 	def _create_new_order_popup(self, partner_id):
-		"""
-		VET: Create popup data for new order with pet/practitioner/room selection
-		Called from UI when a pet owner is selected for a new order
-		"""
-		if not partner_id:
-			return False
+		"""  Create popup data for new vet order setup Called from partner_list_screen.js when pet owner selected  """
+		try:
+			partner = self.env['res.partner'].browse(partner_id)
+			if not partner.exists():
+				raise UserError(_("Partner not found"))
 
-		partner = self.env['res.partner'].browse(partner_id)
-		if not partner.exists():
-			return False
+			# Verify this is a pet owner
+			if not (partner.ths_partner_type_id and partner.ths_partner_type_id.name == 'Pet Owner'):
+				return False  # Not a pet owner, use standard flow
 
-		# Only show popup for pet owners
-		if not (partner.ths_partner_type_id and partner.ths_partner_type_id.name == 'Pet Owner'):
-			_logger.info(f"Partner {partner.name} is not a Pet Owner, skipping popup")
-			return False
+			# Check for existing encounter today
+			today = date.today()
+			existing_encounter = self.env['ths.medical.base.encounter'].search([
+				('ths_pet_owner_id', '=', partner_id),
+				('encounter_date', '=', today)
+			], limit=1)
 
-		# Check for today's encounter
-		today = fields.Date.context_today(self)
-		existing_encounter = self.env['ths.medical.base.encounter'].search([
-			('ths_pet_owner_id', '=', partner_id),
-			('encounter_date', '=', today)
-		], limit=1)
+			# Get pet owner's pets
+			pets = self.env['res.partner'].search([
+				('ths_pet_owner_id', '=', partner_id),
+				('ths_partner_type_id.name', '=', 'Pet'),
+				('active', '=', True),
+				('ths_deceased', '=', False)
+			])
 
-		# Get pets for this owner
-		pets = partner.ths_pet_ids.read(['id', 'name', 'ths_species_id'])
+			# Get available practitioners
+			practitioners = self.env['appointment.resource'].search([
+				('ths_resource_category', '=', 'practitioner'),
+				('active', '=', True)
+			])
 
-		# Get available practitioners
-		practitioners = self.env['appointment.resource'].search([
-			('ths_resource_category', '=', 'practitioner'),
-			('active', '=', True)
-		]).read(['id', 'name'])
+			# Get available rooms
+			rooms = self.env['appointment.resource'].search([
+				('ths_resource_category', '=', 'location'),
+				('active', '=', True)
+			])
 
-		# Get available rooms
-		rooms = self.env['appointment.resource'].search([
-			('ths_resource_category', '=', 'location'),
-			('active', '=', True)
-		]).read(['id', 'name'])
+			# Format pets with species information
+			pets_data = []
+			for pet in pets:
+				pet_data = {
+					'id': pet.id,
+					'name': pet.name,
+					'ths_species_id': pet.ths_species_id.id if pet.ths_species_id else False,
+				}
+				pets_data.append(pet_data)
 
-		popup_data = {
-			'partner_id': partner_id,
-			'partner_name': partner.name,
-			'existing_encounter': existing_encounter.id if existing_encounter else False,
-			'pets': pets,
-			'practitioners': practitioners,
-			'rooms': rooms,
-		}
+			# Format practitioners
+			practitioners_data = [{'id': p.id, 'name': p.name} for p in practitioners]
 
-		if existing_encounter:
-			# Pre-fill with encounter data
-			popup_data.update({
-				'selected_pets': existing_encounter.patient_ids.ids,
-				'selected_practitioner': existing_encounter.practitioner_id.id if existing_encounter.practitioner_id else False,
-				'selected_room': existing_encounter.room_id.id if existing_encounter.room_id else False,
-			})
+			# Format rooms
+			rooms_data = [{'id': r.id, 'name': r.name} for r in rooms]
 
-		_logger.info(
-			f"Created popup data for pet owner {partner.name}: {len(pets)} pets, {len(practitioners)} practitioners, {len(rooms)} rooms")
-		return popup_data
+			# Pre-select pets from existing encounter
+			selected_pets = []
+			selected_practitioner = False
+			selected_room = False
+
+			if existing_encounter:
+				selected_pets = existing_encounter.patient_ids.ids
+				selected_practitioner = existing_encounter.practitioner_id.id if existing_encounter.practitioner_id else False
+				selected_room = existing_encounter.room_id.id if existing_encounter.room_id else False
+
+			return {
+				'partner_id': partner_id,
+				'partner_name': partner.name,
+				'existing_encounter': existing_encounter.id if existing_encounter else False,
+				'pets': pets_data,
+				'practitioners': practitioners_data,
+				'rooms': rooms_data,
+				'selected_pets': selected_pets,
+				'selected_practitioner': selected_practitioner,
+				'selected_room': selected_room,
+			}
+
+		except Exception as e:
+			_logger.error(f"Error creating new order popup data: {e}")
+			raise UserError(_("Error setting up order: %s") % str(e))
 
 	@api.model
-	def _process_new_order_popup_result(self, popup_result):
-		"""
-		VET: Process the result from the new order popup
-		Create or update encounter and load pending items
-		"""
-		partner_id = popup_result.get('partner_id')
-		selected_pets = popup_result.get('selected_pets', [])
-		selected_practitioner = popup_result.get('selected_practitioner')
-		selected_room = popup_result.get('selected_room')
+	def _process_new_order_popup_result(self, popup_data):
+		""" Process the result from PetOrderSetupPopup
+			Creates/updates encounter with selected pets, practitioner, room  """
+		try:
+			partner_id = popup_data.get('partner_id')
+			selected_pets = popup_data.get('selected_pets', [])
+			selected_practitioner = popup_data.get('selected_practitioner')
+			selected_room = popup_data.get('selected_room')
 
-		if not partner_id:
-			_logger.error("No partner_id provided in popup result")
-			return False
+			if not partner_id:
+				raise UserError(_("Partner ID is required"))
 
-		partner = self.env['res.partner'].browse(partner_id)
-		if not partner.exists():
-			_logger.error(f"Partner {partner_id} does not exist")
-			return False
+			# Find or create today's encounter
+			today = date.today()
+			encounter = self.env['ths.medical.base.encounter'].search([
+				('ths_pet_owner_id', '=', partner_id),
+				('encounter_date', '=', today)
+			], limit=1)
 
-		# Find or create today's encounter
-		today = fields.Date.context_today(self)
-		encounter = self.env['ths.medical.base.encounter'].search([
-			('ths_pet_owner_id', '=', partner_id),
-			('encounter_date', '=', today)
-		], limit=1)
-
-		if not encounter:
-			# Create new encounter
 			encounter_vals = {
-				'partner_id': partner_id,
-				'ths_pet_owner_id': partner_id,
-				'encounter_date': today,
+				'patient_ids': [(6, 0, selected_pets)] if selected_pets else [(5,)],
+				'practitioner_id': selected_practitioner if selected_practitioner else False,
+				'room_id': selected_room if selected_room else False,
 				'state': 'in_progress',
 			}
 
-			if selected_pets:
-				encounter_vals['patient_ids'] = [(6, 0, selected_pets)]
-			if selected_practitioner:
-				encounter_vals['practitioner_id'] = selected_practitioner
-			if selected_room:
-				encounter_vals['room_id'] = selected_room
-
-			try:
+			if encounter:
+				# Update existing encounter
+				encounter.write(encounter_vals)
+				_logger.info(f"Updated encounter {encounter.id} with popup selections")
+			else:
+				# Create new encounter
+				encounter_vals.update({
+					'partner_id': partner_id,
+					'ths_pet_owner_id': partner_id,
+					'encounter_date': today,
+					'name': f"Encounter - {self.env['res.partner'].browse(partner_id).name} - {today}",
+				})
 				encounter = self.env['ths.medical.base.encounter'].create(encounter_vals)
-				_logger.info(f"Created new encounter {encounter.name} for pet owner {partner.name}")
-			except Exception as e:
-				_logger.error(f"Failed to create encounter for {partner.name}: {e}")
-				raise UserError(_("Failed to create encounter: %s") % str(e))
-		else:
-			# Update existing encounter
-			update_vals = {}
+				_logger.info(f"Created new encounter {encounter.id} from popup selections")
+
+			# Process any existing park check-ins for selected pets
 			if selected_pets:
-				update_vals['patient_ids'] = [(6, 0, selected_pets)]
-			if selected_practitioner:
-				update_vals['practitioner_id'] = selected_practitioner
-			if selected_room:
-				update_vals['room_id'] = selected_room
+				self._process_pet_park_checkins(selected_pets, encounter)
 
-			if update_vals:
-				try:
-					encounter.write(update_vals)
-					_logger.info(f"Updated existing encounter {encounter.name} for pet owner {partner.name}")
-				except Exception as e:
-					_logger.error(f"Failed to update encounter {encounter.name}: {e}")
-					raise UserError(_("Failed to update encounter: %s") % str(e))
+			return {
+				'encounter_id': encounter.id,
+				'encounter_name': encounter.name,
+				'patient_ids': [(pet.id, pet.name) for pet in encounter.patient_ids],
+				'practitioner_id': [encounter.practitioner_id.id,
+									encounter.practitioner_id.name] if encounter.practitioner_id else False,
+				'room_id': [encounter.room_id.id, encounter.room_id.name] if encounter.room_id else False,
+				'success': True,
+			}
 
-		# Return encounter data for UI
-		return {
-			'id': encounter.id,
-			'name': encounter.name,
-			'encounter_date': encounter.encounter_date,
-			'state': encounter.state,
-			'partner_id': encounter.partner_id.id,
-			'ths_pet_owner_id': encounter.ths_pet_owner_id.id,
-			'patient_ids': encounter.patient_ids.ids,
-			'practitioner_id': encounter.practitioner_id.id if encounter.practitioner_id else False,
-			'room_id': encounter.room_id.id if encounter.room_id else False,
-		}
+		except Exception as e:
+			_logger.error(f"Error processing new order popup result: {e}")
+			raise UserError(_("Error processing order setup: %s") % str(e))
 
-	def _add_pending_item_to_order(self, pending_item):
-		"""
-		VET: Add a pending item to the current order as an order line
-		"""
-		if not pending_item.product_id:
-			return False
+	def _process_pet_park_checkins(self, pet_ids, encounter):
+		"""  Process park check-ins for selected pets and Link any active park sessions to the encounter  """
+		try:
+			# Find active park check-ins for these pets
+			park_checkins = self.env['park.checkin'].search([
+				('patient_ids', 'in', pet_ids),
+				('state', '=', 'checked_in'),
+				('encounter_id', '=', False)  # Not yet linked to encounter
+			])
 
-		# Create order line from pending item
-		line_vals = {
-			'order_id': self.id,
-			'product_id': pending_item.product_id.id,
-			'qty': pending_item.qty,
-			'price_unit': pending_item.price_unit,
-			'discount': pending_item.discount,
-			'ths_pending_item_id': pending_item.id,
-			'ths_patient_id': pending_item.patient_id.id if pending_item.patient_id else False,
-			'ths_provider_id': pending_item.practitioner_id.id if pending_item.practitioner_id else False,
-			'ths_commission_pct': pending_item.commission_pct,
-		}
+			if park_checkins:
+				# Link park check-ins to encounter
+				park_checkins.write({'encounter_id': encounter.id})
+				_logger.info(f"Linked {len(park_checkins)} park check-ins to encounter {encounter.id}")
 
-		line = self.env['pos.order.line'].create(line_vals)
+		except Exception as e:
+			_logger.error(f"Error processing pet park check-ins: {e}")
 
-		# Link pending item to order line
-		pending_item.write({
-			'pos_order_line_id': line.id,
-			'state': 'processed',
-			'processed_date': fields.Datetime.now(),
-			'processed_by': self.env.user.id,
-		})
-
-		_logger.info(f"Added pending item {pending_item.display_name} to order {self.name}")
-		return line
-
-	# def _find_or_create_daily_encounter_for_pos(self, partner_id, ui_order):
-	# 	"""Override for vet-specific encounter creation"""
-	# 	partner = self.env['res.partner'].browse(partner_id)
+	# def _add_pending_item_to_order(self, pending_item):
+	# 	"""   VET: Add a pending item to the current order as an order line  """
+	# 	if not pending_item.product_id:
+	# 		return False
 	#
-	# 	# Ensure we're working with pet owner for encounter
-	# 	if partner.ths_partner_type_id.name == 'Pet':
-	# 		partner_id = partner.ths_pet_owner_id.id
-	#
-	# 	return super()._find_or_create_daily_encounter_for_pos(partner_id, ui_order)
-
-	# === VET-SPECIFIC CONSTRAINTS ===
-
-	@api.constrains('partner_id', 'ths_pet_owner_id')
-	def _check_vet_billing_consistency(self):
-		"""VET: Ensure billing consistency in veterinary orders"""
-		for order in self:
-			if order.ths_pet_owner_id and order.partner_id:
-				if order.ths_pet_owner_id != order.partner_id:
-					_logger.warning(
-						f"VET Order {order.name}: Pet Owner ({order.ths_pet_owner_id.name}) "
-						f"differs from billing partner ({order.partner_id.name})"
-					)
-
-	# === VET-SPECIFIC ONCHANGE METHODS ===
-
-	@api.onchange('partner_id')
-	def _onchange_partner_sync_pet_owner(self):
-		"""VET: When partner changes, sync pet owner if it's a pet owner"""
-		if self.partner_id:
-			# If selected partner is a pet, get the owner
-			if self.partner_id.ths_partner_type_id.name == 'Pet':
-				self.ths_pet_owner_id = self.partner_id.ths_pet_owner_id
-				self.patient_ids = [(6, 0, [self.partner_id.id])]  # Set the pet as patient
-				# Update partner_id to be the owner (billing customer)
-				self.partner_id = self.partner_id.ths_pet_owner_id
-			elif self.partner_id.ths_partner_type_id.name == 'Pet Owner':
-				self.ths_pet_owner_id = self.partner_id
-			# Don't auto-set pets - let user choose via popup
-
-	@api.onchange('ths_pet_owner_id')
-	def _onchange_pet_owner_sync_partner(self):
-		"""VET: When pet owner changes, sync partner for billing"""
-		if self.ths_pet_owner_id:
-			self.partner_id = self.ths_pet_owner_id
-
-	# === VET-SPECIFIC ACTIONS ===
-
-	# def action_view_pet_medical_histories(self):
-	# 	"""View medical histories for all pets in this order"""
-	# 	self.ensure_one()
-	# 	pet_ids = self.lines.mapped('patient_ids').ids
-	# 	if not pet_ids:
-	# 		return {}
-	#
-	# 	return {
-	# 		'name': _('Pet Medical Histories'),
-	# 		'type': 'ir.actions.act_window',
-	# 		'res_model': 'ths.medical.base.encounter',
-	# 		'view_mode': 'list,form',
-	# 		'domain': [('patient_ids', 'in', pet_ids)],
-	# 		'context': {
-	# 			'search_default_groupby_patient': 1,
-	# 			'create': False,
-	# 		}
+	# 	# Create order line from pending item
+	# 	line_vals = {
+	# 		'order_id': self.id,
+	# 		'product_id': pending_item.product_id.id,
+	# 		'qty': pending_item.qty,
+	# 		'price_unit': pending_item.price_unit,
+	# 		'discount': pending_item.discount,
+	# 		'ths_pending_item_id': pending_item.id,
+	# 		'ths_patient_id': pending_item.patient_id.id if pending_item.patient_id else False,
+	# 		'ths_provider_id': pending_item.practitioner_id.id if pending_item.practitioner_id else False,
+	# 		'ths_commission_pct': pending_item.commission_pct,
 	# 	}
+	#
+	# 	line = self.env['pos.order.line'].create(line_vals)
+	#
+	# 	# Link pending item to order line
+	# 	pending_item.write({
+	# 		'pos_order_line_id': line.id,
+	# 		'state': 'processed',
+	# 		'processed_date': fields.Datetime.now(),
+	# 		'processed_by': self.env.user.id,
+	# 	})
+	#
+	# 	_logger.info(f"Added pending item {pending_item.display_name} to order {self.name}")
+	# 	return line
+
+	# === HELPER METHODS ===
+
+	def _get_pet_membership_status(self, pet_id):
+		"""Get membership status for a pet"""
+		try:
+			membership = self.env['vet.pet.membership'].search([
+				('patient_ids', 'in', [pet_id]),
+				('state', '=', 'running'),
+				('is_paid', '=', True)
+			], limit=1)
+
+			return 'active' if membership else 'inactive'
+
+		except Exception as e:
+			_logger.error(f"Error checking pet membership status: {e}")
+			return 'unknown'
+
+	def _validate_pet_owner_relationship(self):
+		"""Validate that pets belong to the designated owner"""
+		for order in self:
+			if order.ths_pet_owner_id and order.patient_ids:
+				for pet in order.patient_ids:
+					if pet.ths_pet_owner_id != order.ths_pet_owner_id:
+						raise ValidationError(
+							_("Pet '%s' does not belong to owner '%s'") %
+							(pet.name, order.ths_pet_owner_id.name)
+						)
+
+	@api.constrains('ths_pet_owner_id', 'patient_ids')
+	def _check_pet_owner_consistency(self):
+		"""Ensure pets belong to their designated owner"""
+		self._validate_pet_owner_relationship()
+
+	# === REPORTING METHODS ===
+
+	def get_vet_order_summary(self):
+		"""Get veterinary-specific order summary"""
+		self.ensure_one()
+
+		summary = {
+			'pet_owner': self.ths_pet_owner_id.name if self.ths_pet_owner_id else None,
+			'pets': [(p.id, p.name, p.ths_species_id.name if p.ths_species_id else None) for p in self.patient_ids],
+			'practitioner': self.practitioner_id.name if self.practitioner_id else None,
+			'room': self.room_id.name if self.room_id else None,
+			'encounter': self.encounter_id.name if self.encounter_id else None,
+		}
+
+		return summary
 
 	def action_view_pet_owner_orders(self):
 		"""View all orders for the pet owner"""
@@ -303,3 +340,7 @@ class PosOrder(models.Model):
 # TODO: Add multi-pet order handling
 # TODO: Add pet-specific service bundling
 # TODO: Add breed-based service recommendations
+# TODO: Add pet membership discount integration
+# TODO: Add park check-in billing integration
+# TODO: Add pet medical history integration
+# TODO: Add multi-pet service bundling logic

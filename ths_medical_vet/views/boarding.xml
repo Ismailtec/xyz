@@ -66,8 +66,6 @@
                 <group expand="0" string="Group By">
                     <filter string="Status" name="groupby_state" context="{'group_by': 'state'}"/>
                     <filter string="Species" name="groupby_species" context="{'group_by': 'allowed_species'}"/>
-                    <filter string="Company" name="groupby_company" context="{'group_by': 'company_id'}"
-                            groups="base.group_multi_company"/>
                 </group>
             </search>
         </field>
@@ -94,15 +92,14 @@
             <list string="Boarding Stays" decoration-info="state=='scheduled'" decoration-primary="state=='checked_in'"
                   decoration-success="state=='invoiced'" decoration-muted="state=='cancelled'">
                 <field name="name"/>
-                <field name="pet_id"/>
                 <field name="owner_id" optional="show"/>
+                <field name="pet_id"/>
                 <field name="cage_id"/>
                 <field name="check_in_datetime"/>
                 <field name="expected_check_out_datetime"/>
                 <field name="actual_check_out_datetime" optional="hide"/>
                 <field name="duration_days" optional="show"/>
                 <field name="state" widget="badge"/>
-                <field name="company_id" groups="base.group_multi_company" optional="hide"/>
             </list>
         </field>
     </record>
@@ -141,8 +138,8 @@
                     </div>
                     <group>
                         <group>
-                            <field name="pet_id" required="1" options="{'no_open': True, 'no_create': True}"/>
                             <field name="owner_id" required="1" options="{'no_open': True, 'no_create': True}"/>
+                            <field name="pet_id" required="1" options="{'no_open': True, 'no_create': True}"/>
                             <field name="cage_id" required="1" options="{'no_open': True, 'no_create': True}"/>
                             <field name="encounter_id" readonly="1" invisible="1"/>
                         </group>
@@ -176,9 +173,12 @@
                                            placeholder="Name, dosage, times..."/>
                                 </group>
                             </group>
+                            <group string="Internal Notes" name="internal_notes">
+                                <field name="notes"/>
+                            </group>
                         </page>
                         <page string="Billing" name="billing" groups="account.group_account_invoice">
-                            <field name="pending_pos_item_ids" readonly="1">
+                            <field name="pending_pos_item_ids" readonly="0">
                                 <list create="false" edit="false" delete="false">
                                     <field name="product_id"/>
                                     <field name="description"/>
@@ -189,9 +189,9 @@
                                 </list>
                             </field>
                         </page>
-                        <page string="Internal Notes" name="internal_notes">
-                            <field name="notes"/>
-                        </page>
+<!--                        <page string="Internal Notes" name="internal_notes">-->
+<!--                            <field name="notes"/>-->
+<!--                        </page>-->
                     </notebook>
                 </sheet>
                 <chatter/>
@@ -205,8 +205,8 @@
         <field name="arch" type="xml">
             <search string="Search Boarding Stays">
                 <field name="name" string="Reference"/>
-                <field name="pet_id"/>
                 <field name="owner_id"/>
+                <field name="pet_id"/>
                 <field name="cage_id"/>
                 <field name="check_in_datetime"/>
                 <field name="expected_check_out_datetime"/>

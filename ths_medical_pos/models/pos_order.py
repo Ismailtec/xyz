@@ -26,14 +26,15 @@ class PosOrder(models.Model):
 	practitioner_id = fields.Many2one(
 		'appointment.resource',
 		string='Service Provider',
-		domain="[('ths_resource_category', '=', 'practitioner')]",
+		domain="[('ths_resource_category', '=', 'practitioner'), ('active', '=', True)]",
+		# IMPROVED: Added active filter
 		help="Medical practitioner providing services"
 	)
 
 	room_id = fields.Many2one(
 		'appointment.resource',
 		string='Treatment Room',
-		domain="[('ths_resource_category', '=', 'location')]",
+		domain="[('ths_resource_category', '=', 'location'), ('active', '=', True)]",  # IMPROVED: Added active filter
 		help="Room where services are provided"
 	)
 
@@ -62,21 +63,21 @@ class PosOrder(models.Model):
 
 	# === BASE MEDICAL ENCOUNTER INTEGRATION ===
 
+	# @api.model
+	# def _order_fields(self, ui_order):
+	# 	"""Include medical fields from the UI order"""
+	# 	order_fields = super()._order_fields(ui_order)
+	#
+	# 	# Add medical fields if they exist in UI order
+	# 	medical_fields = ['patient_ids', 'practitioner_id', 'room_id', 'encounter_id']
+	# 	for field in medical_fields:
+	# 		if field in ui_order:
+	# 			order_fields[field] = ui_order[field]
+	#
+	# 	return order_fields
+
 	@api.model
-	def _order_fields(self, ui_order):
-		"""Include medical fields from the UI order"""
-		order_fields = super()._order_fields(ui_order)
-
-		# Add medical fields if they exist in UI order
-		medical_fields = ['patient_ids', 'practitioner_id', 'room_id', 'encounter_id']
-		for field in medical_fields:
-			if field in ui_order:
-				order_fields[field] = ui_order[field]
-
-		return order_fields
-
-	@api.model
-	def _process_order(self, order, draft, existing_order=None):
+	def _process_order(self, order, draft, existing_order=None):  # FIXED: Added existing_order parameter
 		"""
 		Override to link pending items and handle encounter creation/population
 		Enhanced with encounter management logic
@@ -107,7 +108,8 @@ class PosOrder(models.Model):
 		                       len(line) > 2 and 'uuid' in line[2]}
 		_logger.debug(f"UI Order Lines Data Keys (UUIDs): {list(ui_order_lines_data.keys())}")
 
-		order_id = super(PosOrder, self)._process_order(order, existing_order)
+		# Proper super() call with all parameters
+		order_id = super()._process_order(order, draft, existing_order)
 		_logger.info(f"Processing POS Order ID: {order_id} from UI Order: {order.get('name')}")
 
 		pos_order = self.browse(order_id)
@@ -220,132 +222,6 @@ class PosOrder(models.Model):
 
 		return order_id
 
-	# def _find_or_create_daily_encounter_for_pos(self, partner_id, ui_order):
-	# 	"""
-	# 	Find or create daily encounter for POS order
-	# 	Includes safeguard logic for encounter deletion
-	# 	"""
-	# 	encounter_date = fields.Date.today()
-	#
-	# 	# Search for existing encounter
-	# 	encounter = self.env['ths.medical.base.encounter'].search([
-	# 		('partner_id', '=', partner_id),
-	# 		('encounter_date', '=', encounter_date)
-	# 	], limit=1)
-	#
-	# 	if encounter:
-	# 		return encounter
-	#
-	# 	# Create new encounter and mark it as created by POS
-	# 	encounter_vals = {
-	# 		'partner_id': partner_id,
-	# 		'encounter_date': encounter_date,
-	# 		'state': 'in_progress'
-	# 	}
-	#
-	# 	encounter = self.env['ths.medical.base.encounter'].create(encounter_vals)
-	#
-	# 	# Mark in context that this encounter was created by this POS session
-	# 	self.env.context = dict(self.env.context, encounter_created_by_pos=encounter.id)
-	#
-	# 	return encounter
-
-	def _update_encounter_from_context(self, encounter, medical_context):
-		"""Update encounter with medical context from UI"""
-		if not medical_context:
-			return
-
-		encounter_vals = {}
-
-		# Update patient_ids if provided and not already set
-		if medical_context.get('patient_ids') and not encounter.patient_ids:
-			patient_ids = medical_context['patient_ids']
-			# Extract IDs from [id, name] format
-			if patient_ids and isinstance(patient_ids[0], list):
-				patient_ids = [p[0] for p in patient_ids if p and len(p) >= 1]
-			encounter_vals['patient_ids'] = [(6, 0, patient_ids)]
-
-		# Update practitioner if provided and not already set
-		if medical_context.get('practitioner_id') and not encounter.practitioner_id:
-			practitioner_id = medical_context['practitioner_id']
-			if isinstance(practitioner_id, list):
-				practitioner_id = practitioner_id[0]
-			encounter_vals['practitioner_id'] = practitioner_id
-
-		# Update room if provided and not already set
-		if medical_context.get('room_id') and not encounter.room_id:
-			room_id = medical_context['room_id']
-			if isinstance(room_id, list):
-				room_id = room_id[0]
-			encounter_vals['room_id'] = room_id
-
-		if encounter_vals:
-			encounter.write(encounter_vals)
-			_logger.info(f"Updated encounter {encounter.name} with medical context")
-
-	def _process_medical_line_data(self, pos_order, ui_order_lines_data):
-		"""Process medical data for order lines"""
-		if not ui_order_lines_data:
-			return
-
-		lines_to_update = {}
-
-		for line in pos_order.lines:
-			line_uuid = line.uuid
-			ui_line_data = ui_order_lines_data.get(line_uuid)
-
-			if not ui_line_data:
-				continue
-
-			# Extract medical data from UI line
-			line_updates = {}
-
-			if ui_line_data.get('ths_pending_item_id'):
-				line_updates['ths_pending_item_id'] = ui_line_data['ths_pending_item_id']
-
-			if ui_line_data.get('ths_patient_id'):
-				line_updates['ths_patient_id'] = ui_line_data['ths_patient_id']
-
-			if ui_line_data.get('ths_provider_id'):
-				line_updates['ths_provider_id'] = ui_line_data['ths_provider_id']
-
-			if ui_line_data.get('ths_commission_pct'):
-				line_updates['ths_commission_pct'] = ui_line_data['ths_commission_pct']
-
-			if line_updates:
-				lines_to_update[line.id] = line_updates
-
-		# Apply updates to lines
-		for line_id, updates in lines_to_update.items():
-			try:
-				line = self.env['pos.order.line'].browse(line_id)
-				line.write(updates)
-				_logger.debug(f"Updated medical data for line {line_id}")
-			except Exception as e:
-				_logger.error(f"Failed to update medical data for line {line_id}: {e}")
-
-		# Mark processed pending items
-		self._mark_pending_items_processed(pos_order, lines_to_update)
-
-	def _mark_pending_items_processed(self, pos_order, lines_to_update):
-		"""Mark pending items as processed when order lines are created"""
-		pending_item_ids = []
-
-		for line_updates in lines_to_update.values():
-			if line_updates.get('ths_pending_item_id'):
-				pending_item_ids.append(line_updates['ths_pending_item_id'])
-
-		if pending_item_ids:
-			pending_items = self.env['ths.pending.pos.item'].browse(pending_item_ids)
-			pending_items.write({
-				'state': 'processed',
-			})
-
-			# Link to order for traceability
-			pos_order.ths_processed_pending_item_ids = [(6, 0, pending_item_ids)]
-
-			_logger.info(f"Marked {len(pending_item_ids)} pending items as processed for order {pos_order.name}")
-
 	def unlink(self):
 		"""Enhanced unlink with encounter cleanup safeguards"""
 		encounters_to_check = []
@@ -391,8 +267,8 @@ class PosOrder(models.Model):
 		if appointments:
 			return False
 
-		# Check for any service lines in encounter
-		if encounter.service_line_ids:
+		# FIXED: Add defensive check for service_line_ids existence
+		if hasattr(encounter, 'service_line_ids') and encounter.service_line_ids:
 			return False
 
 		# Check if encounter has clinical data (SOAP notes, etc.)

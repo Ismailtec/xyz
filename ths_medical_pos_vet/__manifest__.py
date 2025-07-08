@@ -13,11 +13,11 @@ Extends the Techouse Medical POS Integration for veterinary specifics.
     'author': 'Techouse Solutions / Ismail Abdelkhalik',
     'website': 'https://www.techouse.ae',
     'depends': [
+		'ths_medical_vet',  # Core Vet data models and fields
         'ths_medical_pos',  # Core POS medical integration
-        'ths_medical_vet',  # Core Vet data models and fields
     ],
     'data': [
-        # 'security/ir.model.access.csv', # If specific permissions needed later
+        #'security/ir.model.access.csv',
     ],
     'assets': {
         'point_of_sale._assets_pos': [
@@ -28,24 +28,34 @@ Extends the Techouse Medical POS Integration for veterinary specifics.
             'calendar/static/src/views/calendar_form/**/*',
             # Patches should load after the original components they patch
 
-            # 1. Partner list screen vet extension
-            'ths_medical_pos_vet/static/src/screens/partner_list_screen/partner_list_screen.js',
-            'ths_medical_pos_vet/static/src/screens/partner_list_screen/partner_list_screen.xml',
+	        # 1. CONSOLIDATED POPUP (loads first - standalone component)
+	        'ths_medical_pos_vet/static/src/popups/pet_order_setup_popup.js',
+	        'ths_medical_pos_vet/static/src/popups/pet_order_setup_popup.xml',
 
-            # 2. Encounter selection popup vet extension
-            'ths_medical_pos_vet/static/src/popups/encounter_selection_popup.js',
-            'ths_medical_pos_vet/static/src/popups/encounter_selection_popup.xml',
+	        # 2. Pending items popup with vet-specific Pet/Owner split
+	        'ths_medical_pos_vet/static/src/popups/pending_items_list_popup.xml',
 
-            # 3. Pending items button vet extension
-            'ths_medical_pos_vet/static/src/components/pending_items_button/pending_items_button.js',
+	        # 3. Partner list screen vet extension
+	        'ths_medical_pos_vet/static/src/screens/partner_list_screen/partner_list_screen.js',
+	        'ths_medical_pos_vet/static/src/screens/partner_list_screen/partner_list_screen.xml',
 
-            # 4. Product screen vet extension
-            'ths_medical_pos_vet/static/src/screens/product_screen/order_widget_pets.xml',
-            'ths_medical_pos_vet/static/src/screens/product_screen/product_screen.xml',
-            'ths_medical_pos_vet/static/src/screens/product_screen/product_screen.js',
+	        # 4. Encounter selection popup vet extension
+	        'ths_medical_pos_vet/static/src/popups/encounter_selection_popup.js',
+	        'ths_medical_pos_vet/static/src/popups/encounter_selection_popup.xml',
 
-            # 5. Vet-specific styling (extends base style.css)
-            'ths_medical_pos_vet/static/src/css/style.css',
+	        # 5. Pending items button vet extension
+	        'ths_medical_pos_vet/static/src/components/pending_items_button/pending_items_button.js',
+
+	        # 6. Product screen vet extension
+	        'ths_medical_pos_vet/static/src/screens/product_screen/order_widget_pets.xml',
+	        'ths_medical_pos_vet/static/src/screens/product_screen/product_screen.xml',
+	        'ths_medical_pos_vet/static/src/screens/product_screen/product_screen.js',
+
+	        # 7. Data helpers for vet functionality
+	        'ths_medical_pos_vet/static/src/js/pos_data_helpers.js',
+
+	        # 8. Vet-specific styling (extends base style.css)
+	        'ths_medical_pos_vet/static/src/css/style.css',
         ],
     },
     'installable': True,

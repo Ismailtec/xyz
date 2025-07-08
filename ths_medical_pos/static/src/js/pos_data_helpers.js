@@ -19,7 +19,7 @@ patch(PosStore.prototype, {
         try {
             // Use the existing bus service from POS
             if (this.env.services.bus_service) {
-                const channel = `pos.session.${this.pos_session.id}`;
+                const channel = 'pos.sync.channel';
 
                 this.env.services.bus_service.addEventListener(channel, ({detail}) => {
                     if (detail.type === 'critical_update') {

@@ -1,7 +1,7 @@
 /** @odoo-module **/
 
-import { patch } from "@web/core/utils/patch";
-import { AppointmentBookingGanttRenderer } from "@appointment/views/gantt/gantt_renderer";
+import {patch} from "@web/core/utils/patch";
+import {AppointmentBookingGanttRenderer} from "@appointment/views/gantt/gantt_renderer";
 
 /**
  * Medical extension of the Appointment Booking Gantt Renderer
@@ -15,7 +15,7 @@ patch(AppointmentBookingGanttRenderer.prototype, {
      */
     enrichPill(pill) {
         const enrichedPill = super.enrichPill(pill);
-        const { record } = pill;
+        const {record} = pill;
 
         if (!record.appointment_type_id) {
             return enrichedPill;
@@ -84,7 +84,7 @@ patch(AppointmentBookingGanttRenderer.prototype, {
      */
     async getPopoverProps(pill) {
         const popoverProps = await super.getPopoverProps(pill);
-        const { record } = pill;
+        const {record} = pill;
 
         // Handle Many2many field for patients display
         // For human medical: patients are the customers/billing entities
@@ -190,12 +190,12 @@ patch(AppointmentBookingGanttRenderer.prototype, {
         } else {
             return `${patientNames.slice(0, 2).join(', ')} and ${patientNames.length - 2} more`;
         }
-    }
+    },
 
     /**
-    * Handle Pay button click in gantt popover
-    * Opens POS with pre-filled appointment data
-    */
+     * Handle Pay button click in gantt popover
+     * Opens POS with pre-filled appointment data
+     */
     handlePayButtonClick(appointmentData) {
         if (!this.env.services.pos) {
             console.warn('POS service not available');

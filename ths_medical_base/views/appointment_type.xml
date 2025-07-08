@@ -36,23 +36,9 @@
                 <attribute name="invisible">schedule_based_on != 'resources'</attribute>
                 <attribute name="domain">ths_resource_domain_char</attribute>
                 <attribute name="context">{'default_ths_resource_category': 'practitioner',
-                                           'tree_view_ref': 'ths_medical_base.view_appointment_resource_select_list_ths_medical'}</attribute>
+                                           'tree_view_ref': 'ths_medical_base.appointment_resource_view_list_inherit_ths_medical'}</attribute>
                 <attribute name="options">{'no_create': True, 'no_create_edit': True}</attribute>
             </xpath>
-        </field>
-    </record>
-
-    <record id="view_appointment_resource_select_list_ths_medical" model="ir.ui.view">
-        <field name="name">appointment.resource.select.list.ths.medical</field>
-        <field name="model">appointment.resource</field>
-        <field name="arch" type="xml">
-            <list>
-                <field name="name"/>
-                <field name="ths_resource_category"/>
-                <field name="employee_id" invisible="ths_resource_category != 'practitioner'"/>
-                <field name="ths_treatment_room_id" invisible="ths_resource_category != 'location'"/>
-                <field name="company_id" optional="hide"/>
-            </list>
         </field>
     </record>
 

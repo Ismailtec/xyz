@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+    <t t-name="ths_medical_pos_vet.PetOrderSetupPopup">
+        <Dialog title="props.title">
+            <div class="container-fluid">
+
+                <!-- Pet Owner Information -->
+                <div class="alert alert-info mb-3">
+                    <h6 class="mb-1">
+                        <i class="fa fa-user me-2"/>
+                        Pet Owner: <t t-esc="partnerName"/>
+                    </h6>
+                    <small>
+                        <i class="fa fa-info-circle me-1" t-if="isNewOrder"/>
+                        <i class="fa fa-stethoscope me-1" t-else=""/>
+                        <t t-esc="encounterInfo"/>
+                    </small>
+                </div>
+
+                <!-- Pet Selection -->
+                <div class="mb-4">
+                    <h6 class="mb-3">
+                        <i class="fa fa-paw me-2 text-primary"/>
+                        Select Pets:
+                    </h6>
+
+                    <t t-if="availablePets.length > 0">
+                        <div class="row g-3">
+                            <t t-foreach="availablePets" t-as="pet" t-key="pet.id">
+                                <div class="col-md-6">
+                                    <div class="card h-100"
+                                         t-att-class="isPetSelected(pet.id) ? 'border-primary bg-light' : ''">
+                                        <div class="card-body p-3">
+                                            <div class="form-check mb-0">
+                                                <input type="checkbox"
+                                                       class="form-check-input"
+                                                       t-att-id="'pet_' + pet.id"
+                                                       t-att-checked="isPetSelected(pet.id)"
+                                                       t-on-change="() => this.togglePetSelection(pet.id)"/>
+                                                <label class="form-check-label w-100" t-att-for="'pet_' + pet.id">
+                                                    <div class="d-flex justify-content-between align-items-start">
+                                                        <div>
+                                                            <strong t-esc="pet.name"/>
+                                                            <t t-if="getSpeciesName(pet)">
+                                                                <br/>
+                                                                <small class="text-muted">
+                                                                    <i class="fa fa-paw me-1"/>
+                                                                    <t t-esc="getSpeciesName(pet)"/>
+                                                                </small>
+                                                            </t>
+                                                        </div>
+                                                        <div class="text-end">
+                                                            <!-- Membership status badge -->
+                                                            <t t-if="getMembershipStatus(pet) === 'active'">
+                                                                <span class="badge bg-success">
+                                                                    <i class="fa fa-star me-1"/>Member
+                                                                </span>
+                                                            </t>
+                                                            <!-- Species color indicator -->
+                                                            <t t-if="getSpeciesColor(pet) > 0">
+                                                                <span class="badge"
+                                                                      t-att-class="'bg-secondary o_tag_color_' + getSpeciesColor(pet)"
+                                                                      style="margin-left: 4px;">
+                                                                    <t t-esc="getSpeciesName(pet)"/>
+                                                                </span>
+                                                            </t>
+                                                        </div>
+                                                    </div>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </t>
+                        </div>
+                    </t>
+
+                    <t t-else="">
+                        <div class="alert alert-warning">
+                            <i class="fa fa-exclamation-triangle me-2"/>
+                            No pets found for this owner.
+                        </div>
+                    </t>
+                </div>
+
+                <!-- Practitioner Selection -->
+                <div class="mb-4" t-if="availablePractitioners.length > 0">
+                    <h6 class="mb-3">
+                        <i class="fa fa-user-md me-2 text-success"/>
+                        Select Service Provider:
+                    </h6>
+
+                    <div class="row g-2">
+                        <t t-foreach="availablePractitioners" t-as="practitioner" t-key="practitioner.id">
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input type="radio"
+                                           name="practitioner"
+                                           class="form-check-input"
+                                           t-att-id="'practitioner_' + practitioner.id"
+                                           t-att-checked="state.selectedPractitioner === practitioner.id"
+                                           t-on-change="() => this.setPractitioner(practitioner.id)"/>
+                                    <label class="form-check-label" t-att-for="'practitioner_' + practitioner.id">
+                                        <t t-esc="practitioner.name"/>
+                                    </label>
+                                </div>
+                            </div>
+                        </t>
+                    </div>
+                </div>
+
+                <!-- Room Selection -->
+                <div class="mb-4" t-if="availableRooms.length > 0">
+                    <h6 class="mb-3">
+                        <i class="fa fa-home me-2 text-info"/>
+                        Select Treatment Room:
+                    </h6>
+
+                    <div class="row g-2">
+                        <t t-foreach="availableRooms" t-as="room" t-key="room.id">
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input type="radio"
+                                           name="room"
+                                           class="form-check-input"
+                                           t-att-id="'room_' + room.id"
+                                           t-att-checked="state.selectedRoom === room.id"
+                                           t-on-change="() => this.setRoom(room.id)"/>
+                                    <label class="form-check-label" t-att-for="'room_' + room.id">
+                                        <t t-esc="room.name"/>
+                                    </label>
+                                </div>
+                            </div>
+                        </t>
+                    </div>
+                </div>
+
+                <!-- Current Selections Summary -->
+                <div class="alert alert-light" t-if="state.selectedPets.size > 0">
+                    <h6 class="mb-2">
+                        <i class="fa fa-check-circle me-2 text-success"/>
+                        Summary:
+                    </h6>
+                    <ul class="mb-0">
+                        <li>
+                            <strong>Selected Pets:</strong>
+                            <t t-foreach="Array.from(state.selectedPets)" t-as="petId" t-key="petId">
+                                <t t-set="pet" t-value="availablePets.find(p => p.id === petId)"/>
+                                <span t-if="pet" t-esc="pet.name"/>
+                                <t t-if="!petId_last">, </t>
+                            </t>
+                        </li>
+                        <li t-if="state.selectedPractitioner">
+                            <strong>Service Provider:</strong> <t
+                                t-esc="getPractitionerName(state.selectedPractitioner)"/>
+                        </li>
+                        <li t-if="state.selectedRoom">
+                            <strong>Treatment Room:</strong> <t t-esc="getRoomName(state.selectedRoom)"/>
+                        </li>
+                    </ul>
+                </div>
+
+            </div>
+
+            <!-- Footer buttons -->
+            <t t-set-slot="footer">
+                <button class="btn btn-secondary me-2" t-on-click="cancel">
+                    Cancel
+                </button>
+                <button class="btn btn-outline-primary me-2"
+                        t-if="showSkipButton"
+                        t-on-click="skipSetup">
+                    Skip Setup
+                </button>
+                <button class="btn btn-primary"
+                        t-att-disabled="state.selectedPets.size === 0"
+                        t-on-click="confirmSelection">
+                    <i class="fa fa-check me-1"/>
+                    <t t-if="isNewOrder">Continue with Order</t>
+                    <t t-else="">Apply Changes</t>
+                </button>
+            </t>
+        </Dialog>
+    </t>
+
+</templates>

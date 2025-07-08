@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from datetime import timedelta
 
-from odoo import models, fields, api, _, Command
+from odoo import models, fields, api, _
 from odoo.exceptions import ValidationError
 
 import logging
@@ -28,6 +28,7 @@ class ParkCheckin(models.Model):
 	partner_id = fields.Many2one(
 		'res.partner',
 		string='Pet Owner',
+		context={'is_pet': False},
 		required=True,
 		index=True,
 		domain="[('ths_partner_type_id.name', '=', 'Pet Owner')]",
@@ -40,6 +41,7 @@ class ParkCheckin(models.Model):
 		'park_checkin_pet_rel',
 		'checkin_id',
 		'pet_id',
+		context={'is_pet': True},
 		string='Pets',
 		domain="[('ths_partner_type_id.name', '=', 'Pet'), ('ths_pet_owner_id', '=', partner_id)]",
 		tracking=True,
@@ -172,21 +174,18 @@ class ParkCheckin(models.Model):
 
 		checkins = super().create(vals_list)
 
-		# Link to daily encounters
 		for checkin in checkins:
 			if not checkin.encounter_id:
 				checkin_date = checkin.checkin_time.date()
+
 				encounter = self.env['ths.medical.base.encounter']._find_or_create_daily_encounter(
-					checkin.partner_id.id, checkin_date
+					partner_id=checkin.partner_id.id,
+					patient_ids=checkin.patient_ids.ids,
+					encounter_date=checkin_date,
+					practitioner_id=False,
+					room_id=False
 				)
 				checkin.encounter_id = encounter.id
-
-				# Add pets to encounter
-				if checkin.patient_ids:
-					existing_patients = encounter.patient_ids
-					new_patients = checkin.patient_ids - existing_patients
-					if new_patients:
-						encounter.patient_ids = [Command.link(p.id) for p in new_patients]
 
 				checkin.message_post(body=_("Park visit linked to encounter %s", encounter.name))
 

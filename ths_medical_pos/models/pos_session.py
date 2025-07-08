@@ -10,30 +10,6 @@ _logger = logging.getLogger(__name__)
 class PosSession(models.Model):
 	_inherit = 'pos.session'
 
-	# @api.model
-	# def _load_pos_data_models(self, config_id):
-	# 	"""Add base medical models to POS"""
-	# 	original_models = super()._load_pos_data_models(config_id)
-	#
-	# 	medical_models = [
-	# 		'ths.partner.type',
-	# 		'res.partner',
-	# 		'ths.medical.base.encounter',
-	# 		'ths.treatment.room',
-	# 		'appointment.resource',
-	# 		'ths.pending.pos.item',
-	# 		'calendar.event',
-	# 	]
-	#
-	# 	existing_models = [entry['model'] for entry in original_models if 'model' in entry]
-	#
-	# 	for model_name in medical_models:
-	# 		if model_name not in existing_models:
-	# 			original_models.append({'model': model_name})
-	#
-	# 	print(f"POS Models to load (including medical): {original_models}")
-	# 	return original_models
-
 	# Define data tiers for synchronization
 	CRITICAL_MODELS = ['res.partner', 'ths.medical.base.encounter', 'ths.pending.pos.item', 'calendar.event']
 	PERIODIC_MODELS = ['ths.treatment.room', 'appointment.resource']
@@ -41,44 +17,34 @@ class PosSession(models.Model):
 
 	@api.model
 	def _load_pos_data_models(self, config_id):
-		"""Add base medical models to POS with tier classification"""
-		original_models = super()._load_pos_data_models(config_id)
+		"""Add medical models to POS loading list with sync type tags"""
+		original = super()._load_pos_data_models(config_id)
 
-		# Define data tiers for synchronization
-		critical_models = ['res.partner', 'ths.medical.base.encounter', 'ths.pending.pos.item', 'calendar.event']
-		periodic_models = ['ths.treatment.room', 'appointment.resource']
-		static_models = ['ths.partner.type']
+		# Normalize all to dicts
+		model_dicts = [
+			entry if isinstance(entry, dict) else {'model': entry}
+			for entry in original
+		]
+		existing_model_names = {entry['model'] for entry in model_dicts}
 
-		# Combine all medical models
-		all_medical_models = critical_models + periodic_models + static_models
-
-		existing_models = [entry['model'] for entry in original_models if 'model' in entry]
-
-		for model_name in all_medical_models:
-			if model_name not in existing_models:
-				# Check if model exists before adding
+		medical_models = self.CRITICAL_MODELS + self.PERIODIC_MODELS + self.STATIC_MODELS
+		for model_name in medical_models:
+			if model_name not in existing_model_names:
 				try:
-					model_obj = self.env[model_name]
-					if hasattr(model_obj, '_load_pos_data'):
-						model_entry = {'model': model_name}
-
-						# Add tier classification for frontend
-						if model_name in critical_models:
-							model_entry['sync_type'] = 'bus'
-						elif model_name in periodic_models:
-							model_entry['sync_type'] = 'periodic'
-						else:
-							model_entry['sync_type'] = 'static'
-
-						original_models.append(model_entry)
-						print(f"✅ POS: Added model {model_name}")
+					model = self.env[model_name]
+					if hasattr(model, '_load_pos_data'):
+						sync_type = (
+							'bus' if model_name in self.CRITICAL_MODELS else
+							'periodic' if model_name in self.PERIODIC_MODELS else
+							'static'
+						)
+						model_dicts.append({'model': model_name, 'sync_type': sync_type})
 					else:
-						print(f"❌ POS: Model {model_name} has no _load_pos_data method")
+						_logger.warning(f"POS: Model {model_name} has no _load_pos_data method")
 				except Exception as e:
-					print(f"❌ POS: Error with model {model_name}: {e}")
+					_logger.error(f"POS: Error adding model {model_name}: {e}")
 
-		print(f"POS Models to load (base medical): {[m['model'] for m in original_models if 'model' in m]}")
-		return original_models
+		return model_dicts
 
 	@api.model
 	def sync_periodic_data(self):
@@ -109,9 +75,10 @@ class PosSession(models.Model):
 			# Send batch update via bus to all active POS sessions
 			for session in sessions:
 				# Use proper Odoo 18 bus channel format
-				channel = (self._cr.dbname, 'pos.session', session.id)
+				channel = 'pos.sync.channel' #(self._cr.dbname, 'pos.session', session.id)
 				self.env['bus.bus']._sendone(
 					channel,
+					'batch_sync',
 					{'type': 'batch_sync', 'data': sync_data}
 				)
 

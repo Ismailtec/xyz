@@ -32,7 +32,7 @@ class MedicalHistorySummary(models.Model):
                     SELECT
                         rel.patient_id AS pet_id,
                         COUNT(*) AS encounter_count,
-                        MAX(e.date_start) AS last_visit_date
+                        MAX(e.encounter_date) AS last_visit_date
                     FROM ths_medical_base_encounter e
                     JOIN ths_medical_encounter_patient_rel rel ON e.id = rel.encounter_id
                     WHERE e.state != 'cancelled'

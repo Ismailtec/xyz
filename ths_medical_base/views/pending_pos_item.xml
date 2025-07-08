@@ -8,7 +8,6 @@
             <list string="Pending POS Items" create="false" decoration-muted="state=='cancelled'"
                   decoration-success="state=='processed'" decoration-info="state=='pending'">
                 <field name="encounter_id" optional="show"/>
-                <field name="appointment_id" optional="show"/>
                 <field name="partner_id" string="Patient (Customer)"/>
                 <field name="patient_ids" string="Patients" widget="many2many_tags"/>
                 <field name="product_id"/>
@@ -34,7 +33,7 @@
         <field name="name">ths.pending.pos.item.form</field>
         <field name="model">ths.pending.pos.item</field>
         <field name="arch" type="xml">
-            <form string="Pending POS Item" create="false" edit="false" delete="false">
+            <form string="Pending POS Item" create="true" edit="true" delete="true">
                 <header>
                     <button name="action_cancel" string="Cancel Item" type="object" invisible="state != 'pending'"
                             groups="account.group_account_invoice"/>
@@ -45,35 +44,34 @@
                 <sheet>
                     <group>
                         <group>
-                            <field name="encounter_id" readonly="1"/>
-                            <field name="appointment_id" readonly="1"/>
+                            <field name="encounter_id" readonly="0"/>
                             <field name="partner_id"
-                                   readonly="1"
+                                   readonly="0"
                                    string="Patient (Customer)"
                                    help="Patient receiving treatment and responsible for payment"/>
                             <field name="patient_ids"
-                                   readonly="1"
+                                   readonly="0"
                                    string="Patients"
                                    widget="many2many_tags"
                                    help="Patient who received the service (same as customer in human medical)"/>
                         </group>
                         <group>
-                            <field name="product_id" readonly="1"/>
-                            <field name="qty" readonly="1"/>
-                            <field name="price_unit" readonly="1"/>
-                            <field name="discount" readonly="1"/>
+                            <field name="product_id" readonly="0"/>
+                            <field name="qty" readonly="0"/>
+                            <field name="price_unit" readonly="0"/>
+                            <field name="discount" readonly="0"/>
                             <field name="sub_total" readonly="1" widget="monetary"/>
                         </group>
                         <group>
-                            <field name="practitioner_id" readonly="1"/>
-                            <field name="room_id" readonly="1"/>
-                            <field name="commission_pct" readonly="1"/>
+                            <field name="practitioner_id" readonly="0"/>
+                            <field name="room_id" readonly="0"/>
+                            <field name="commission_pct" readonly="0"/>
                             <field name="pos_order_line_id" readonly="1"/>
                             <field name="company_id" groups="base.group_multi_company" readonly="1"/>
                         </group>
                     </group>
                     <group string="Notes">
-                        <field name="notes" nolabel="1" readonly="1"/>
+                        <field name="notes" nolabel="1" readonly="0"/>
                     </group>
                 </sheet>
             </form>
@@ -86,7 +84,6 @@
         <field name="arch" type="xml">
             <search string="Search Pending POS Items">
                 <field name="encounter_id"/>
-                <field name="appointment_id"/>
                 <field name="partner_id" string="Patient (Customer)"/>
                 <field name="patient_ids" string="Patients"/>
                 <field name="product_id"/>

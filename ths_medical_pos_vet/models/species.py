@@ -4,7 +4,7 @@ from odoo import models, api
 
 
 class Species(models.Model):
-	_name = 'ths.species'
+	_inherit = 'ths.species'
 
 	@api.model
 	def _load_pos_data_domain(self, data):

@@ -19,6 +19,7 @@ class CalendarEvent(models.Model):
         'patient_id',
         string='Pets',  # Relabeled for veterinary context
         domain="[('ths_partner_type_id.name', '=', 'Pet')]",  # Filter for pets only
+        context={'is_pet': True},
         store=True,
         index=True,
         readonly=False,
@@ -31,6 +32,7 @@ class CalendarEvent(models.Model):
         'res.partner',
         string='Pet Owner',
         domain="[('ths_partner_type_id.name','=','Pet Owner')]",
+        context={'is_pet': False},
         store=True,
         readonly=False,
         index=True,
@@ -180,7 +182,7 @@ class CalendarEvent(models.Model):
         if vals.get("ths_is_walk_in") and not vals.get("ths_patient_ids") and not self.ths_patient_ids:
             vals = self._handle_walkin_partner(vals.copy())
 
-        if hasattr(self, 'ths_pet_owner_id'):  # Only log for vet records
+        if hasattr(self, 'ths_pet_owner_id'):
             _logger.warning(f"VET write() called with vals: {vals.keys()}")
             if 'partner_ids' in vals:
                 _logger.warning(f"VET partner_ids being changed to: {vals['partner_ids']}")
@@ -188,50 +190,17 @@ class CalendarEvent(models.Model):
                 _logger.warning(
                     f"VET partner_ids NOT in vals - current partner_ids: {self.partner_ids.ids if self.partner_ids else 'None'}")
 
-        # if 'ths_pet_owner_id' not in vals:
-        #     # Ensure pet owner is set if pets are selected
-        #     if self.ths_patient_ids and not self.ths_pet_owner_id:
-        #         # Auto-set owner based on pets
-        #         pet_owners = self.ths_patient_ids.mapped('ths_pet_owner_id')
-        #         if len(set(pet_owners.ids)) == 1:
-        #             vals['ths_pet_owner_id'] = pet_owners[0].id
-        #         else:
-        #             raise UserError(_("Multiple pet owners found. Please select a Pet Owner."))
-
         return super().write(vals)
 
-    # --- SIMPLIFIED DEFAULT_GET ---
+    # ---  DEFAULT_GET ---
     @api.model
     def default_get(self, fields_list):
-        """Simplified default_get - let onchange methods handle the relationships"""
+        """ Let onchange methods handle the relationships"""
         res = super().default_get(fields_list)
 
         # Set default medical status
         if res.get('appointment_type_id') and 'appointment_status' in fields_list and not res.get('appointment_status'):
             res['appointment_status'] = 'draft'
-
-        # Handle context with specific vet partners
-        # context_partner_ids = self.env.context.get('default_partner_ids') or []
-        # if context_partner_ids:
-        #     partners = self.env['res.partner'].browse(context_partner_ids)
-        #
-        #     # Separate pets and owners
-        #     pets = partners.filtered(lambda p: p.ths_partner_type_id.name == 'Pet')
-        #     owners = partners.filtered(lambda p: p.ths_partner_type_id.name == 'Pet Owner')
-
-        # if pets and 'ths_patient_ids' in fields_list:
-        #     res['ths_patient_ids'] = [Command.set(pets.ids)]
-        #
-        #     # Auto-set owner if pets have common owner
-        #     pet_owners = pets.mapped('ths_pet_owner_id')
-        #     if len(set(pet_owners.ids)) == 1:
-        #         owner = pet_owners[0]
-        #         if 'ths_pet_owner_id' in fields_list:
-        #             res['ths_pet_owner_id'] = owner.id
-        #
-        # elif owners and 'ths_pet_owner_id' in fields_list:
-        #     # Owner selected directly
-        #     res['ths_pet_owner_id'] = owners[0].id
 
         return res
 
@@ -242,33 +211,25 @@ class CalendarEvent(models.Model):
         """Override for vet-specific encounter creation"""
         self.ensure_one()
 
-        # Get pet owner (billing partner) for encounter lookup
         owner = self.ths_pet_owner_id
-        pets = self.ths_patient_ids
+        pets = self.ths_patient_ids  # These are pets for the vet encounter
 
         if not owner:
-            raise UserError(_("Cannot create encounter: Pet Owner must be set."))
+            raise UserError("Cannot create encounter: Pet Owner must be set.")
         if not pets:
-            raise UserError(_("Cannot create encounter: Pets must be selected."))
+            raise UserError("Cannot create encounter: Pets must be selected.")
 
-        # Find or create daily encounter using pet owner
         encounter_date = self.start.date() if self.start else fields.Date.context_today(self)
+
         encounter = self.env['ths.medical.base.encounter']._find_or_create_daily_encounter(
-            owner.id, encounter_date
+            partner_id=owner.id,
+            patient_ids=pets.ids,
+            encounter_date=encounter_date,
+            practitioner_id=self.ths_practitioner_id,
+            room_id=self.ths_room_id
         )
 
-        # Link appointment to encounter
         self.encounter_id = encounter.id
-
-        # Ensure vet-specific fields are set
-        if not encounter.ths_pet_owner_id:
-            encounter.ths_pet_owner_id = owner.id
-
-        # Add pets to encounter if not already present
-        existing_patients = encounter.patient_ids
-        new_patients = pets - existing_patients
-        if new_patients:
-            encounter.patient_ids = [Command.link(p.id) for p in new_patients]
 
         return encounter
 

@@ -4,7 +4,7 @@ import {patch} from "@web/core/utils/patch";
 import {PartnerList} from "@point_of_sale/app/screens/partner_list/partner_list";
 import {_t} from "@web/core/l10n/translation";
 import {EncounterSelectionPopup} from "@ths_medical_pos/popups/encounter_selection_popup";
-import {NewOrderSelectionPopup} from "@ths_medical_pos_vet/popups/new_order_selection_popup";
+import {PetOrderSetupPopup} from "@ths_medical_pos_vet/popups/pet_order_setup_popup";
 
 patch(PartnerList.prototype, {
 
@@ -46,7 +46,7 @@ patch(PartnerList.prototype, {
                 const popupData = await this.orm.call("pos.order", "_create_new_order_popup", [partner.id]);
                 if (!popupData) return await super.clickPartner(partner);
 
-                const result = await this.dialog.add(NewOrderSelectionPopup, {
+                const result = await this.dialog.add(PetOrderSetupPopup, {
                     title: _t("Set up Order for %s", partner.name),
                     partner_id: popupData.partner_id,
                     partner_name: popupData.partner_name,
@@ -57,9 +57,9 @@ patch(PartnerList.prototype, {
                     selected_pets: popupData.selected_pets || [],
                     selected_practitioner: popupData.selected_practitioner || false,
                     selected_room: popupData.selected_room || false,
+                    isNewOrder: true, // NEW: Flag for consolidated popup
                 });
 
-                // FIX B: Add await for async function call
                 await super.clickPartner(partner);
 
                 if (result.confirmed && !result.skipped) {
@@ -132,7 +132,6 @@ patch(PartnerList.prototype, {
             if (result.confirmed && result.payload?.partner) {
                 const partner = result.payload.partner;
                 this.pos.get_order().set_partner(partner);
-                // FIX B: Add await for async function call
                 await this.clickPartner(partner);
 
                 const order = this.pos.get_order();
@@ -154,4 +153,4 @@ patch(PartnerList.prototype, {
     },
 });
 
-console.log("VET: PartnerList extended with encounter and vet logic");
+console.log("VET: PartnerList extended with consolidated pet order setup popup");

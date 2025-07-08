@@ -11,42 +11,39 @@ class PosAwareModel(models.AbstractModel):
 	_description = 'Abstract model for POS data synchronization'
 
 	def _trigger_pos_sync(self, operation='update'):
-		"""Trigger POS sync for critical models only"""
-		# Import here to avoid circular imports
+		"""Trigger POS sync for partner updates"""
+		# IMPORTANT: Add this guard. If self is empty, there are no records to sync.
+		if not self:
+			return
+
 		PosSession = self.env['pos.session']
 
 		if self._name in PosSession.CRITICAL_MODELS:
 			try:
-				# Get all active POS sessions
 				active_sessions = PosSession.search([('state', '=', 'opened')])
 
-				# Prepare sync data using the model's own _load_pos_data method
-				if hasattr(self, '_load_pos_data'):
-					sync_data = self._load_pos_data({})
-					# Filter to only the current records
-					current_data = [r for r in sync_data.get('data', []) if r.get('id') in self.ids]
+				current_data = []
+				if operation != 'delete':
+					fields_to_sync = self._load_pos_data_fields(False)
+					current_data = self.read(fields_to_sync)
 				else:
-					# Fallback - use basic read
-					current_data = self.read()
+					current_data = [{'id': record_id} for record_id in self.ids]
 
-				# Send notification to all active sessions
 				for session in active_sessions:
-					channel = (self._cr.dbname, 'pos.session', session.id)
+					channel = 'pos.sync.channel'  # (self._cr.dbname, 'pos.session', session.id)
 					self.env['bus.bus']._sendone(
 						channel,
+						'critical_update',
 						{
 							'type': 'critical_update',
 							'model': self._name,
 							'operation': operation,
-							'records': current_data if operation != 'delete' else [{'id': record_id} for record_id in
-							                                                       self.ids]
+							'records': current_data
 						}
 					)
-
-				_logger.info(f"POS sync triggered for {self._name}: {operation} on {len(self)} records")
-
+					_logger.info(f"POS Sync - Data sent to bus for res.partner (action: {operation}, IDs: {self.ids})")
 			except Exception as e:
-				_logger.error(f"Error triggering POS sync for {self._name}: {e}")
+				_logger.error(f"Error triggering POS sync for {self._name} (IDs: {self.ids}): {e}")
 
 	@api.model_create_multi
 	def create(self, vals_list):

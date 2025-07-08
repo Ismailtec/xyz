@@ -4,7 +4,7 @@ import {patch} from "@web/core/utils/patch";
 import {ProductScreen} from "@point_of_sale/app/screens/product_screen/product_screen";
 import {_t} from "@web/core/l10n/translation";
 import {makeAwaitable} from "@point_of_sale/app/store/make_awaitable_dialog";
-import {PetSelectionPopup} from "@ths_medical_pos_vet/popups/pet_selection_popup";
+import {PetOrderSetupPopup} from "@ths_medical_pos_vet/popups/pet_order_setup_popup";
 
 /**
  * Veterinary-specific enhancement of ProductScreen for pet selection
@@ -13,12 +13,12 @@ patch(ProductScreen.prototype, {
 
     setup() {
         super.setup();
-        // FIX A: Store reference more safely for PyCharm
+        // Store reference more safely for PyCharm
         this.originalOnPartnerChanged = this._onPartnerChanged || null;
     },
 
     async _onPartnerChanged(partner) {
-        // FIX A: Check method existence more safely
+        // Call parent method if it exists
         if (typeof super._onPartnerChanged === 'function') {
             await super._onPartnerChanged(partner);
         }
@@ -69,11 +69,12 @@ patch(ProductScreen.prototype, {
             // Check for existing encounter
             const encounter = await this.loadDailyEncounter(partner.id);
 
-            const result = await makeAwaitable(this.dialog, PetSelectionPopup, {
+            const result = await makeAwaitable(this.dialog, PetOrderSetupPopup, {
                 title: _t("Select Pets and Service Details"),
                 partner: partner,
                 encounter: encounter,
                 preSelectedPets: preSelectedPets,
+                isNewOrder: false, // NEW: Flag for consolidated popup (existing order modification)
             });
 
             if (result.confirmed) {
@@ -190,4 +191,4 @@ patch(ProductScreen.prototype, {
     }
 });
 
-console.log("Loaded vet product screen JS - compatible with Odoo 18 OWL 3:", "product_screen.js");
+console.log("VET: ProductScreen enhanced with consolidated pet order setup popup");

@@ -11,8 +11,14 @@
     <t t-name="point_of_sale.PartnerLine" t-inherit="point_of_sale.PartnerLine" t-inherit-mode="extension">
     <xpath expr="//tr[@class='partner-line partner-info']/td[1]" position="after">
       <td>
-        <t t-if="props.partner.ths_partner_type_id?.[1]">
-          <span class="text-primary fw-bold"><t t-esc="props.partner.ths_partner_type_id[1]"/></span>
+        <!-- Updated to handle [id, name] format from preloaded data -->
+          <t t-if="props.partner.ths_partner_type_id">
+          <t t-if="Array.isArray(props.partner.ths_partner_type_id)">
+            <span class="text-primary fw-bold"><t t-esc="props.partner.ths_partner_type_id[1]"/></span>
+          </t>
+              <t t-else="">
+            <span class="text-primary fw-bold"><t t-esc="props.partner.ths_partner_type_id.name || props.partner.ths_partner_type_id"/></span>
+          </t>
         </t>
           <t t-else="">
           <span class="text-muted">-</span>

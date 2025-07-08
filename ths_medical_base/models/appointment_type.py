@@ -73,11 +73,6 @@ class AppointmentType(models.Model):
             record.ths_practitioner_ids = [(6, 0, practitioners.ids)]
             record.ths_location_ids = [(6, 0, locations.ids)]
 
-            _logger.debug(
-                "AptType %s: Filtered %d practitioners, %d locations from resource_ids.",
-                record.id, len(practitioners), len(locations)
-            )
-
     @api.depends('department_ids', 'schedule_based_on', 'resource_ids')
     def _compute_resource_domain(self):
         """Computes the domain for the 'resource_ids' field selection"""

@@ -15,6 +15,7 @@ class VetPetMembership(models.Model):
 
 	partner_id = fields.Many2one(
 		'res.partner',
+		context={'is_pet': False},
 		string='Pet Owner',
 		required=True,
 		domain="[('ths_partner_type_id.name', '=', 'Pet Owner')]",
@@ -26,7 +27,9 @@ class VetPetMembership(models.Model):
 		'vet_membership_pet_rel',
 		'membership_id',
 		'pet_id',
+		context={'is_pet': True},
 		string='Pets',
+		store=True,
 		domain="[('ths_partner_type_id.name', '=', 'Pet'), ('ths_pet_owner_id', '=', partner_id)]",
 		tracking=True
 	)

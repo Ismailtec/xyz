@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-
-    <!-- Enhanced Pet/Pet Owner Form View -->
     <record id="view_partner_form_inherit_ths_vet" model="ir.ui.view">
         <field name="name">res.partner.form.inherit.ths.vet</field>
         <field name="model">res.partner</field>
@@ -25,10 +23,20 @@
                     <field name="ths_pet_count" widget="statinfo" string="Pets"/>
                 </button>
 
+                <!-- Pets Membership -->
                 <button name="action_view_pet_memberships" type="object"
                         class="oe_stat_button" icon="fa-star"
                         invisible="not is_pet">
                     <field name="pet_membership_count" widget="statinfo" string="Memberships"/>
+                </button>
+
+                <!-- Pet Owner for Pets -->
+                <button class="oe_stat_button"
+                        type="object"
+                        name="action_view_partner_pet_owners"
+                        icon="fa-user"
+                        string="Pet Owner"
+                        invisible="not is_pet">
                 </button>
 
                 <!-- Medical History for Pets -->
@@ -49,10 +57,16 @@
                         name="action_view_appointments"
                         icon="fa-calendar"
                         invisible="not is_pet and not is_pet_owner">
-                    <div class="o_field_widget o_stat_info">
-                        <span class="o_stat_text">Appointments</span>
-                    </div>
+                    <field name="appointment_count" widget="statinfo" string="Appointments"/>
                 </button>
+            </xpath>
+
+            <xpath expr="//button[@name='open_customer_statement']" position="attributes">
+                <attribute name="invisible">not has_moves and is_pet</attribute>
+            </xpath>
+
+            <xpath expr="//button[@name='schedule_meeting']" position="attributes">
+                <attribute name="invisible">is_pet or is_pet_owner</attribute>
             </xpath>
 
             <!-- Pet Owner Selection (Prominent for Pets) -->
@@ -174,7 +188,8 @@
                     </div>
 
                     <field name="ths_pet_ids"
-                           context="{'default_ths_pet_owner_id': id, 'default_parent_id': id, 'show_pet_owner': False}">
+                           context="{'default_ths_pet_owner_id': id,'default_ths_partner_type_id': %(ths_medical_vet.partner_type_pet)d,
+                                     'default_is_pet': True, 'default_is_pet_owner': False, 'default_parent_id': id, 'show_pet_owner': True}">
                         <list editable="bottom" create="true" delete="true">
                             <field name="name" string="Pet Name" required="1"/>
                             <field name="ths_species_id" required="1"/>
@@ -184,7 +199,12 @@
                             <field name="is_neutered_spayed" widget="boolean_toggle"/>
                             <field name="ths_microchip"/>
                             <field name="ths_deceased" widget="boolean_toggle"/>
-                            <field name="ths_deceased_date" invisible="1"/>
+                            <field name="ths_deceased_date" column_invisible="1"/>
+                            <field name="ths_partner_type_id"
+                                   domain="[('name', '=', 'Pet')]"
+                                   column_invisible="1"/>
+                            <field name="ths_pet_owner_id" column_invisible="1"/>
+                            <field name="parent_id" column_invisible="1"/>
                             <button name="action_view_medical_history"
                                     type="object"
                                     string="History"
@@ -268,28 +288,28 @@
                 <field name="ths_pet_owner_id"
                        optional="hide"
                        string="Pet Owner"
-                       invisible="not is_pet"/>
+                       column_invisible="not is_pet"/>
                 <field name="ths_species_id"
                        optional="show"
                        string="Species"
-                       invisible="not is_pet"/>
+                       column_invisible="not is_pet"/>
                 <field name="ths_breed_id"
                        optional="hide"
                        string="Breed"
-                       invisible="not is_pet"/>
+                       column_invisible="not is_pet"/>
                 <field name="ths_microchip"
                        optional="hide"
                        string="Microchip"
-                       invisible="not is_pet"/>
+                       column_invisible="not is_pet"/>
                 <field name="ths_pet_count"
                        optional="show"
                        string="# Pets"
-                       invisible="not is_pet_owner"/>
+                       column_invisible="is_pet"/>
                 <field name="ths_deceased"
                        optional="hide"
                        widget="boolean_toggle"
                        string="Deceased"
-                       invisible="not is_pet"/>
+                       column_invisible="not is_pet"/>
             </xpath>
 
             <!-- Add color coding -->
@@ -450,6 +470,7 @@
         <field name="view_mode">kanban,list,form</field>
         <field name="domain">[('ths_partner_type_id.name', '=', 'Pet')]</field>
         <field name="context">{'search_default_filter_active_pets': 1, 'default_ths_partner_type_id': 'Pet',
+                               'is_pet': True,
                                'show_pet_owner': True}</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
@@ -457,24 +478,6 @@
             </p>
             <p>
                 Create the first pet record to start managing veterinary care.
-            </p>
-        </field>
-    </record>
-
-    <!-- Pet Owner-specific Action -->
-    <record id="action_view_partner_pet_owners" model="ir.actions.act_window">
-        <field name="name">Pet Owners</field>
-        <field name="res_model">res.partner</field>
-        <field name="view_mode">kanban,list,form</field>
-        <field name="domain">[('ths_partner_type_id.name', '=', 'Pet Owner')]</field>
-        <field name="context">{'search_default_filter_pet_owners': 1,
-                               'default_ths_partner_type_id': 'Pet Owner'}</field>
-        <field name="help" type="html">
-            <p class="o_view_nocontent_smiling_face">
-                No pet owners found!
-            </p>
-            <p>
-                Create the first pet owner record to start managing veterinary customers.
             </p>
         </field>
     </record>

@@ -2,8 +2,8 @@
 <templates id="template" xml:space="preserve">
 
     <!--
-    Veterinary-specific enhancement of OrderWidget template for Odoo 18
-    Shows membership status using NEW vet.pet.membership model
+    Veterinary-specific enhancement of ProductScreen template for Odoo 18
+    No changes needed to ProductScreen itself - just inheriting to ensure proper loading order
     -->
     <t t-inherit="point_of_sale.ProductScreen" t-inherit-mode="extension">
         <!-- This template inheritance is intentionally empty as no ProductScreen changes needed -->
@@ -12,6 +12,7 @@
     <!--
     Veterinary-specific enhancement of OrderWidget template for Odoo 18
     Updated to work with NEW membership model (vet.pet.membership)
+    Updated for new data structure with [id, name] format
     -->
     <t t-inherit="point_of_sale.OrderWidget" t-inherit-mode="extension">
 
@@ -20,10 +21,14 @@
         -->
         <xpath expr="//div[hasclass('order-summary')]" position="after">
             <!-- Only show membership info if partner exists and we can check membership -->
-            <t t-if="order and order.get_partner() and order.get_partner().is_pet_owner">
+            <t t-if="order and order.get_partner()">
                 <t t-set="partner" t-value="order.get_partner()"/>
 
-                <div class="partner-membership-status mt-2 p-2 bg-light rounded">
+                <!-- Check if partner has pet owner type using new data format -->
+                <t t-set="is_pet_owner"
+                   t-value="partner.ths_partner_type_id and ((Array.isArray(partner.ths_partner_type_id) and partner.ths_partner_type_id[1] === 'Pet Owner') or (partner.ths_partner_type_id.name === 'Pet Owner'))"/>
+
+                <div class="partner-membership-status mt-2 p-2 bg-light rounded" t-if="is_pet_owner">
                     <!-- Membership icon and label with proper accessibility -->
                     <small class="text-muted">
                         <i class="fa fa-star me-1"
@@ -36,6 +41,11 @@
                              <span class="text-success">Active Pet Memberships (</span>
                             <span class="text-success" t-esc="partner.pet_membership_count"/>
                             <span class="text-success">)</span>
+                        </t>
+
+                        <!-- Check for legacy membership fields -->
+                        <t t-elif="partner.vet_membership_valid">
+                            <span class="text-success">Active Membership</span>
                         </t>
 
                         <!-- No memberships -->

@@ -67,7 +67,7 @@ class HrDepartment(models.Model):
         AppointmentResource = self.env['appointment.resource']
 
         apt_type = AppointmentType.search([('ths_source_department_id', '=', self.id)], limit=1)
-        apt_type_name = _("%s Appointments") % self.name
+        apt_type_name = _("%s") % self.name
 
         # Find APPOINTMENT.RESOURCE records for practitioners in this department
         # This assumes hr_employee.appointment_resource_id is populated correctly
@@ -86,11 +86,6 @@ class HrDepartment(models.Model):
         ])
 
         all_relevant_appointment_resources = practitioner_appointment_resources | location_appointment_resources
-
-        _logger.info(
-            f"Department '{self.name}': Found {len(practitioner_appointment_resources)} practitioner appointment resources "
-            f"and {len(location_appointment_resources)} location appointment resources."
-        )
 
         common_values = {
             'name': apt_type_name,

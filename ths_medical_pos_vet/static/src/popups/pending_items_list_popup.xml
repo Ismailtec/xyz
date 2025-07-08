@@ -2,19 +2,15 @@
 <templates id="template" xml:space="preserve">
 
     <!--
-    IMPORTANT: This follows Odoo 18 OWL 3 template inheritance methodology using t-inherit.
-    This is the LATEST and CORRECT approach for extending existing popup templates in Odoo 18.
-    The t-inherit system allows modifying specific parts of templates without breaking inheritance.
-
     Veterinary-specific adaptation of PendingItemsListPopup template
     Modifies the base medical popup to show Pet/Owner information clearly
+    Updated for new data structure with [id, name] format
     -->
     <t t-inherit="ths_medical_pos.PendingItemsListPopup" t-inherit-mode="extension">
 
         <!--
         Veterinary Enhancement: Replace table header to show Pet and Owner columns
         Changes "Patient" to "Pet" and adds separate "Owner" column for clarity
-        Updated to match the fixed base template structure
         -->
         <xpath expr="//thead/tr" position="replace">
              <tr>
@@ -23,7 +19,7 @@
                  <th>Product/Service</th>  <!-- Preserved from base -->
                  <th>Qty</th>              <!-- Preserved from base -->
                  <th>Unit Price</th>       <!-- Preserved from base -->
-                 <th>Service Provider</th>         <!-- Preserved from base -->
+                 <th>Service Provider</th> <!-- Preserved from base -->
                  <th>Encounter</th>        <!-- Preserved from base -->
                  <th>Action</th>           <!-- Preserved from base -->
             </tr>
@@ -39,14 +35,84 @@
 
         <!--
         Veterinary Enhancement: Replace first data column to show Pet and Owner separately
-        Updated XPath to work with the fixed base template structure
+        Updated for new data structure with [id, name] format handling
         Splits the single patient column into Pet and Owner for better veterinary workflow
         -->
         <xpath expr="//tbody/t[@t-foreach='itemsToShow']/tr/td[1]" position="replace">
-             <!-- Pet column: Shows the pet name -->
-            <td><t t-esc="item.patient_id ? item.patient_id[1] : 'N/A'"/></td>
-            <!-- Owner column: Shows the pet owner name who will pay -->
-            <td><t t-esc="item.partner_id ? item.partner_id[1] : 'N/A'"/></td>
+             <!-- Pet column: Shows the pet name - handle [id, name] format -->
+            <td>
+                <t t-if="item.patient_ids and item.patient_ids.length > 0">
+                    <!-- Handle both array format and object format -->
+                    <t t-if="Array.isArray(item.patient_ids[0])">
+                        <t t-esc="item.patient_ids[0][1] || 'N/A'"/>
+                    </t>
+                    <t t-else="">
+                        <t t-esc="item.patient_ids[0].name || item.patient_ids[0] || 'N/A'"/>
+                    </t>
+                </t>
+                <t t-else="">N/A</t>
+            </td>
+            <!-- Owner column: Shows the pet owner name who will pay - handle [id, name] format -->
+            <td>
+                <t t-if="item.partner_id">
+                    <!-- Handle both array format and object format -->
+                    <t t-if="Array.isArray(item.partner_id)">
+                        <t t-esc="item.partner_id[1] || 'N/A'"/>
+                    </t>
+                    <t t-else="">
+                        <t t-esc="item.partner_id.name || item.partner_id || 'N/A'"/>
+                    </t>
+                </t>
+                <t t-else="">N/A</t>
+            </td>
+        </xpath>
+
+        <!--
+        Update other columns to handle new data format properly
+        -->
+        <!-- Product/Service column -->
+        <xpath expr="//tbody/t[@t-foreach='itemsToShow']/tr/td[2]" position="replace">
+            <td>
+                <t t-if="item.product_id">
+                    <t t-if="Array.isArray(item.product_id)">
+                        <t t-esc="item.product_id[1] || 'N/A'"/>
+                    </t>
+                    <t t-else="">
+                        <t t-esc="item.product_id.name || item.product_id || 'N/A'"/>
+                    </t>
+                </t>
+                <t t-else="">N/A</t>
+            </td>
+        </xpath>
+
+        <!-- Service Provider column -->
+        <xpath expr="//tbody/t[@t-foreach='itemsToShow']/tr/td[5]" position="replace">
+            <td>
+                <t t-if="item.practitioner_id">
+                    <t t-if="Array.isArray(item.practitioner_id)">
+                        <t t-esc="item.practitioner_id[1] || 'N/A'"/>
+                    </t>
+                    <t t-else="">
+                        <t t-esc="item.practitioner_id.name || item.practitioner_id || 'N/A'"/>
+                    </t>
+                </t>
+                <t t-else="">N/A</t>
+            </td>
+        </xpath>
+
+        <!-- Encounter column -->
+        <xpath expr="//tbody/t[@t-foreach='itemsToShow']/tr/td[6]" position="replace">
+            <td>
+                <t t-if="item.encounter_id">
+                    <t t-if="Array.isArray(item.encounter_id)">
+                        <t t-esc="item.encounter_id[1] || 'N/A'"/>
+                    </t>
+                    <t t-else="">
+                        <t t-esc="item.encounter_id.name || item.encounter_id || 'N/A'"/>
+                    </t>
+                </t>
+                <t t-else="">N/A</t>
+            </td>
         </xpath>
 
     </t>

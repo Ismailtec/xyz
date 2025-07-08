@@ -20,28 +20,28 @@ class ThsMedicalEncounter(models.Model):
 	)
 
 	# Payment tracking
-	total_pending_amount = fields.Float(
-		string='Total Pending Amount',
-		compute='_compute_payment_status',
+	total_pos_pending_amount = fields.Float(
+		string='Total POS Pending Amount',
+		compute='_compute_pos_payment_status',
 		store=True,
 		help="Total amount of unpaid items"
 	)
-	total_paid_amount = fields.Float(
-		string='Total Paid Amount',
-		compute='_compute_payment_status',
+	total_pos_paid_amount = fields.Float(
+		string='Total POS Paid Amount',
+		compute='_compute_pos_payment_status',
 		store=True,
 		help="Total amount of paid items"
 	)
-	has_pending_payments = fields.Boolean(
-		string='Has Pending Payments',
-		compute='_compute_payment_status',
+	has_pos_pending_payments = fields.Boolean(
+		string='Has POS Pending Payments',
+		compute='_compute_pos_payment_status',
 		store=True,
 		help="True if there are unpaid items"
 	)
 
 	# --- Compute Methods ---
 	@api.depends('pos_order_ids.amount_total', 'pos_order_ids.state')
-	def _compute_payment_status(self):
+	def _compute_pos_payment_status(self):
 		"""Compute payment status from linked POS orders and pending items"""
 		for encounter in self:
 			# Calculate from POS orders
@@ -82,7 +82,7 @@ class ThsMedicalEncounter(models.Model):
 		result = []
 		for rec in self.search(domain):
 			entry = rec.read(all_fields)[0]
-			entry['patient_ids'] = rec.patient_ids.patient_name('patient_ids')
+			# entry['patient_ids'] = rec.patient_ids.patient_name('patient_ids')
 			result.append(entry)
 		return {'data': result, 'fields': all_fields}
 
@@ -101,36 +101,39 @@ class ThsMedicalEncounter(models.Model):
 					encounter.pos_order_count += count
 
 	def _trigger_pos_sync(self, operation='update'):
-		"""Trigger POS sync for encounter updates"""
-		# Import here to avoid circular imports
+		"""Trigger POS sync for partner updates"""
+		# IMPORTANT: Add this guard. If self is empty, there are no records to sync.
+		if not self:
+			return
+
 		PosSession = self.env['pos.session']
 
 		if self._name in PosSession.CRITICAL_MODELS:
 			try:
 				active_sessions = PosSession.search([('state', '=', 'opened')])
 
-				# Use the model's _load_pos_data method to get properly formatted data
-				if hasattr(self, '_load_pos_data'):
-					sync_data = self._load_pos_data({})
-					current_data = [r for r in sync_data.get('data', []) if r.get('id') in self.ids]
+				current_data = []
+				if operation != 'delete':
+					fields_to_sync = self._load_pos_data_fields(False)
+					current_data = self.read(fields_to_sync)
 				else:
-					current_data = self.read()
+					current_data = [{'id': record_id} for record_id in self.ids]
 
-				# Send notification to all active sessions
 				for session in active_sessions:
-					channel = (self._cr.dbname, 'pos.session', session.id)
+					channel = 'pos.sync.channel'  # (self._cr.dbname, 'pos.session', session.id)
 					self.env['bus.bus']._sendone(
 						channel,
+						'critical_update',
 						{
 							'type': 'critical_update',
 							'model': self._name,
 							'operation': operation,
-							'records': current_data if operation != 'delete' else [{'id': record_id} for record_id in
-							                                                       self.ids]
+							'records': current_data
 						}
 					)
+					_logger.info(f"POS Sync - Data sent to bus for res.partner (action: {operation}, IDs: {self.ids})")
 			except Exception as e:
-				_logger.error(f"Error triggering POS sync for {self._name}: {e}")
+				_logger.error(f"Error triggering POS sync for {self._name} (IDs: {self.ids}): {e}")
 
 	@api.model_create_multi
 	def create(self, vals_list):
